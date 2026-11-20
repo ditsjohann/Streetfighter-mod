@@ -23,6 +23,7 @@ public final class ClientSetup {
         modBus.addListener(ClientSetup::registerKeys);
         modBus.addListener(ClientSetup::registerOverlays);
         MinecraftForge.EVENT_BUS.register(ClientEvents.class);
+        MinecraftForge.EVENT_BUS.register(com.streetfighter.client.world.WorldRenderEvents.class);
     }
 
     private static void registerOverlays(AddGuiOverlayLayersEvent event) {

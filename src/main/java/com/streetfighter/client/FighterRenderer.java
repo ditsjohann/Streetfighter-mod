@@ -93,10 +93,12 @@ final class FighterRenderer {
         Lighting.setupForEntityInInventory();
         EntityRenderDispatcher dispatcher = Minecraft.getInstance().getEntityRenderDispatcher();
         dispatcher.setRenderShadow(false);
+        com.streetfighter.client.world.FightAnimator.suspended = true;
         try {
             RenderSystem.runAsFancy(() -> dispatcher.render(entity, 0, 0, 0, 0f, 1f, ps, g.bufferSource(), 0xF000F0));
             g.flush();
         } finally {
+            com.streetfighter.client.world.FightAnimator.suspended = false;
             dispatcher.setRenderShadow(true);
             ps.popPose();
             Lighting.setupFor3DItems();

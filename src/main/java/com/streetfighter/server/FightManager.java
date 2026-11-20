@@ -91,7 +91,6 @@ public final class FightManager {
         mob.getNavigation().stop();
         mob.setDeltaMovement(Vec3.ZERO);
         mob.setTarget(null);
-        mob.lookAt(player, 360, 360);
 
         String name = mob.getDisplayName().getString();
         boolean hostile = mob instanceof Enemy;
@@ -108,7 +107,11 @@ public final class FightManager {
         if (s == null) return;
         Entity entity = s.level.getEntity(s.mobUuid);
         Mob mob = entity instanceof Mob m && m.isAlive() ? m : null;
-        if (mob != null) mob.setNoAi(s.prevNoAi);
+        if (mob != null) {
+            mob.setNoAi(s.prevNoAi);
+            mob.fallDistance = 0;
+        }
+        player.fallDistance = 0;
 
         if (result.cancelled()) {
             player.displayClientMessage(Component.literal("You backed out of the fight.").withStyle(ChatFormatting.GRAY), true);
@@ -165,6 +168,20 @@ public final class FightManager {
         }
     }
 
+    /** The client moved the mob along the fight line; mirror it on the server so everyone sees it. */
+    public static void syncMob(ServerPlayer player, double x, double y, double z, float yaw) {
+        Session s = SESSIONS.get(player.getUUID());
+        if (s == null) return;
+        Entity entity = s.level.getEntity(s.mobUuid);
+        if (!(entity instanceof Mob mob) || !mob.isAlive()) return;
+        // only accept positions near the fight (the arena is at most ~22 blocks long)
+        if (mob.distanceToSqr(x, y, z) > 20 * 20 || player.distanceToSqr(x, y, z) > 24 * 24) return;
+        mob.moveTo(x, y, z, yaw, mob.getXRot());
+        mob.setYHeadRot(yaw);
+        mob.setYBodyRot(yaw);
+        mob.setDeltaMovement(Vec3.ZERO);
+    }
+
     /** Ends a fight without a result (player left, mob vanished...). */
     public static void abandon(UUID playerId) {
         Session s = SESSIONS.remove(playerId);
@@ -189,10 +206,10 @@ public final class FightManager {
             // keep the opponent frozen and looking at the player
             Entity entity = s.level.getEntity(s.mobUuid);
             player.clearFire();
+            player.fallDistance = 0;
             if (entity instanceof Mob mob && mob.isAlive()) {
                 mob.clearFire(); // no burning in daylight mid-fight
-                mob.setDeltaMovement(mob.getDeltaMovement().multiply(0, 1, 0));
-                mob.getLookControl().setLookAt(player, 30, 30);
+                mob.fallDistance = 0;
             }
         }
     }

@@ -23,6 +23,13 @@ public final class FightEngine {
 
     public enum Phase { INTRO, FIGHT_CALL, FIGHTING, KO, ROUND_END, MATCH_END }
 
+    /** SF4-style damage scaling by hit number in a combo (1st, 2nd, 3rd...). */
+    private static final float[] SCALING = {1f, 1f, 0.8f, 0.7f, 0.6f, 0.5f, 0.4f, 0.3f, 0.2f, 0.1f};
+
+    /** Arena walls in arena units (may be narrower than ARENA_WIDTH when terrain gets in the way). */
+    public final float arenaMin, arenaMax;
+    private final float startSeparation;
+
     public final Fighter player;
     public final Fighter enemy;
     private final Fighter[] fighters;
@@ -48,6 +55,19 @@ public final class FightEngine {
     private final FightInput neutral = new FightInput();
 
     public FightEngine(Fighter player, Fighter enemy, FighterAI ai, AIDifficulty difficulty) {
+        this(player, enemy, ai, difficulty, 0, ARENA_WIDTH, 340);
+    }
+
+    /**
+     * @param arenaMin        left wall (arena units)
+     * @param arenaMax        right wall
+     * @param startSeparation distance between the fighters when each round starts
+     */
+    public FightEngine(Fighter player, Fighter enemy, FighterAI ai, AIDifficulty difficulty,
+                       float arenaMin, float arenaMax, float startSeparation) {
+        this.arenaMin = arenaMin;
+        this.arenaMax = arenaMax;
+        this.startSeparation = Math.min(startSeparation, Math.max(120, arenaMax - arenaMin - 2 * WALL - 20));
         this.player = player;
         this.enemy = enemy;
         this.fighters = new Fighter[]{player, enemy};
@@ -75,8 +95,9 @@ public final class FightEngine {
     // ------------------------------------------------------------------ round flow
 
     private void resetRound() {
-        player.x = ARENA_WIDTH / 2f - 170;
-        enemy.x = ARENA_WIDTH / 2f + 170;
+        float mid = (arenaMin + arenaMax) / 2f;
+        player.x = mid - startSeparation / 2f;
+        enemy.x = mid + startSeparation / 2f;
         for (Fighter f : fighters) {
             f.y = 0;
             f.vx = f.vy = 0;
@@ -90,6 +111,8 @@ public final class FightEngine {
             f.comboShown = 0;
             f.chainCount = 0;
             f.clearMotion();
+            f.throwTechWindow = 0;
+            f.lastCounter = null;
         }
         player.facingRight = true;
         enemy.facingRight = false;
@@ -236,16 +259,28 @@ public final class FightEngine {
         f.input.special1 = in.special1;
         f.input.special2 = in.special2;
         f.input.superMove = in.superMove;
-        f.recordDirection();
+        f.buffer.update(in, f.facingRight);
         Fighter opp = other(f);
+        InputBuffer b = f.buffer;
 
         switch (f.state) {
             case IDLE, WALK, CROUCH -> {
                 if (Math.abs(opp.x - f.x) > 1) f.facingRight = opp.x > f.x;
-                Move chosen = pickSpecial(f, in);
+                Move chosen = pickSpecial(f);
+                if (chosen == null && b.together(InputBuffer.Button.LIGHT, InputBuffer.Button.HEAVY, 2)
+                        && Math.abs(opp.x - f.x) < 95 && !in.down) {
+                    chosen = Movesets.THROW;
+                    b.consume(InputBuffer.Button.LIGHT);
+                    b.consume(InputBuffer.Button.HEAVY);
+                }
                 if (chosen == null) {
-                    if (in.heavy) chosen = in.down ? f.moves.crouchHeavy() : f.moves.heavy();
-                    else if (in.light) chosen = in.down ? f.moves.crouchLight() : f.moves.light();
+                    if (b.buffered(InputBuffer.Button.HEAVY)) {
+                        chosen = in.down ? f.moves.crouchHeavy() : f.moves.heavy();
+                        b.consume(InputBuffer.Button.HEAVY);
+                    } else if (b.buffered(InputBuffer.Button.LIGHT)) {
+                        chosen = in.down ? f.moves.crouchLight() : f.moves.light();
+                        b.consume(InputBuffer.Button.LIGHT);
+                    }
                 }
                 if (chosen != null) {
                     startMove(f, chosen);
@@ -272,23 +307,35 @@ public final class FightEngine {
                 }
             }
             case JUMP -> {
-                if (!f.airAttackUsed && (in.light || in.heavy)) {
+                if (!f.airAttackUsed && (b.buffered(InputBuffer.Button.LIGHT) || b.buffered(InputBuffer.Button.HEAVY))) {
                     f.airAttackUsed = true;
-                    startMove(f, in.heavy ? f.moves.airHeavy() : f.moves.airLight());
+                    boolean heavy = b.buffered(InputBuffer.Button.HEAVY);
+                    b.consume(InputBuffer.Button.LIGHT);
+                    b.consume(InputBuffer.Button.HEAVY);
+                    startMove(f, heavy ? f.moves.airHeavy() : f.moves.airLight());
                 }
             }
             case ATTACK -> {
                 Move m = f.move;
                 if (m != null && f.moveConnected && m.cancelable && !m.special && f.curFrame >= m.startup) {
-                    Move sp = pickSpecial(f, in);
+                    Move sp = pickSpecial(f);
                     if (sp != null) {
                         startMove(f, sp);
-                    } else if (m.chainable && in.heavy) {
+                    } else if (m.chainable && b.buffered(InputBuffer.Button.HEAVY)) {
+                        b.consume(InputBuffer.Button.HEAVY);
                         startMove(f, in.down ? f.moves.crouchHeavy() : f.moves.heavy());
-                    } else if (m.chainable && in.light && f.chainCount < 3) {
+                    } else if (m.chainable && f.chainCount < 3 && b.buffered(InputBuffer.Button.LIGHT)) {
+                        b.consume(InputBuffer.Button.LIGHT);
                         f.chainCount++;
                         startMove(f, in.down ? f.moves.crouchLight() : f.moves.light());
                     }
+                }
+            }
+            case HITSTUN -> {
+                // throw tech: press light + heavy right as you get grabbed
+                if (f.throwTechWindow > 0) {
+                    f.throwTechWindow--;
+                    if (b.together(InputBuffer.Button.LIGHT, InputBuffer.Button.HEAVY, 3)) techThrow(f);
                 }
             }
             default -> {
@@ -296,13 +343,44 @@ public final class FightEngine {
         }
     }
 
-    private Move pickSpecial(Fighter f, FightInput in) {
+    /** Super > special 2 (incl. 623) > special 1, either from dedicated buttons or motions + a button. */
+    private Move pickSpecial(Fighter f) {
         if (!f.grounded()) return null;
-        if (in.superMove && f.meter >= 100 && f.moves.superMove() != null) return f.moves.superMove();
-        boolean button = in.light || in.heavy;
-        if (in.special2 || (button && f.quarterCircleBack())) return f.moves.special2();
-        if (in.special1 || (button && f.quarterCircleForward())) return f.moves.special1();
-        return null;
+        InputBuffer b = f.buffer;
+        boolean attackButton = b.buffered(InputBuffer.Button.LIGHT) || b.buffered(InputBuffer.Button.HEAVY);
+        Move result = null;
+        if (f.meter >= 100 && f.moves.superMove() != null
+                && (b.buffered(InputBuffer.Button.SUPER) || (attackButton && b.motion(InputBuffer.Motion.QCF2)))) {
+            result = f.moves.superMove();
+        } else if (b.buffered(InputBuffer.Button.SPECIAL2)
+                || (attackButton && (b.motion(InputBuffer.Motion.DP) || b.motion(InputBuffer.Motion.QCB)))) {
+            result = f.moves.special2();
+        } else if (b.buffered(InputBuffer.Button.SPECIAL1) || (attackButton && b.motion(InputBuffer.Motion.QCF))) {
+            result = f.moves.special1();
+        }
+        if (result != null) {
+            for (InputBuffer.Button btn : InputBuffer.Button.values()) b.consume(btn);
+        }
+        return result;
+    }
+
+    private void techThrow(Fighter victim) {
+        Fighter thrower = other(victim);
+        victim.throwTechWindow = 0;
+        victim.hp = Math.min(victim.maxHp, victim.hp + Movesets.THROW.damage * 0.8f); // refund most of it
+        victim.launched = false;
+        victim.vy = 0;
+        int away = victim.x >= thrower.x ? 1 : -1;
+        victim.vx = away * 7;
+        victim.state = State.BLOCKSTUN;
+        victim.stateTimer = 14;
+        thrower.state = State.BLOCKSTUN;
+        thrower.stateTimer = 14;
+        thrower.move = null;
+        thrower.vx = -away * 7;
+        victim.comboTaken = 0;
+        hitstop = 8;
+        events.add(new FightEvent(Type.CLASH, victim.index, (victim.x + thrower.x) / 2f, 70, "TECH!", null, true));
     }
 
     private void setState(Fighter f, State s) {
@@ -574,17 +652,26 @@ public final class FightEngine {
             return HitResult.BLOCK;
         }
 
-        float scale = Math.max(0.35f, 1f - 0.1f * d.comboTaken);
-        float dmg = h.damage() * scale * a.damageScale;
+        // Counter hit = interrupting the opponent's startup/active frames, punish counter = hitting their recovery.
+        String counter = null;
+        if (d.state == State.ATTACK && d.move != null && d.comboTaken == 0) {
+            counter = d.curFrame >= d.activeEnd ? "PUNISH COUNTER" : "COUNTER";
+        }
+        float scale = SCALING[Math.min(d.comboTaken, SCALING.length - 1)];
+        boolean superHit = a.move != null && a.move.isSuper;
+        if (superHit) scale = Math.max(scale, 0.5f); // supers keep at least 50% damage, like SF
+        float dmg = h.damage() * scale * a.damageScale * (counter != null ? 1.2f : 1f);
         d.hp = Math.max(0, d.hp - dmg);
         d.comboTaken++;
         a.comboShown = d.comboTaken;
         a.comboTimer = 90;
         d.wasCrouchingWhenHit = d.crouching();
+        d.lastCounter = counter;
         d.move = null;
         d.state = State.HITSTUN;
         d.stateAge = 0;
-        d.stateTimer = h.hitstun();
+        d.stateTimer = h.hitstun() + (counter == null ? 0 : counter.startsWith("P") ? 8 : 4);
+        d.throwTechWindow = h.level() == HitLevel.GRAB ? 7 : 0;
         boolean air = !d.grounded();
         if (h.knockdown() || air || h.launch() > 0) {
             d.launched = true;
@@ -597,9 +684,10 @@ public final class FightEngine {
         a.meter = Math.min(100, a.meter + 2.5f + h.damage() / 30f);
         d.meter = Math.min(100, d.meter + 3);
         boolean heavy = dmg >= 70 || h.knockdown();
-        hitstop = heavy ? 9 : 6;
-        if (dmg >= 100) shake = Math.max(shake, 7);
-        events.add(new FightEvent(Type.HIT, d.index, px, py, null, null, heavy));
+        hitstop = (heavy ? 10 : 7) + (counter != null ? 5 : 0);
+        if (dmg >= 100 || counter != null) shake = Math.max(shake, 7);
+        if (counter != null && counter.startsWith("P")) a.meter = Math.min(100, a.meter + 8);
+        events.add(new FightEvent(Type.HIT, d.index, px, py, counter, null, heavy));
         if (d.hp <= 0) knockOut(d, dirAway);
         return HitResult.HIT;
     }
@@ -617,7 +705,7 @@ public final class FightEngine {
     }
 
     private boolean nearWall(Fighter f) {
-        return f.x <= WALL + 6 || f.x >= ARENA_WIDTH - WALL - 6;
+        return f.x <= arenaMin + WALL + 6 || f.x >= arenaMax - WALL - 6;
     }
 
     // ------------------------------------------------------------------ projectiles
@@ -651,7 +739,7 @@ public final class FightEngine {
     }
 
     private float clampArena(float x) {
-        return Math.max(WALL + 20, Math.min(ARENA_WIDTH - WALL - 20, x));
+        return Math.max(arenaMin + WALL + 20, Math.min(arenaMax - WALL - 20, x));
     }
 
     private void updateProjectiles() {
@@ -693,7 +781,7 @@ public final class FightEngine {
                 }
             }
             if (p.age > p.spec.lifetime && !p.landed) p.dead = true;
-            if (p.x < -400 || p.x > ARENA_WIDTH + 400) p.dead = true;
+            if (p.x < arenaMin - 400 || p.x > arenaMax + 400) p.dead = true;
             if (p.dead) continue;
 
             Fighter target = fighters[1 - p.owner];
@@ -740,7 +828,7 @@ public final class FightEngine {
     // ------------------------------------------------------------------ bodies & bounds
 
     private void resolveBodies() {
-        for (Fighter f : fighters) f.x = Math.max(WALL, Math.min(ARENA_WIDTH - WALL, f.x));
+        for (Fighter f : fighters) f.x = Math.max(arenaMin + WALL, Math.min(arenaMax - WALL, f.x));
 
         float dist = Math.abs(player.x - enemy.x);
         if (dist > MAX_SEPARATION) {
@@ -756,8 +844,8 @@ public final class FightEngine {
         if (verticalOverlap && Math.abs(dx) < minDist) {
             float overlap = minDist - Math.abs(dx);
             int s = dx > 0 ? 1 : dx < 0 ? -1 : (player.facingRight ? 1 : -1);
-            boolean pWall = (s > 0 && player.x <= WALL + 1) || (s < 0 && player.x >= ARENA_WIDTH - WALL - 1);
-            boolean eWall = (s > 0 && enemy.x >= ARENA_WIDTH - WALL - 1) || (s < 0 && enemy.x <= WALL + 1);
+            boolean pWall = (s > 0 && player.x <= arenaMin + WALL + 1) || (s < 0 && player.x >= arenaMax - WALL - 1);
+            boolean eWall = (s > 0 && enemy.x >= arenaMax - WALL - 1) || (s < 0 && enemy.x <= arenaMin + WALL + 1);
             if (pWall) enemy.x += s * overlap;
             else if (eWall) player.x -= s * overlap;
             else {
@@ -765,12 +853,12 @@ public final class FightEngine {
                 enemy.x += s * overlap / 2f;
             }
         }
-        for (Fighter f : fighters) f.x = Math.max(WALL, Math.min(ARENA_WIDTH - WALL, f.x));
+        for (Fighter f : fighters) f.x = Math.max(arenaMin + WALL, Math.min(arenaMax - WALL, f.x));
     }
 
     /** Camera left edge in arena units. */
     public float cameraX() {
         float mid = (player.x + enemy.x) / 2f;
-        return Math.max(0, Math.min(ARENA_WIDTH - VIEW_WIDTH, mid - VIEW_WIDTH / 2f));
+        return Math.max(arenaMin, Math.min(arenaMax - VIEW_WIDTH, mid - VIEW_WIDTH / 2f));
     }
 }

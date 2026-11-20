@@ -28,6 +28,9 @@ public final class ModNetwork {
         CHANNEL.messageBuilder(SetDifficultyPacket.class, NetworkDirection.PLAY_TO_SERVER)
                 .encoder(SetDifficultyPacket::encode).decoder(SetDifficultyPacket::decode)
                 .consumerMainThread(SetDifficultyPacket::handle).add();
+        CHANNEL.messageBuilder(FightSyncPacket.class, NetworkDirection.PLAY_TO_SERVER)
+                .encoder(FightSyncPacket::encode).decoder(FightSyncPacket::decode)
+                .consumerMainThread(FightSyncPacket::handle).add();
         CHANNEL.messageBuilder(OpenFightPacket.class, NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(OpenFightPacket::encode).decoder(OpenFightPacket::decode)
                 .consumerMainThread(OpenFightPacket::handle).add();

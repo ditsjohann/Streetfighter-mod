@@ -43,8 +43,6 @@ public final class Fighter {
     public boolean wasCrouchingWhenHit;
 
     public final FightInput input = new FightInput();
-    private final int[] dirHistory = new int[24];
-    private int dirHead;
 
     public Fighter(int index, String name, FighterType body, Moveset moves, FighterStats stats, float hpScale,
                    float damageScale) {
@@ -133,43 +131,15 @@ public final class Fighter {
         return state == State.ATTACK && move != null && curFrame < activeEnd && curFrame + framesAhead >= move.startup;
     }
 
-    // ------------------------------------------------------------------ motion inputs
+    // ------------------------------------------------------------------ input buffer
 
-    /** Records the held direction as a numpad digit relative to facing (6 = forward, 2 = down...). */
-    void recordDirection() {
-        boolean fwd = holdingForward(), back = holdingBack();
-        int h = fwd ? 1 : back ? -1 : 0;
-        int v = input.up ? 1 : input.down ? -1 : 0;
-        int digit = 5 + h + v * 3;
-        dirHistory[dirHead] = digit;
-        dirHead = (dirHead + 1) % dirHistory.length;
-    }
-
-    private boolean motion(int a, int b, int c) {
-        // Search newest -> oldest for c, then b, then a within the history window.
-        int stage = 0;
-        int[] seq = {c, b, a};
-        for (int i = 0; i < dirHistory.length; i++) {
-            int idx = Math.floorMod(dirHead - 1 - i, dirHistory.length);
-            int d = dirHistory[idx];
-            if (stage == 0 && i > 10) return false;
-            if (d == seq[stage]) {
-                stage++;
-                if (stage == 3) return true;
-            }
-        }
-        return false;
-    }
-
-    public boolean quarterCircleForward() {
-        return motion(2, 3, 6);
-    }
-
-    public boolean quarterCircleBack() {
-        return motion(2, 1, 4);
-    }
+    public final InputBuffer buffer = new InputBuffer();
+    /** Set when this fighter is being thrown, so a light+heavy press can tech it. */
+    public int throwTechWindow;
+    /** Text shown when a counter hit lands on this fighter ("COUNTER", "PUNISH COUNTER"). */
+    public String lastCounter;
 
     public void clearMotion() {
-        java.util.Arrays.fill(dirHistory, 5);
+        buffer.clear();
     }
 }

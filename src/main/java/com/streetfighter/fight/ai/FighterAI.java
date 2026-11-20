@@ -57,6 +57,10 @@ public abstract class FighterAI {
         // 1. Stunned: keep holding block if we were blocking.
         if (self.state == State.HITSTUN || self.state == State.KNOCKDOWN) {
             blockingThreat = false;
+            if (self.throwTechWindow > 0 && self.throwTechWindow == 7 && chance(hard() ? 0.45f : 0.12f)) {
+                out.light = true; // throw tech
+                out.heavy = true;
+            }
             return out;
         }
         if (self.state == State.BLOCKSTUN) {
@@ -110,7 +114,14 @@ public abstract class FighterAI {
             if (chance(difficulty.punishChance) && punish(e, self, opp, dist)) return out;
         }
 
-        // 6. Regular neutral game.
+        // 6. Throw a turtling opponent.
+        if (dist < 80 && opp.grounded() && opp.holdingBack() && chance(hard() ? 0.06f : 0.02f)) {
+            out.light = true;
+            out.heavy = true;
+            return out;
+        }
+
+        // 7. Regular neutral game.
         if (--decisionTimer <= 0) {
             decisionTimer = difficulty.reactionFrames + rng.nextInt(difficulty.reactionFrames + 1);
             planHorizontal = 0;

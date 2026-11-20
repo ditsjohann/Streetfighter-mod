@@ -23,6 +23,7 @@ minecraft {
             workingDirectory project.file('run')
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
+            args '--mixin.config', 'streetfighter.mixins.json'
 
             mods {
                 "${mod_id}" {
@@ -79,7 +80,8 @@ tasks.named('jar', Jar).configure {
                 'Specification-Version'   : '1',
                 'Implementation-Title'    : project.name,
                 'Implementation-Version'  : project.jar.archiveVersion,
-                'Implementation-Vendor'   : mod_authors
+                'Implementation-Vendor'   : mod_authors,
+                'MixinConfigs'            : 'streetfighter.mixins.json'
         ])
     }
 }

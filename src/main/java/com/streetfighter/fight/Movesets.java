@@ -19,6 +19,10 @@ public final class Movesets {
         SETS.put(FighterType.BRAWLER, brawler());
     }
 
+    /** Universal throw (light + heavy together, close range). Grabs can't be blocked but can be teched. */
+    public static final Move THROW = Move.builder("Throw").frames(5, 3, 26).damage(120).box(5, 62, 20, 120)
+            .level(HitLevel.GRAB).stun(30, 0).push(9).launch(8).knockdown().pose(AnimPose.GRAB).callout("THROW!").build();
+
     private Movesets() {
     }
 
@@ -125,20 +129,20 @@ public final class Movesets {
     // ---------------------------------------------------------------- PIG (rushdown tank)
 
     private static Moveset pig() {
-        FighterStats stats = new FighterStats(1150, 3.1f, 2.5f, 13f, 4.4f, 0.8f, 92, 92, 66);
-        Move light = Move.builder("Snout Poke").frames(4, 3, 8).damage(32).box(30, 82, 25, 75)
+        FighterStats stats = new FighterStats(1100, 3.1f, 2.5f, 13f, 4.4f, 0.8f, 104, 84, 62);
+        Move light = Move.builder("Snout Poke").frames(5, 3, 9).damage(30).box(34, 92, 20, 72)
                 .stun(13, 9).push(4).cancelable().chainable().pose(AnimPose.LUNGE).build();
-        Move heavy = Move.builder("Hoof Stomp").frames(10, 4, 17).damage(72).box(20, 92, 0, 40)
+        Move heavy = Move.builder("Hoof Stomp").frames(11, 4, 20).damage(64).box(30, 100, 0, 40)
                 .level(HitLevel.LOW).stun(20, 14).push(7).cancelable().pose(AnimPose.SLAM).build();
-        Move cLight = Move.builder("Truffle Dig").frames(4, 3, 8).damage(26).box(25, 80, 0, 35)
+        Move cLight = Move.builder("Truffle Dig").frames(4, 3, 8).damage(26).box(30, 88, 0, 35)
                 .level(HitLevel.LOW).stun(12, 8).push(3).cancelable().chainable().pose(AnimPose.LUNGE).crouching().build();
-        Move slide = Move.builder("Mud Slide").frames(8, 12, 18).damage(65).box(20, 90, 0, 35)
+        Move slide = Move.builder("Mud Slide").frames(8, 12, 18).damage(65).box(30, 98, 0, 35)
                 .level(HitLevel.LOW).stun(20, 14).push(6).knockdown().dash(6f, 8, 20).pose(AnimPose.LUNGE)
                 .crouching().build();
-        Move charge = Move.builder("Hog Charge").frames(10, 24, 18).damage(98).box(20, 85, 10, 80)
+        Move charge = Move.builder("Hog Charge").frames(12, 24, 28).damage(90).box(30, 94, 10, 78)
                 .stun(24, 16).push(14).launch(6).knockdown().special().stopOnHit().dash(10.5f, 10, 34)
                 .pose(AnimPose.LUNGE).callout("Hog Charge!").build();
-        Move flop = Move.builder("Belly Flop").frames(14, 1, 18).damage(105).box(-20, 90, -10, 70)
+        Move flop = Move.builder("Belly Flop").frames(14, 1, 24).damage(95).box(-26, 98, -10, 70)
                 .level(HitLevel.HIGH).stun(24, 16).push(8).launch(5).knockdown().special().untilLanding()
                 .leap(14.5f, 4.5f, 4).pose(AnimPose.SLAM).callout("Belly Flop!").build();
         Move stampede = Move.builder("Stampede").frames(10, 2, 40).damage(0).box(0, 0, 0, 0).superMove()
@@ -146,9 +150,9 @@ public final class Movesets {
                         .offset(-220, 0).damage(95).stun(22, 14).push(8).launch(7).knockdown()
                         .count(3, 16).durable().lifetime(160).build(), 10)
                 .invuln(0, 12).pose(AnimPose.TAUNT).callout("STAMPEDE!").build();
-        Move airLight = Move.builder("Air Oink").frames(5, 8, 4).damage(38).box(20, 80, 20, 80)
+        Move airLight = Move.builder("Air Oink").frames(5, 8, 4).damage(38).box(30, 88, 15, 75)
                 .level(HitLevel.HIGH).stun(15, 10).push(3).pose(AnimPose.LUNGE).air().build();
-        Move airHeavy = Move.builder("Ham Drop").frames(7, 9, 4).damage(68).box(0, 90, -10, 50)
+        Move airHeavy = Move.builder("Ham Drop").frames(7, 9, 4).damage(68).box(0, 96, -10, 50)
                 .level(HitLevel.HIGH).stun(19, 12).push(5).pose(AnimPose.SLAM).air().build();
         return new Moveset(FighterType.PIG, stats, light, heavy, cLight, slide, airLight, airHeavy,
                 charge, flop, stampede);

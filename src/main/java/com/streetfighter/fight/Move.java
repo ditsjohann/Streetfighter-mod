@@ -65,6 +65,11 @@ public final class Move {
         air = b.air;
     }
 
+    /** Moves that launch the user into the air (uppercuts, belly flops...). */
+    public boolean leapLike() {
+        return moveVy > 0;
+    }
+
     public int totalFrames() {
         return startup + active + recovery;
     }
