@@ -1,0 +1,36 @@
+package com.streetfighter.client;
+
+import com.mojang.blaze3d.platform.InputConstants;
+import com.streetfighter.StreetFighterMod;
+import net.minecraft.client.KeyMapping;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraftforge.client.event.AddGuiOverlayLayersEvent;
+import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
+import net.minecraftforge.client.settings.KeyConflictContext;
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.eventbus.api.IEventBus;
+import org.lwjgl.glfw.GLFW;
+
+public final class ClientSetup {
+    /** Hold to challenge the mob you're looking at. Shares E with the inventory on purpose. */
+    public static final KeyMapping CHALLENGE_KEY = new KeyMapping("key.streetfighter.challenge",
+            KeyConflictContext.IN_GAME, InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_E, "key.categories.streetfighter");
+
+    private ClientSetup() {
+    }
+
+    public static void init(IEventBus modBus) {
+        modBus.addListener(ClientSetup::registerKeys);
+        modBus.addListener(ClientSetup::registerOverlays);
+        MinecraftForge.EVENT_BUS.register(ClientEvents.class);
+    }
+
+    private static void registerOverlays(AddGuiOverlayLayersEvent event) {
+        event.getLayeredDraw().add(ResourceLocation.fromNamespaceAndPath(StreetFighterMod.MODID, "challenge_prompt"),
+                (g, delta) -> ClientEvents.renderHud(g));
+    }
+
+    private static void registerKeys(RegisterKeyMappingsEvent event) {
+        event.register(CHALLENGE_KEY);
+    }
+}

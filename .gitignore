@@ -1,0 +1,23 @@
+# gradle
+build/
+out/
+classes/
+.gradle/
+# eclipse / idea
+*.launch
+.settings
+.metadata
+.classpath
+.project
+*.ipr
+*.iws
+*.iml
+.idea/
+# vscode
+.vscode/
+bin/
+# minecraft
+run/
+run-data/
+repo/
+logs/
