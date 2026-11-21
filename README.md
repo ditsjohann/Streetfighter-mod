@@ -23,6 +23,15 @@ the world**, on the actual terrain. Beat a mob and you learn its fighting style.
 - **Real projectiles.** Splash potions in their real colours, eggs, snowballs, flocks of chickens and herds of goats.
   Arrows are actual arrow models with crit trails. Thrown dirt blocks and emeralds spin. An Iron Golem drops from the
   sky, and a pig stampede charges across the field.
+- **Street Fighter character select.**
+  - **Portrait grid:**
+    - Live 3D faces of Steve, Pig, Skeleton, Villager, Alchemist, Chicken and Goat, each with its icon.
+    - A "?" random slot (with a roulette) and black slots reserved for future fighters.
+    - Locked styles show as black silhouettes.
+  - **Showcases:** the highlighted style on a blue slab and the opponent on a red one. Each gets a huge italic name, its title,
+    its home turf, an archetype tag and POW/SPD/DEF/RNG bars.
+  - **Cursors and timer:** a blinking 1P cursor, a CPU marker, and a 30-second select timer.
+  - **Extras:** a TAB move list, and an SF2-style VS splash before the fight.
 - **Street Fighter HUD.** Slanted gold health bars with damage trails, live 3D portraits, a timer, round "V" badges,
   segmented super meters, combo counters, COUNTER / PUNISH COUNTER callouts, an outlined announcer, super cut-ins,
   and a low-health vignette.

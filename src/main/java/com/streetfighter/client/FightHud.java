@@ -58,16 +58,7 @@ public final class FightHud {
         g.fill(x - 2, y - 2, x + size + 2, y + size + 2, border);
         g.fillGradient(x, y, x + size, y + size, 0xFF2A3350, 0xFF0B0F1C);
         if (e == null) return;
-        float bbH = Math.max(0.3f, e.getBbHeight());
-        boolean small = bbH < 1.0f; // chickens & co: show the whole mob, head centred
-        boolean upright = !small && FighterRenderer.isUpright(e);
-        float px = small ? size / 1.05f : upright ? size / 0.7f : size / Math.max(0.6f, bbH * 0.95f);
-        float feetY = upright ? y + bbH * px - size * 0.02f : y + size * 0.92f;
-        float cx = x + size / 2f + (upright ? 0 : (faceRight ? -1 : 1) * size * (small ? 0.12f : 0.22f));
-        g.enableScissor(x, y, x + size, y + size);
-        FighterRenderer.Pose pose = new FighterRenderer.Pose();
-        FighterRenderer.render(g, e, cx, feetY, px, faceRight, pose);
-        g.disableScissor();
+        FighterRenderer.portrait(g, e, x, y, size, size, faceRight, 1f);
     }
 
     // ------------------------------------------------------------------ main HUD

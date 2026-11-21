@@ -46,6 +46,29 @@ final class FighterRenderer {
     }
 
     /**
+     * Head-and-shoulders portrait inside a box (SF-style face cell). Small mobs are shown whole, four-legged mobs
+     * from the side with the head centred. Clears depth afterwards so 2D drawn on top is never hidden.
+     */
+    static void portrait(GuiGraphics g, LivingEntity e, int x, int y, int w, int h, boolean faceRight, float zoom) {
+        if (e == null) return;
+        int size = Math.min(w, h);
+        float bbH = Math.max(0.3f, e.getBbHeight());
+        boolean small = bbH < 1.0f;
+        boolean upright = !small && isUpright(e);
+        float px = (small ? size / 1.05f : upright ? size / 0.7f : size / Math.max(0.6f, bbH * 0.95f)) * zoom;
+        float feetY = upright ? y + (h - size) / 2f + bbH * px - size * 0.02f * zoom : y + h * 0.92f;
+        float cx = x + w / 2f + (upright ? 0 : (faceRight ? -1 : 1) * size * (small ? 0.12f : 0.22f));
+        g.enableScissor(x, y, x + w, y + h);
+        render(g, e, cx, feetY, px, faceRight, new Pose());
+        g.disableScissor();
+        clearDepth();
+    }
+
+    static void clearDepth() {
+        RenderSystem.clear(org.lwjgl.opengl.GL11.GL_DEPTH_BUFFER_BIT, Minecraft.ON_OSX);
+    }
+
+    /**
      * @param x          screen x of the feet
      * @param y          screen y of the feet
      * @param pxPerBlock pixels per Minecraft block

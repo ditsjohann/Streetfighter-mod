@@ -72,6 +72,15 @@ No code was copied. Everything below was re-implemented in Java for Minecraft.
 - **Self-buff specials (`Move.selfEffects`):** applied on the move's first active frame. The AI uses `Role.BUFF` from full
   screen and only while no buff is running.
 
+### Character select: `client/SelectScreenUi.java`
+Based on the SF2 / SF4 / SF6 select screens and the MUGEN/Ikemen `select.def` model:
+- **The grid:** a fixed grid where empty boxes are drawn but the cursor can't land on them (MUGEN `showemptyboxes=1`,
+  `moveoveremptyboxes=0`), plus a random cell.
+- **The cursor:** horizontal moves wrap around the row like SF2. A select timer locks in the highlighted fighter at 0.
+- **The showcases:** per-player big portraits and names (SF2's face panels with the flag under the name, here
+  replaced by each fighter's home turf and item icon), SF4/SF6-style big models on coloured slabs, and a VS splash
+  after both sides lock in.
+
 ## Not adopted (yet)
 - Rollback netcode (GGPO-style), which several engines plan for. In Minecraft the simulation runs on the challenger's
   client, so it isn't needed for 1-player fights.

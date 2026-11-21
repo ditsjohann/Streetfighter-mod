@@ -23,7 +23,7 @@ import org.lwjgl.glfw.GLFW;
 public class FightScreen extends Screen {
     private final FightSession session;
     private FightHud hud;
-    private int selected;
+    private SelectScreenUi select;
 
     // latched presses so very quick taps are never lost between simulation steps
     private boolean lLP, lMP, lHP, lLK, lMK, lHK, lSP, lJump;
@@ -36,6 +36,7 @@ public class FightScreen extends Screen {
     @Override
     protected void init() {
         hud = new FightHud(session, font);
+        if (select == null) select = new SelectScreenUi(session, font, hud);
     }
 
     // ------------------------------------------------------------------ input
@@ -64,7 +65,7 @@ public class FightScreen extends Screen {
 
     @Override
     public boolean keyPressed(int key, int scanCode, int modifiers) {
-        if (session.stage == FightSession.Stage.SELECT) return selectKey(key);
+        if (session.stage == FightSession.Stage.SELECT) return select == null || select.key(key);
         if (session.engine == null) return true;
         if (session.engine.isOver()) {
             if (session.matchEndFrames > 45 && (key == GLFW.GLFW_KEY_SPACE || key == GLFW.GLFW_KEY_ENTER
@@ -104,46 +105,10 @@ public class FightScreen extends Screen {
 
     int movePage;
 
-    private boolean selectKey(int key) {
-        int n = session.styles.size();
-        switch (key) {
-            case GLFW.GLFW_KEY_A, GLFW.GLFW_KEY_LEFT -> {
-                selected = (selected + n - 1) % n;
-                play(SoundEvents.UI_BUTTON_CLICK.value(), 1.4f);
-            }
-            case GLFW.GLFW_KEY_D, GLFW.GLFW_KEY_RIGHT -> {
-                selected = (selected + 1) % n;
-                play(SoundEvents.UI_BUTTON_CLICK.value(), 1.4f);
-            }
-            case GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_SPACE, GLFW.GLFW_KEY_U, GLFW.GLFW_KEY_J -> confirm();
-            case GLFW.GLFW_KEY_ESCAPE -> {
-                session.cancel(); // backing out before the first punch costs nothing
-                onClose();
-            }
-            default -> {
-            }
-        }
-        return true;
-    }
-
-    private void confirm() {
-        FighterType t = session.styles.get(selected);
-        if (session.isUnlocked(t)) session.beginFight(t);
-        else play(SoundEvents.VILLAGER_NO, 1f);
-    }
-
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
         if (session.stage == FightSession.Stage.SELECT) {
-            int idx = cardAt(mx, my);
-            if (idx >= 0) {
-                if (idx == selected) confirm();
-                else {
-                    selected = idx;
-                    play(SoundEvents.UI_BUTTON_CLICK.value(), 1.4f);
-                }
-                return true;
-            }
+            return select == null || select.click(mx, my, width, height);
         } else if (session.engine != null && session.engine.isOver() && session.matchEndFrames > 45) {
             onClose();
             return true;
@@ -182,7 +147,8 @@ public class FightScreen extends Screen {
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         if (hud == null) hud = new FightHud(session, font);
         if (session.stage == FightSession.Stage.SELECT) {
-            renderSelect(g, mouseX, mouseY);
+            if (select == null) select = new SelectScreenUi(session, font, hud);
+            select.render(g, width, height, mouseX, mouseY);
             return;
         }
         hud.render(g, width, height);
@@ -194,30 +160,7 @@ public class FightScreen extends Screen {
 
     // ------------------------------------------------------------------ character select (over the world)
 
-    private int cardSize() {
-        return (int) Math.max(24, Math.min(56, Math.min(width / 10f, height / 7f)));
-    }
-
-    private int cardsY() {
-        return height - cardSize() - (int) (height * 0.075f) - 8;
-    }
-
-    private int cardsX() {
-        int cs = cardSize();
-        int n = session.styles.size();
-        return width / 2 - (n * cs + (n - 1) * 6) / 2;
-    }
-
-    private int cardAt(double mx, double my) {
-        int cs = cardSize(), x0 = cardsX(), y0 = cardsY();
-        for (int i = 0; i < session.styles.size(); i++) {
-            int x = x0 + i * (cs + 6);
-            if (mx >= x && mx < x + cs && my >= y0 && my < y0 + cs) return i;
-        }
-        return -1;
-    }
-
-    private static ItemStack iconFor(FighterType t) {
+    static ItemStack iconFor(FighterType t) {
         return switch (t) {
             case STEVE -> new ItemStack(Items.DIAMOND_PICKAXE);
             case SKELETON -> new ItemStack(Items.BOW);
@@ -314,81 +257,5 @@ public class FightScreen extends Screen {
             case HK -> "L";
             case SP -> "H";
         };
-    }
-
-    private void renderSelect(GuiGraphics g, int mouseX, int mouseY) {
-        hud.render(g, width, height); // letterbox
-        float t = session.time;
-        FighterType sel = session.styles.get(selected);
-        boolean open = session.isUnlocked(sel);
-
-        hud.outlined(g, "CHOOSE YOUR FIGHTING STYLE", width / 2f, height * 0.04f + 6, width >= 420 ? 2f : 1.4f, 0xFFFFD21A, 0xFF4A2000);
-        g.drawCenteredString(font, "vs " + session.info.enemyName() + "   |   AI: " + session.difficulty.displayName.toUpperCase()
-                + "   |   A/D choose   ENTER fight   ESC back out", width / 2, (int) (height * 0.04f) + 18, 0xFFCCCCCC);
-        g.drawCenteredString(font, "\u00a77Controls: WASD move   U I O punches   J K L kicks   H special   ESC = full move list",
-                width / 2, (int) (height * 0.04f) + 29, 0xFFAAAAAA);
-
-        // info panel on the left
-        int px = 10, py = Math.max((int) (height * 0.16f), (int) (height * 0.04f) + 42);
-        int pw = Math.min(width / 2 - 20, 240);
-        String[] blurb = hud.wrap(styleBlurb(sel), pw - 12);
-        int lines = 2 + blurb.length + (open ? 6 : 1);
-        g.fill(px, py, px + pw, py + 14 + lines * 11, 0xA0000010);
-        g.fill(px, py, px + 2, py + 14 + lines * 11, open ? 0xFF7FE0FF : 0xFF888888);
-        g.drawString(font, sel.displayName.toUpperCase() + " STYLE", px + 8, py + 6, open ? 0xFF7FE0FF : 0xFF999999, true);
-        g.drawString(font, "§o" + sel.title, px + 8, py + 17, 0xFFDDDDDD, true);
-        int y = py + 30;
-        if (open) {
-            for (String b : blurb) {
-                g.drawString(font, b, px + 8, y, 0xFFCCCCCC, false);
-                y += 11;
-            }
-            Moveset ms = Movesets.get(sel);
-            for (Moveset.Special sp : ms.specials) {
-                g.drawString(font, motionText(sp.motion()) + (sp.kick() ? "K " : "P ") + sp.name(), px + 8, y, 0xFFB8C8FF, false);
-                y += 11;
-            }
-            Moveset.Super top = ms.superOf(3);
-            if (top != null) g.drawString(font, "Lv3 " + top.move().name, px + 8, y, 0xFFFFD21A, false);
-        } else {
-            g.drawString(font, "LOCKED - defeat a " + sel.displayName + " to learn it.", px + 8, y, 0xFFFF8A6A, false);
-        }
-
-        // VS tag on the right
-        hud.outlined(g, "VS", width - 40f, height * 0.2f, 3f, 0xFFFF4A2A, 0xFFFFFFFF);
-        g.drawCenteredString(font, session.info.enemyName(), width - 40, (int) (height * 0.2f) + 18, 0xFFFF8A6A);
-        g.drawCenteredString(font, session.enemyType == FighterType.BRAWLER ? "Wild Mob" : session.enemyType.title,
-                width - 40, (int) (height * 0.2f) + 29, 0xFFBBBBBB);
-
-        // cards
-        int cs = cardSize(), x0 = cardsX(), y0 = cardsY();
-        for (int i = 0; i < session.styles.size(); i++) {
-            FighterType ft = session.styles.get(i);
-            int x = x0 + i * (cs + 6);
-            boolean isSel = i == selected;
-            boolean hover = mouseX >= x && mouseX < x + cs && mouseY >= y0 && mouseY < y0 + cs;
-            boolean un = session.isUnlocked(ft);
-            int border = isSel ? ((int) (t * 4) % 2 == 0 ? 0xFFFFD21A : 0xFFFFFFFF) : hover ? 0xFFAAAAAA : 0xFF444444;
-            int lift = isSel ? 4 : 0;
-            g.fill(x - 2, y0 - 2 - lift, x + cs + 2, y0 + cs + 2 - lift, border);
-            g.fillGradient(x, y0 - lift, x + cs, y0 + cs - lift, un ? 0xE0304A7A : 0xE0202020, un ? 0xE0101830 : 0xE0101010);
-            float k = cs / 16f * 0.6f;
-            g.pose().pushPose();
-            g.pose().translate(x + cs / 2f, y0 + cs / 2f - 3 - lift, 0);
-            g.pose().scale(k, k, 1f);
-            g.renderItem(iconFor(ft), -8, -8);
-            g.pose().popPose();
-            g.pose().pushPose();
-            g.pose().translate(0, 0, 200);
-            if (!un) {
-                g.fill(x, y0 - lift, x + cs, y0 + cs - lift, 0xB0000000);
-                g.drawCenteredString(font, "LOCKED", x + cs / 2, y0 + cs / 2 - 8 - lift, 0xFFFF6A5A);
-            }
-            float ts = Math.min(1f, (cs - 4) / (float) font.width(ft.displayName));
-            g.pose().translate(x + cs / 2f, y0 + cs - 9 * ts - 1 - lift, 0);
-            g.pose().scale(ts, ts, 1f);
-            g.drawCenteredString(font, ft.displayName, 0, 0, 0xFFFFFFFF);
-            g.pose().popPose();
-        }
     }
 }
