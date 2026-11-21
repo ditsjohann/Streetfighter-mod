@@ -29,6 +29,8 @@ public class FighterAI {
 
     /** Personality: how much the mob likes to rush in, keep away, or grab. */
     protected float aggression = 0.5f, zoning = 0.2f, grappling = 0.1f;
+    /** How much this fighter likes to be airborne (jump-ins, flaps, glides). */
+    protected float aerial = 0.1f;
     /** Training dummy: does nothing at all. */
     public boolean passive;
 
@@ -69,6 +71,9 @@ public class FighterAI {
             case SKELETON -> new SkeletonAI(difficulty);
             case VILLAGER -> new VillagerAI(difficulty);
             case PIG -> new PigAI(difficulty);
+            case CHICKEN -> new ChickenAI(difficulty);
+            case ALCHEMIST -> new AlchemistAI(difficulty);
+            case GOAT -> new GoatAI(difficulty);
             default -> new BrawlerAI(difficulty);
         };
     }
@@ -120,6 +125,13 @@ public class FighterAI {
             return out;
         }
         if (self.state == State.JUMP) {
+            // flap again near the apex, glide over the opponent's head
+            if (self.airJumpsLeft > 0 && self.vy < 1.5f && self.stateAge > 8 && chance(aerial * 0.12f)) {
+                out.airJump = true;
+                if (dist > 90) holdForward(self);
+                return out;
+            }
+            if (self.moves.glideFrames > 0 && self.vy < 0 && (dist > 110 || chance(aerial))) out.up = true;
             if (!self.airAttackUsed && dist < 120 && self.vy < 4 && chance(0.3f)) {
                 out.hk = chance(0.6f);
                 out.hp = !out.hk;
@@ -193,6 +205,21 @@ public class FighterAI {
             out.superLevel = Math.min(3, self.bars());
             return;
         }
+        int buff = ms.specialIndex(Role.BUFF);
+        if (buff >= 0 && dist > 220 && !buffed(self) && chance(0.3f)) {
+            pressSpecial(self, buff, self.meter >= 150 && chance(0.3f) ? 3 : rng.nextInt(3));
+            return;
+        }
+        int trap = ms.specialIndex(Role.TRAP);
+        if (trap >= 0 && dist > 150 && clouds(e, self) == 0 && chance(zoning * 0.35f)) {
+            pressSpecial(self, trap, dist > 300 ? 2 : dist > 220 ? 1 : 0);
+            return;
+        }
+        if (aerial > 0.3f && dist > 120 && dist < 320 && chance(aerial * 0.3f)) {
+            out.up = true;
+            planHorizontal = 1;
+            return;
+        }
         if (dist < closeRange) {
             float r = rng.nextFloat();
             if (r < 0.25f) startCombo(self, lightRoute(ms, self), 0);
@@ -214,7 +241,7 @@ public class FighterAI {
             float r = rng.nextFloat();
             if (r < 0.2f) { out.down = true; out.mk = true; startCombo(self, List.of(Step.c(Button.MK), Step.sp(comboEnder(ms), 1)), 1); }
             else if (r < 0.3f && low >= 0) pressSpecial(self, low, rng.nextInt(3));
-            else if (r < 0.38f && proj >= 0 && e.projectilesOf(self) == 0) pressSpecial(self, proj, rng.nextInt(3));
+            else if (r < 0.38f && proj >= 0 && shots(e, self) == 0) pressSpecial(self, proj, rng.nextInt(3));
             else if (r < 0.45f && rush >= 0) pressSpecial(self, rush, chance(0.15f) && self.meter >= 50 ? 3 : 1);
             else if (r < 0.5f + aggression * 0.1f) { out.up = true; planHorizontal = 1; }
             else if (r < 0.55f && chance(0.3f)) out.driveImpact = true;
@@ -223,7 +250,7 @@ public class FighterAI {
             return;
         }
         // far
-        if (proj >= 0 && e.projectilesOf(self) == 0 && chance(0.25f + zoning)) {
+        if (proj >= 0 && shots(e, self) == 0 && chance(0.25f + zoning)) {
             pressSpecial(self, proj, self.meter >= 150 && chance(0.2f) ? 3 : rng.nextInt(3));
         } else if (rush >= 0 && chance(aggression * 0.25f)) {
             pressSpecial(self, rush, 2);
@@ -232,6 +259,26 @@ public class FighterAI {
         } else if (chance(zoning)) {
             planHorizontal = -1;
         }
+    }
+
+    /** Live non-cloud projectiles. */
+    protected static int shots(FightEngine e, Fighter self) {
+        int n = 0;
+        for (Projectile p : e.projectiles) if (p.owner == self.index && !p.spec.aura) n++;
+        return n;
+    }
+
+    protected static int clouds(FightEngine e, Fighter self) {
+        int n = 0;
+        for (Projectile p : e.projectiles) if (p.owner == self.index && p.spec.aura) n++;
+        return n;
+    }
+
+    protected static boolean buffed(Fighter self) {
+        for (com.streetfighter.fight.StatusEffect fx : com.streetfighter.fight.StatusEffect.ALL) {
+            if (fx.buff && self.has(fx)) return true;
+        }
+        return false;
     }
 
     protected void antiAir(FightEngine e, Fighter self, Fighter opp, float dist) {
@@ -403,7 +450,7 @@ public class FighterAI {
         }
         Projectile incoming = null;
         for (Projectile p : e.projectiles) {
-            if (p.owner == self.index || p.delay > 40) continue;
+            if (p.owner == self.index || p.delay > 40 || p.spec.aura) continue;
             float dx = self.x - p.x;
             boolean approaching = p.spec.fromSky ? Math.abs(dx) < 160 : (Math.signum(dx) == Math.signum(p.vx) && Math.abs(dx) < 220);
             if (approaching) {

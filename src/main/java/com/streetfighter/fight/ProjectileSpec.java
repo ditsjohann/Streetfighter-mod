@@ -27,6 +27,13 @@ public final class ProjectileSpec {
     public final boolean wallSplat;
     /** Hits on both sides (bell shockwaves). */
     public final boolean bothSides;
+    /** Status effect applied on hit (potions, snow). */
+    public final StatusEffect effect;
+    public final int effectFrames;
+    /** Lingering cloud: no hitstun, ticks damage + its effect every hitInterval frames, can't be blocked or clashed. */
+    public final boolean aura;
+    /** Size of the explosion hitbox for {@link #explodes} projectiles. */
+    public final float blastSize;
 
     private ProjectileSpec(Builder b) {
         visual = b.visual;
@@ -58,6 +65,10 @@ public final class ProjectileSpec {
         explodes = b.explodes;
         wallSplat = b.wallSplat;
         bothSides = b.bothSides;
+        effect = b.effect;
+        effectFrames = b.effectFrames;
+        aura = b.aura;
+        blastSize = b.blastSize;
     }
 
     public Builder toBuilder() {
@@ -95,6 +106,10 @@ public final class ProjectileSpec {
         private int hits = 1, hitInterval = 8;
         private boolean explodes, wallSplat, bothSides;
         private ProjectileVisual visual;
+        private StatusEffect effect;
+        private int effectFrames;
+        private boolean aura;
+        private float blastSize = 150;
 
         private Builder(ProjectileVisual visual) {
             this.visual = visual;
@@ -107,6 +122,24 @@ public final class ProjectileSpec {
             bounce = s.bounce; count = s.count; delayStep = s.delayStep; fromSky = s.fromSky; skySpread = s.skySpread;
             skyHeight = s.skyHeight; durable = s.durable; spin = s.spin; hits = s.hits; hitInterval = s.hitInterval;
             explodes = s.explodes; wallSplat = s.wallSplat; bothSides = s.bothSides;
+            effect = s.effect; effectFrames = s.effectFrames; aura = s.aura; blastSize = s.blastSize;
+        }
+
+        public Builder effect(StatusEffect e, int frames) {
+            this.effect = e;
+            this.effectFrames = frames;
+            return this;
+        }
+
+        public Builder aura() {
+            this.aura = true;
+            this.durable = true;
+            return this;
+        }
+
+        public Builder blast(float size) {
+            this.blastSize = size;
+            return this;
         }
 
         public Builder visual(ProjectileVisual v) {

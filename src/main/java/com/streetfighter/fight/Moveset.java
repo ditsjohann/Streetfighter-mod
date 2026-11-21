@@ -14,7 +14,7 @@ import java.util.Map;
  */
 public final class Moveset {
     /** What a special is for (used by the AI and the move list). */
-    public enum Role { PROJECTILE, ANTI_AIR, RUSH, GRAB, LOW, OVERHEAD, EVADE }
+    public enum Role { PROJECTILE, ANTI_AIR, RUSH, GRAB, LOW, OVERHEAD, EVADE, TRAP, BUFF }
 
     public record CommandNormal(int dir, Button button, Move move) {
     }
@@ -42,6 +42,10 @@ public final class Moveset {
     public final List<Special> specials = new ArrayList<>();
     public final List<Super> supers = new ArrayList<>();
     public Move forwardThrow, backThrow, driveImpact;
+    /** Extra jumps in the air (Chicken flap). */
+    public int airJumps;
+    /** Frames of slow-fall available per jump while holding up (Chicken glide); 0 = none. */
+    public int glideFrames;
 
     public Moveset(FighterType type, FighterStats stats) {
         this.type = type;

@@ -39,6 +39,12 @@ public final class Move {
     /** Cinematic supers: once the first hit lands, the victim is locked in place for the rest of the move. */
     public final boolean lockOnHit;
     public final boolean backThrow;
+    /** Buffs the user gets when the move becomes active (Brew Up). */
+    public final StatusEffect[] selfEffects;
+    public final int selfEffectFrames;
+    /** Status effect the move inflicts on hit. */
+    public final StatusEffect hitEffect;
+    public final int hitEffectFrames;
 
     private Move(Builder b) {
         name = b.name;
@@ -88,6 +94,10 @@ public final class Move {
         crumple = b.crumple;
         lockOnHit = b.lockOnHit;
         backThrow = b.backThrow;
+        selfEffects = b.selfEffects;
+        selfEffectFrames = b.selfEffectFrames;
+        hitEffect = b.hitEffect;
+        hitEffectFrames = b.hitEffectFrames;
     }
 
     public boolean isSuper() {
@@ -142,6 +152,10 @@ public final class Move {
         private AnimPose pose = AnimPose.JAB;
         private String callout;
         private boolean crouching, air, wallSplat, groundBounce, crumple, lockOnHit, backThrow;
+        private StatusEffect[] selfEffects = new StatusEffect[0];
+        private int selfEffectFrames;
+        private StatusEffect hitEffect;
+        private int hitEffectFrames;
 
         private Builder(String name) {
             this.name = name;
@@ -160,6 +174,8 @@ public final class Move {
             projectileFrame = m.projectileFrame; pose = m.pose; callout = m.callout; crouching = m.crouching;
             air = m.air; wallSplat = m.wallSplat; groundBounce = m.groundBounce; crumple = m.crumple;
             lockOnHit = m.lockOnHit; backThrow = m.backThrow;
+            selfEffects = m.selfEffects; selfEffectFrames = m.selfEffectFrames;
+            hitEffect = m.hitEffect; hitEffectFrames = m.hitEffectFrames;
         }
 
         public Builder name(String n) { this.name = n; return this; }
@@ -198,6 +214,8 @@ public final class Move {
         public Builder crumple() { this.crumple = true; return this; }
         public Builder lockOnHit() { this.lockOnHit = true; return this; }
         public Builder backThrow() { this.backThrow = true; return this; }
+        public Builder selfEffect(int frames, StatusEffect... effects) { this.selfEffects = effects; this.selfEffectFrames = frames; return this; }
+        public Builder hitEffect(StatusEffect e, int frames) { this.hitEffect = e; this.hitEffectFrames = frames; return this; }
 
         public Move build() {
             return new Move(this);

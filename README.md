@@ -16,10 +16,12 @@ the world**, on the actual terrain. Beat a mob and you learn its fighting style.
 - **Animations.** Real Minecraft models are posed limb by limb through model mixins:
   - Fighting guard, punches, kicks, overhead slams, uppercuts, crossed-arm blocks and grabs.
   - Hit reactions, knockdowns (bipeds fall flat, four-legged mobs flip belly-up with legs kicking) and victory pumps.
-  - Villagers nose-bonk and slap, and pigs ram and stomp.
+  - Villagers nose-bonk and slap, and pigs and goats ram and stomp.
+  - Chickens have their own rig: pecks, wing slaps, talon kicks, flapping double jumps and glides.
 - **Real effects.** Crits, sweep slashes, enchanted-hit sparks on block, block dust from the ground under you, and
   explosions. Supers trigger totem bursts and an end-rod aura. Sounds are positional (they come from where the hit lands).
-- **Real projectiles.** Arrows are actual arrow models with crit trails. Thrown dirt blocks and emeralds spin. An Iron Golem drops from the
+- **Real projectiles.** Splash potions in their real colours, eggs, snowballs, flocks of chickens and herds of goats.
+  Arrows are actual arrow models with crit trails. Thrown dirt blocks and emeralds spin. An Iron Golem drops from the
   sky, and a pig stampede charges across the field.
 - **Street Fighter HUD.** Slanted gold health bars with damage trails, live 3D portraits, a timer, round "V" badges,
   segmented super meters, combo counters, COUNTER / PUNISH COUNTER callouts, an outlined announcer, super cut-ins,
@@ -31,7 +33,8 @@ the world**, on the actual terrain. Beat a mob and you learn its fighting style.
 - **Hold E to challenge any mob.** A quick tap of E still opens your inventory. Short mobs like pigs are easy to target.
 - **AI difficulty per world.** When a new world starts, you choose **Normal** or **Hard**.
   Ops can change it later with `/streetfighter difficulty normal|hard`.
-- **Learn styles by winning.** Defeat a Skeleton, Pig or plain Villager and its style becomes selectable.
+- **Learn styles by winning.** Defeat a Skeleton, Pig, plain Villager, Chicken, Cleric villager (the Alchemist) or Goat
+  and its style becomes selectable.
 
 ## Fighting system
 
@@ -58,9 +61,35 @@ Every style has a Street Fighter–sized kit (~44 moves each):
 | **Skeleton** | Arrow Shot 236P, Triple Volley 214P, Bone Rattle 236K (low), Rattle Step 214K (evasive backflip) | Arrow Rain, Sniper Shot, Wither Storm |
 | **Villager** | Emerald Toss 236P, Bell Ringer 623P, Price Hike 214K (overhead), Trade Offer 63214P (command grab) | Iron Golem Assist, Raid Alarm, Hero of the Village |
 | **Pig** | Hog Charge 236P, Snout Uppercut 623P, Mud Slide 236K (low), Belly Flop 214K (overhead) | Stampede, Carrot Frenzy, Pigstep Apocalypse |
+| **Chicken** | Egg Toss 236P, Rooster Rise 623P, Fowl Play 236K (pecking rush), Feather Dive 214K (overhead dive) | Egg Barrage, Flock Call, Phoenix Fury |
+| **Alchemist** (Cleric villager) | Splash Potion 236P (L poison / M slowness / H harming), Lingering Cloud 214P, Brew Up 214K (L speed / M strength / H regeneration / EX all three), Fizz Rocket 623P | Potion Barrage, Witch's Brew, Elixir of the Ancients |
+| **Goat** | Ram Charge 236P (wall-splats on H/EX, armored EX), Horn Toss 623P, Screaming Bleat 214P (low shockwave that slows), Goat Leap 214K (overhead) | Avalanche, Herd Charge, Peak Breaker |
 | **Any other mob** | Lunge, Rising Claw, Pounce, Leap Smash | Frenzy, Bone Storm, Rampage |
 
 The pause menu (ESC) shows the full move list for your style.
+
+### Style mechanics
+
+- **Chicken: Feather Fury.** The smallest, fastest fighter.
+  - **Double jump:** press up again in the air.
+  - **Glide:** hold up while falling to float down slowly.
+  - Pecks are multi-hit, and its punches are pecks and wing slaps.
+- **Alchemist: Potion Master.** A status-effect zoner.
+  - **Splash potions** explode on contact. Poison and Slowness land at half strength even through a block.
+  - **Lingering clouds** drift forward, poisoning anyone inside. They can't be blocked and don't cause hitstun.
+  - **Brew Up** drinks a buff:
+    - Swiftness: walk and jump faster
+    - Strength: +25% damage
+    - Regeneration: heals over time
+- **Goat: Mountain Rammer.** Jumps far higher than anyone else.
+  - Charges hit with huge knockback.
+  - Its scream shockwave hits low and slows you down.
+  - Herd Charge stampedes goats across the screen, and Avalanche buries you in snowballs.
+
+**Status effects** show as coloured tags above the super meter (e.g. `POISON 4s`) and as swirling potion particles around
+the fighter:
+- **Poison** ticks damage but never KOs.
+- **Slowness** cuts walk and jump speed by 40%.
 
 ## Environment combat
 
@@ -98,7 +127,7 @@ Strikes leave additive swoosh trails. Hits throw spark bursts and shockwave ring
 - `/streetfighter difficulty [normal|hard]`: show or set (op) the AI difficulty
 - `/streetfighter styles`: list your learned styles and wins
 - `/streetfighter training on|off`: training mode (the dummy stands still and refills its health, your meter is full, no rewards or penalties)
-- `/streetfighter unlock <skeleton|villager|pig|all>`: op/testing
+- `/streetfighter unlock <skeleton|villager|pig|chicken|alchemist|goat|all>`: op/testing
 - `/streetfighter resetstyles`: op/testing
 
 Settings are in `config/streetfighter-common.toml`: peaceful mobs, challenge range, hold time, what happens to defeated mobs,
@@ -109,7 +138,7 @@ and the loser penalty.
 Requires Java 21.
 
 ```bash
-./gradlew build        # mod jar -> build/libs/streetfighter-0.1.0.jar
+./gradlew build        # mod jar -> build/libs/streetfighter-0.3.0.jar
 ./gradlew runClient    # launch a dev client with the mod
 ```
 

@@ -26,15 +26,16 @@ public final class Projectile {
     /** Golems and pigs stand on the ground (y = feet); everything else is centred on y. */
     public boolean bottomAnchored() {
         return spec.visual == ProjectileVisual.GOLEM || spec.visual == ProjectileVisual.PIG
-                || spec.visual == ProjectileVisual.BELL || spec.visual == ProjectileVisual.SHOCKWAVE;
+                || spec.visual == ProjectileVisual.BELL || spec.visual == ProjectileVisual.SHOCKWAVE
+                || spec.visual == ProjectileVisual.CLOUD || spec.visual == ProjectileVisual.GOAT;
     }
 
     public float width() {
-        return exploded ? 150 : spec.width;
+        return exploded ? spec.blastSize : spec.width;
     }
 
     public float height() {
-        return exploded ? 150 : spec.height;
+        return exploded ? spec.blastSize : spec.height;
     }
 
     public float minX() {

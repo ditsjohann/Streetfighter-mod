@@ -64,7 +64,8 @@ public final class FightSession {
     public float fovKick;
 
     // dummies used to draw projectiles/assists with real models
-    public LivingEntity golemDummy, pigDummy;
+    public LivingEntity golemDummy, pigDummy, goatDummy;
+    public net.minecraft.world.entity.animal.Chicken chickenDummy;
     public Arrow arrowDummy;
 
     private final float startSeparation;
@@ -132,6 +133,8 @@ public final class FightSession {
 
         golemDummy = (LivingEntity) EntityType.IRON_GOLEM.create(mc.level);
         pigDummy = (LivingEntity) EntityType.PIG.create(mc.level);
+        goatDummy = (LivingEntity) EntityType.GOAT.create(mc.level);
+        chickenDummy = EntityType.CHICKEN.create(mc.level);
         arrowDummy = EntityType.ARROW.create(mc.level);
 
         float bbH = Math.max(0.2f, enemyEntity.getBbHeight());
@@ -268,6 +271,13 @@ public final class FightSession {
                 fx.stepTrails();
                 hud.step();
                 if (pigDummy != null) pigDummy.walkAnimation.update(1.3f, 0.5f);
+                if (goatDummy != null) goatDummy.walkAnimation.update(1.4f, 0.5f);
+                if (chickenDummy != null) {
+                    chickenDummy.oFlap = chickenDummy.flap;
+                    chickenDummy.oFlapSpeed = chickenDummy.flapSpeed;
+                    chickenDummy.flap += 0.9f;
+                    chickenDummy.flapSpeed = 1f;
+                }
                 if (engine.isOver()) {
                     if (!resultSent) sendResult(engine.playerWon());
                     matchEndFrames++;

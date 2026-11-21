@@ -42,7 +42,7 @@ import static com.streetfighter.client.world.AnimClips.*;
  * {@code RenderLivingEvent}.
  */
 public final class FightAnimator {
-    public enum Body { HUMANOID, VILLAGER, QUAD, OTHER }
+    public enum Body { HUMANOID, VILLAGER, QUAD, BIRD, OTHER }
 
     public static boolean suspended;
 
@@ -96,6 +96,7 @@ public final class FightAnimator {
             if (m instanceof HumanoidModel<?>) return Body.HUMANOID;
             if (m instanceof VillagerModel<?> || m instanceof net.minecraft.client.model.IllagerModel<?>) return Body.VILLAGER;
             if (m instanceof QuadrupedModel<?>) return Body.QUAD;
+            if (m instanceof net.minecraft.client.model.ChickenModel<?>) return Body.BIRD;
         }
         return Body.OTHER;
     }
@@ -191,7 +192,7 @@ public final class FightAnimator {
     }
 
     private static float[] guard(Body b) {
-        return b == Body.QUAD ? quadGuard() : humanoidGuard();
+        return b == Body.QUAD ? quadGuard() : b == Body.BIRD ? birdGuard() : humanoidGuard();
     }
 
     private static float ease(float x) {
@@ -216,6 +217,11 @@ public final class FightAnimator {
     private static float pose(State s, Fighter f, float[] t, Ctx ctx, float[] guard) {
         Body body = s.body;
         boolean quad = body == Body.QUAD;
+        boolean bird = body == Body.BIRD;
+        if (bird) {
+            Float r = birdPose(s, f, t, ctx);
+            if (r != null) return r;
+        }
         float tm = ctx.time();
         switch (f.state) {
             case IDLE, LANDING -> {
@@ -286,7 +292,7 @@ public final class FightAnimator {
             case HITSTUN -> {
                 boolean low = f.lastHitLevel == HitLevel.LOW;
                 if (f.launched) {
-                    if (quad || body == Body.OTHER) t[FLIP] = -Math.min(200, 40 + f.stateAge * 9f);
+                    if (quad || bird || body == Body.OTHER) t[FLIP] = -Math.min(200, 40 + f.stateAge * 9f);
                     else t[LEAN] = -40 - Math.min(50, f.stateAge * 3f);
                     t[RAX] = -0.4f; t[RAZ] = 1.1f; t[LAX] = -0.4f; t[LAZ] = -1.1f; t[RLX] = 0.4f; t[LLX] = -0.3f;
                     t[HX] = -0.5f;
@@ -305,7 +311,7 @@ public final class FightAnimator {
             }
             case KNOCKDOWN, KO -> {
                 boolean gettingUp = f.state == Fighter.State.KNOCKDOWN && f.stateTimer < 12;
-                if (quad || body == Body.OTHER) {
+                if (quad || bird || body == Body.OTHER) {
                     t[FLIP] = gettingUp ? 0 : -180;
                     t[RAX] = Mth.sin(tm * 22f) * 0.6f;
                     t[RLX] = -t[RAX];
@@ -318,7 +324,7 @@ public final class FightAnimator {
                 return gettingUp ? 12f : 9f;
             }
             case WALL_SPLAT -> {
-                if (quad || body == Body.OTHER) {
+                if (quad || bird || body == Body.OTHER) {
                     t[FLIP] = -70; t[RAX] = -1.3f; t[RLX] = 1.3f;
                 } else {
                     t[LEAN] = -10; t[RAX] = -2.7f; t[RAZ] = 0.7f; t[LAX] = -2.7f; t[LAZ] = -0.7f;
@@ -346,9 +352,69 @@ public final class FightAnimator {
         }
     }
 
+    /** Chicken-specific states (walk waddle, flapping jumps and glides); null = use the shared pose. */
+    private static Float birdPose(State s, Fighter f, float[] t, Ctx ctx) {
+        float tm = ctx.time();
+        switch (f.state) {
+            case IDLE, LANDING -> {
+                t[HX] += Mth.sin(tm * 4f) > 0.85f ? 0.5f : 0; // idle head bob
+                t[UP] += Mth.sin(tm * 6.5f) * 0.02f;
+                return 14f;
+            }
+            case WALK -> {
+                float ph = s.walkPhase * 1.6f;
+                t[RLX] = Mth.sin(ph) * 0.9f;
+                t[LLX] = -Mth.sin(ph) * 0.9f;
+                t[HX] = 0.15f + Mth.cos(ph * 2) * 0.25f;
+                t[LEAN] = (Math.signum(f.vx) == f.dir() ? 8 : -4);
+                t[UP] = Math.abs(Mth.sin(ph)) * 0.04f;
+                t[RAZ] = 0.25f;
+                return 20f;
+            }
+            case CROUCH -> {
+                t[SQUASH] = 0.72f;
+                t[HX] = 0.3f;
+                t[RAZ] = 0.05f;
+                return 18f;
+            }
+            case JUMP -> {
+                float speed = f.gliding ? 22f : f.vy > 0 ? 40f : 30f;
+                t[RAZ] = (f.gliding ? 1.25f : 0.9f) + Mth.sin(tm * speed) * (f.gliding ? 0.25f : 0.7f);
+                t[RLX] = f.vy > 0 ? 0.6f : -0.2f;
+                t[LLX] = t[RLX];
+                t[LEAN] = f.gliding ? 14 : f.vy > 0 ? -8 : 4;
+                t[HX] = -0.2f;
+                t[FLIP] = 0;
+                s.cur[FLIP] = 0;
+                return 30f;
+            }
+            case BLOCKSTUN, PARRY -> {
+                t[RAZ] = 1.3f;
+                t[HX] = 0.5f;
+                t[LEAN] = -12;
+                t[SQUASH] = 0.88f;
+                return 30f;
+            }
+            case VICTORY -> {
+                float pump = Math.abs(Mth.sin(tm * 7f));
+                t[RAZ] = 0.6f + Mth.sin(tm * 30f) * 0.8f;
+                t[HX] = -0.6f;
+                t[UP] = pump * 0.18f;
+                return 16f;
+            }
+            default -> {
+                return null;
+            }
+        }
+    }
+
     private static void victory(State s, float[] t, float tm) {
         float pump = Math.abs(Mth.sin(tm * 6f));
-        if (s.body == Body.QUAD) {
+        if (s.body == Body.BIRD) {
+            t[RAZ] = 0.6f + Mth.sin(tm * 30f) * 0.8f;
+            t[HX] = -0.6f;
+            t[UP] = pump * 0.18f;
+        } else if (s.body == Body.QUAD) {
             t[UP] = pump * 0.12f;
             t[HX] = Mth.sin(tm * 10f) * 0.35f;
         } else {
@@ -363,7 +429,8 @@ public final class FightAnimator {
     private static float attack(State s, Fighter f, float[] t, Ctx ctx, float[] guard) {
         Move m = f.move;
         if (m == null) return 16f;
-        AnimClips.Clip c = s.body == Body.QUAD ? AnimClips.quadruped(m.pose) : AnimClips.humanoid(m.pose);
+        AnimClips.Clip c = s.body == Body.QUAD ? AnimClips.quadruped(m.pose)
+                : s.body == Body.BIRD ? AnimClips.bird(m.pose) : AnimClips.humanoid(m.pose);
         if (m.crouching) {
             s.crouch = true;
             if (s.body != Body.HUMANOID) guard[SQUASH] = 0.74f;
@@ -388,9 +455,20 @@ public final class FightAnimator {
             float a = fr - S;
             switch (m.pose) {
                 case SPIN_KICK -> t[SPIN] = a * 28f;
+                case PECK -> {
+                    if (m.hits > 1) {
+                        float w = Mth.sin(a * 1.6f);
+                        t[HX] += w * 0.6f;
+                        t[FWD] += w * 0.05f;
+                    }
+                }
                 case RUSH -> {
                     float w = Mth.sin(a * 0.9f);
                     if (s.body == Body.QUAD) t[HX] = 0.3f + w * 0.4f;
+                    else if (s.body == Body.BIRD) {
+                        t[HX] = 0.2f + w * 0.8f;
+                        t[RAZ] = 0.8f + w * 0.6f;
+                    }
                     else {
                         t[RAX] = -1.6f + w * 0.35f;
                         t[LAX] = -1.6f - w * 0.35f;
@@ -417,7 +495,8 @@ public final class FightAnimator {
         if (m.pose == com.streetfighter.fight.AnimPose.UPPERCUT && fr >= S && fr < activeEnd) {
             t[SPIN] = (fr - S) * 18f;
         }
-        if (m.air && s.body != Body.QUAD) {
+        if (s.body == Body.BIRD && !f.grounded()) t[RAZ] = Math.max(t[RAZ], 0.6f) + Mth.sin(ctx.time() * 38f) * 0.5f;
+        if (m.air && s.body != Body.QUAD && s.body != Body.BIRD) {
             if (Float.isNaN(c.strike()[RLX]) || t[RLX] > -0.4f) t[RLX] = -0.9f;
         }
         return rate;
@@ -526,6 +605,21 @@ public final class FightAnimator {
                 rot(s, rl, c[RLX], 0, c[RLZ] * 0.5f);
                 rot(s, ll, c[LLX], 0, c[LLZ] * 0.5f);
             }
+        } else if (model instanceof net.minecraft.client.model.ChickenModel<?> ch) {
+            com.streetfighter.mixin.ChickenModelAccessor a = (com.streetfighter.mixin.ChickenModelAccessor) ch;
+            ModelPart head = a.streetfighter$head();
+            save(s, head);
+            head.xRot = c[HX] + headRecoil;
+            head.yRot = 0;
+            for (ModelPart p : new ModelPart[]{a.streetfighter$beak(), a.streetfighter$redThing()}) {
+                save(s, p);
+                p.xRot = head.xRot;
+                p.yRot = head.yRot;
+            }
+            rot(s, a.streetfighter$rightLeg(), c[RLX], 0, 0);
+            rot(s, a.streetfighter$leftLeg(), c[LLX], 0, 0);
+            rot(s, a.streetfighter$rightWing(), 0, 0, c[RAZ]);
+            rot(s, a.streetfighter$leftWing(), 0, 0, -c[RAZ]);
         } else if (model instanceof QuadrupedModel<?> q) {
             QuadrupedModelAccessor a = (QuadrupedModelAccessor) q;
             ModelPart head = a.streetfighter$head();

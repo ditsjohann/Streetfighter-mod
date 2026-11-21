@@ -9,7 +9,9 @@ public record FightEvent(Type type, int fighter, float x, float y, String text, 
         SUPER, KO, TIME, ROUND_WIN, DRAW, PERFECT, MATCH_WIN,
         // new
         EXPLOSION, PARRY, PERFECT_PARRY, ARMOR, CRUMPLE, WALL_SPLAT, WALL_BOUNCE, WALL_BREAK, WALL_JUMP,
-        HAZARD, CALLOUT, TECH, GROUND_BOUNCE, WHIFF
+        HAZARD, CALLOUT, TECH, GROUND_BOUNCE, WHIFF,
+        // round 4
+        AIR_JUMP, STATUS, STATUS_TICK
     }
 
     public static FightEvent of(Type type, int fighter, float x, float y) {

@@ -223,6 +223,10 @@ public class FightScreen extends Screen {
             case SKELETON -> new ItemStack(Items.BOW);
             case VILLAGER -> new ItemStack(Items.EMERALD);
             case PIG -> new ItemStack(Items.CARROT);
+            case CHICKEN -> new ItemStack(Items.EGG);
+            case ALCHEMIST -> net.minecraft.world.item.alchemy.PotionContents.createItemStack(Items.SPLASH_POTION,
+                    net.minecraft.world.item.alchemy.Potions.POISON);
+            case GOAT -> new ItemStack(Items.GOAT_HORN);
             default -> new ItemStack(Items.ROTTEN_FLESH);
         };
     }
@@ -233,6 +237,9 @@ public class FightScreen extends Screen {
             case SKELETON -> "Zoner: keeps you out with arrows. Fast but fragile.";
             case VILLAGER -> "Grappler: Hmm... a Trade Offer can't be blocked.";
             case PIG -> "Tank: tough as bacon. Low stomps & overhead belly flops.";
+            case CHICKEN -> "Aerial pest: double jump (press up again in the air), hold up to glide. Tiny and fast.";
+            case ALCHEMIST -> "Status zoner: poison, slowness & harming potions, lingering clouds, Brew Up buffs.";
+            case GOAT -> "Rammer: huge jumps, wall-splatting charges and a scream that slows you down.";
             case BRAWLER -> "Wild mob: scrappy and straightforward.";
         };
     }

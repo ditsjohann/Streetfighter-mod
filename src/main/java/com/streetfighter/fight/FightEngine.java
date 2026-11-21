@@ -122,6 +122,10 @@ public final class FightEngine {
             f.armorLeft = 0;
             f.groundBouncePending = false;
             f.wallSplatPending = false;
+            f.clearStatus();
+            f.airJumpsLeft = 0;
+            f.glideLeft = 0;
+            f.gliding = false;
             f.prevX = f.x;
             f.prevY = f.y;
         }
@@ -281,7 +285,33 @@ public final class FightEngine {
                         || f.state == State.WALL_SPLAT || f.state == State.CRUMPLE;
             }
             environment(f);
+            tickStatus(f);
         }
+    }
+
+    /** Counts down status effects; poison and regeneration tick like their vanilla potions. */
+    private void tickStatus(Fighter f) {
+        boolean live = phase == Phase.FIGHTING && f.state != State.KO;
+        for (StatusEffect e : StatusEffect.ALL) {
+            int left = f.status[e.ordinal()];
+            if (left <= 0) continue;
+            f.status[e.ordinal()] = left - 1;
+            if (!live) continue;
+            if (e == StatusEffect.POISON && left % 20 == 0) {
+                f.hp = Math.max(1, f.hp - 7);
+                events.add(FightEvent.text(Type.STATUS_TICK, f.index, f.x, f.y + f.hurtHeight() * 0.6f, e.name()));
+            } else if (e == StatusEffect.REGEN && left % 15 == 0 && f.hp < f.maxHp) {
+                f.hp = Math.min(f.maxHp, f.hp + 8);
+                events.add(FightEvent.text(Type.STATUS_TICK, f.index, f.x, f.y + f.hurtHeight() * 0.6f, e.name()));
+            }
+        }
+    }
+
+    private void giveStatus(Fighter f, StatusEffect e, int frames) {
+        if (e == null || frames <= 0) return;
+        boolean fresh = !f.has(e);
+        f.give(e, frames);
+        if (fresh) events.add(FightEvent.text(Type.STATUS, f.index, f.x, f.y + f.hurtHeight() + 20, e.name()));
     }
 
     // ------------------------------------------------------------------ input -> moves
@@ -304,7 +334,7 @@ public final class FightEngine {
     private void control(Fighter f, FightInput in) {
         Fighter opp = other(f);
         InputBuffer b = f.buffer;
-        float speedMul = floorSpeed(f);
+        float speedMul = floorSpeed(f) * f.statusSpeed();
 
         switch (f.state) {
             case IDLE, WALK, CROUCH -> {
@@ -324,6 +354,8 @@ public final class FightEngine {
                     f.vx = (f.holdingForward() ? f.dir() * f.stats.jumpVx() : f.holdingBack() ? -f.dir() * f.stats.jumpVx() : 0) * speedMul;
                     f.airAttackUsed = false;
                     f.wallJumpUsed = false;
+                    f.airJumpsLeft = f.moves.airJumps;
+                    f.glideLeft = f.moves.glideFrames;
                     events.add(FightEvent.of(Type.JUMP, f.index, f.x, f.y));
                 } else if (in.down) {
                     setState(f, State.CROUCH);
@@ -349,6 +381,17 @@ public final class FightEngine {
                     f.vx = (atRight ? -1 : 1) * f.stats.jumpVx() * 1.5f;
                     f.airAttackUsed = false;
                     events.add(FightEvent.of(Type.WALL_JUMP, f.index, f.x, f.y));
+                    break;
+                }
+                // air jump (Chicken flap): a fresh up press while airborne
+                if (f.airJumpsLeft > 0 && f.stateAge > 5 && (b.upPressedThisFrame() || in.airJump)) {
+                    f.airJumpsLeft--;
+                    f.vy = f.stats.jumpVy() * 0.82f;
+                    float sp = f.stats.jumpVx() * f.statusSpeed();
+                    f.vx = f.holdingForward() ? f.dir() * sp : f.holdingBack() ? -f.dir() * sp : f.vx * 0.5f;
+                    f.airAttackUsed = false;
+                    f.stateAge = 0;
+                    events.add(FightEvent.of(Type.AIR_JUMP, f.index, f.x, f.y));
                     break;
                 }
                 if (!f.airAttackUsed) {
@@ -659,6 +702,14 @@ public final class FightEngine {
 
         boolean wasAir = f.y > 0 || f.vy > 0;
         if (wasAir) f.vy -= f.stats.gravity();
+        // glide: holding up while falling slows the descent (Chicken)
+        f.gliding = false;
+        if (wasAir && f.glideLeft > 0 && f.vy < -1.5f && f.input.up
+                && (f.state == State.JUMP || (f.state == State.ATTACK && f.move != null && f.move.air))) {
+            f.vy = -1.5f;
+            f.glideLeft--;
+            f.gliding = true;
+        }
         f.x += f.vx;
         f.y += f.vy;
         // walls: launched fighters bounce or splat; everyone else stops
@@ -750,6 +801,7 @@ public final class FightEngine {
         }
         if (m.armorHits > 0 && fr >= m.armorEnd) f.armorLeft = 0;
         if (m.projectile != null && fr == m.projectileFrame) spawnProjectiles(f, m.projectile);
+        if (fr == m.startup) for (StatusEffect e : m.selfEffects) giveStatus(f, e, m.selfEffectFrames);
         // cinematic supers keep the victim pinned in front of the attacker
         if (m.lockOnHit && f.moveConnected) {
             Fighter d = other(f);
@@ -846,16 +898,18 @@ public final class FightEngine {
 
     private record HitInfo(float damage, HitLevel level, int hitstun, int blockstun, float push, float launch,
                            boolean knockdown, boolean special, boolean wallSplat, boolean groundBounce,
-                           boolean crumple, int strength, boolean superHit, boolean projectile) {
+                           boolean crumple, int strength, boolean superHit, boolean projectile,
+                           StatusEffect effect, int effectFrames) {
         static HitInfo of(Move m, boolean last) {
             return new HitInfo(m.damage, m.level, m.hitstun, m.blockstun, m.push, last ? m.launch : 0,
                     last && m.knockdown, m.special, last && m.wallSplat, last && m.groundBounce, m.crumple,
-                    m.strength, m.isSuper(), false);
+                    m.strength, m.isSuper(), false, m.hitEffect, m.hitEffectFrames);
         }
 
         static HitInfo of(ProjectileSpec s, boolean last) {
             return new HitInfo(s.damage, s.level, s.hitstun, s.blockstun, s.push, last ? s.launch : 0,
-                    last && s.knockdown, true, last && s.wallSplat, false, false, 1, false, true);
+                    last && s.knockdown, true, last && s.wallSplat, false, false, 1, false, true,
+                    s.effect, s.effectFrames);
         }
     }
 
@@ -889,7 +943,8 @@ public final class FightEngine {
         // after a cinematic grab connects, follow-up hits are plain strikes
         if (m.lockOnHit && a.hitsDone > 0 && info.level == HitLevel.GRAB) {
             info = new HitInfo(info.damage, HitLevel.MID, info.hitstun, info.blockstun, info.push, info.launch,
-                    info.knockdown, info.special, info.wallSplat, info.groundBounce, false, info.strength, true, false);
+                    info.knockdown, info.special, info.wallSplat, info.groundBounce, false, info.strength, true, false,
+                    info.effect, info.effectFrames);
         }
         if (m.backThrow && m.level == HitLevel.GRAB) dirAway = -dirAway;
         HitResult r = applyHit(a, d, info, px, py, dirAway, true);
@@ -965,7 +1020,8 @@ public final class FightEngine {
         boolean blocked = levelOk && d.canBlock() && d.holdingBack();
 
         if (blocked) {
-            float chip = h.special ? h.damage * 0.18f * a.damageScale : 0;
+            float chip = h.special ? h.damage * 0.18f * a.damageScale * strengthMul(a) : 0;
+            if (h.effect != null && h.projectile) giveStatus(d, h.effect, h.effectFrames / 2);
             d.hp = Math.max(0, d.hp - chip);
             d.state = State.BLOCKSTUN;
             d.stateAge = 0;
@@ -993,7 +1049,8 @@ public final class FightEngine {
         }
         float scale = SCALING[Math.min(d.comboTaken, SCALING.length - 1)];
         if (h.superHit) scale = Math.max(scale, 0.5f);
-        float dmg = h.damage * scale * a.damageScale * (counter != null ? 1.2f : 1f);
+        float dmg = h.damage * scale * a.damageScale * strengthMul(a) * (counter != null ? 1.2f : 1f);
+        giveStatus(d, h.effect, h.effectFrames);
         d.hp = Math.max(0, d.hp - dmg);
         d.comboTaken++;
         a.comboShown = d.comboTaken;
@@ -1043,6 +1100,10 @@ public final class FightEngine {
         }
         if (d.hp <= 0) knockOut(d, dirAway);
         return HitResult.HIT;
+    }
+
+    private static float strengthMul(Fighter a) {
+        return a.has(StatusEffect.STRENGTH) ? 1.25f : 1f;
     }
 
     private void knockOut(Fighter d, int dirAway) {
@@ -1182,6 +1243,10 @@ public final class FightEngine {
             if (p.dead) continue;
 
             Fighter target = fighters[1 - p.owner];
+            if (p.spec.aura) {
+                auraTick(p, target);
+                continue;
+            }
             boolean canHit = p.hitsDone < Math.max(1, p.spec.hits) && (p.hitsDone == 0 || p.age - p.lastHitAge >= p.spec.hitInterval);
             if (p.exploded) canHit = !p.hasHit;
             if (canHit && p.hitboxActive() && overlaps(p, target)) {
@@ -1205,10 +1270,10 @@ public final class FightEngine {
         }
         for (int i = 0; i < projectiles.size(); i++) {
             Projectile a = projectiles.get(i);
-            if (a.dead || a.delay > 0) continue;
+            if (a.dead || a.delay > 0 || a.spec.aura) continue;
             for (int j = i + 1; j < projectiles.size(); j++) {
                 Projectile b = projectiles.get(j);
-                if (b.dead || b.delay > 0 || a.owner == b.owner) continue;
+                if (b.dead || b.delay > 0 || a.owner == b.owner || b.spec.aura) continue;
                 if (a.minX() < b.maxX() && a.maxX() > b.minX() && a.minY() < b.maxY() && a.maxY() > b.minY()) {
                     if (a.spec.durable && b.spec.durable) continue;
                     if (!a.spec.durable) a.dead = true;
@@ -1218,6 +1283,20 @@ public final class FightEngine {
             }
         }
         projectiles.removeIf(p -> p.dead);
+    }
+
+    /** Lingering clouds: unblockable tick damage plus their effect, without hitstun. */
+    private void auraTick(Projectile p, Fighter target) {
+        if (phase != Phase.FIGHTING || target.state == State.KO || target.invulnerable()) return;
+        if (p.age - p.lastHitAge < p.spec.hitInterval || !overlaps(p, target)) return;
+        p.lastHitAge = p.age;
+        p.hitsDone++;
+        Fighter owner = fighters[p.owner];
+        target.hp = Math.max(1, target.hp - p.spec.damage * owner.damageScale * strengthMul(owner));
+        giveStatus(target, p.spec.effect, p.spec.effectFrames);
+        owner.meter = Math.min(Fighter.MAX_METER, owner.meter + 1);
+        events.add(FightEvent.text(Type.STATUS_TICK, target.index, target.x, target.y + target.hurtHeight() * 0.6f,
+                p.spec.effect == null ? "POISON" : p.spec.effect.name()));
     }
 
     private boolean overlaps(Projectile p, Fighter f) {

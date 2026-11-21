@@ -10,7 +10,9 @@ public enum AnimPose {
     AIR_PUNCH, AIR_SLAM, AIR_KICK, FLYING_KICK, DIVE_KICK,
     // specials / misc
     THROW, SHOOT, SHOOT_UP, LUNGE, CHARGE, SLIDE, BACKFLIP, GRAB, THROW_FWD, THROW_BACK, SLAM, STOMP,
-    TAUNT, RUSH, DRIVE_IMPACT, SUMMON, BELLY_FLOP;
+    TAUNT, RUSH, DRIVE_IMPACT, SUMMON, BELLY_FLOP,
+    // round 4
+    PECK, FLAP, DRINK, SCREAM;
 
     public boolean isKick() {
         return switch (this) {

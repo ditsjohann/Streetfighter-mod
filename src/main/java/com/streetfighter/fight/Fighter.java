@@ -61,6 +61,33 @@ public final class Fighter {
 
     public final FightInput input = new FightInput();
 
+    // --- round 4: status effects, air mobility
+    /** Frames left on each {@link StatusEffect}. */
+    public final int[] status = new int[StatusEffect.ALL.length];
+    public int airJumpsLeft;
+    public int glideLeft;
+    public boolean gliding;
+
+    public boolean has(StatusEffect e) {
+        return status[e.ordinal()] > 0;
+    }
+
+    public void give(StatusEffect e, int frames) {
+        status[e.ordinal()] = Math.max(status[e.ordinal()], frames);
+    }
+
+    public void clearStatus() {
+        java.util.Arrays.fill(status, 0);
+    }
+
+    /** Walk/jump speed multiplier from Slowness/Swiftness. */
+    public float statusSpeed() {
+        float m = 1f;
+        if (has(StatusEffect.SLOW)) m *= 0.6f;
+        if (has(StatusEffect.SPEED)) m *= 1.3f;
+        return m;
+    }
+
     public Fighter(int index, String name, FighterType body, Moveset moves, FighterStats stats, float hpScale,
                    float damageScale) {
         this.index = index;

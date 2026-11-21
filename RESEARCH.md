@@ -59,6 +59,19 @@ No code was copied. Everything below was re-implemented in Java for Minecraft.
 - Rendering: the 60 Hz simulation is interpolated (prev → current by accumulator alpha) every frame. Animation is
   keyframed with exponential (frame-rate independent) blending and spring layers.
 
+### Round 4 additions (Chicken, Alchemist, Goat)
+- **Status effects:** `fight/StatusEffect.java`, ticked in `FightEngine.tickStatus`.
+  - They work like SF6's Drive-gauge burnout or Guilty Gear's poison (Venom/Zato-style): timed per-fighter states, not extra hitstun.
+  - Poison and Regeneration tick on fixed intervals like vanilla potions. Poison leaves at least 1 HP.
+  - Slowness and Swiftness multiply walk and jump speed. Strength multiplies damage after scaling.
+- **Air mobility:** `Moveset.airJumps` (double jump on a fresh up press, as in Marvel/Guilty Gear) and `Moveset.glideFrames`
+  (slow fall while holding up, capped per jump so it can't be stalled forever).
+- **Lingering projectiles (`ProjectileSpec.aura`):** stationary or drifting hitboxes.
+  - They tick damage and status without hitstun or blockstun, like Dhalsim's or Menat's traps.
+  - They're excluded from projectile clashes and from the AI's "incoming projectile" checks, so the AI doesn't try to block a cloud.
+- **Self-buff specials (`Move.selfEffects`):** applied on the move's first active frame. The AI uses `Role.BUFF` from full
+  screen and only while no buff is running.
+
 ## Not adopted (yet)
 - Rollback netcode (GGPO-style), which several engines plan for. In Minecraft the simulation runs on the challenger's
   client, so it isn't needed for 1-player fights.

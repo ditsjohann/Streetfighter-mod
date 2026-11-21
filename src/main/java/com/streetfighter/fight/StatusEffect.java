@@ -1,0 +1,26 @@
+package com.streetfighter.fight;
+
+/**
+ * Timed status effects (Alchemist potions, Goat snow, buffs). Durations are in frames at 60 fps.
+ * Debuffs are applied by hits; buffs by the user's own moves (Brew Up).
+ */
+public enum StatusEffect {
+    POISON("POISONED", false, 0x4E9331),
+    SLOW("SLOWED", false, 0x5A6C81),
+    STRENGTH("STRENGTH UP", true, 0x932423),
+    SPEED("SPEED UP", true, 0x7CAFC6),
+    REGEN("REGENERATION", true, 0xCD5CAB);
+
+    public final String label;
+    public final boolean buff;
+    /** Vanilla potion colour (RGB) for particles and HUD tags. */
+    public final int color;
+
+    StatusEffect(String label, boolean buff, int color) {
+        this.label = label;
+        this.buff = buff;
+        this.color = color;
+    }
+
+    public static final StatusEffect[] ALL = values();
+}

@@ -32,6 +32,16 @@ public final class AnimClips {
         return g;
     }
 
+    /** Chicken: RAZ = wing spread (both wings), RLX/LLX = legs, HX = head/beak, LEAN = body pitch. */
+    public static float[] birdGuard() {
+        float[] g = new float[N];
+        g[SQUASH] = 1;
+        g[RAZ] = 0.15f;
+        g[HX] = -0.1f;
+        g[LEAN] = -4;
+        return g;
+    }
+
     public static float[] quadGuard() {
         float[] g = new float[N];
         g[SQUASH] = 1;
@@ -48,6 +58,11 @@ public final class AnimClips {
 
     private static final Map<AnimPose, Clip> HUMANOID = new EnumMap<>(AnimPose.class);
     private static final Map<AnimPose, Clip> QUAD = new EnumMap<>(AnimPose.class);
+    private static final Map<AnimPose, Clip> BIRD = new EnumMap<>(AnimPose.class);
+
+    private static void b(float[] windup, float[] strike, AnimPose... poses) {
+        for (AnimPose p : poses) BIRD.put(p, new Clip(windup, strike));
+    }
 
     private static void h(AnimPose p, float[] windup, float[] strike) {
         HUMANOID.put(p, new Clip(windup, strike));
@@ -137,6 +152,14 @@ public final class AnimClips {
                 k(RAX, -3.0f, LAX, -3.0f, RAZ, -0.45f, LAZ, 0.45f, HX, -0.6f, LEAN, -10, UP, 0.08f));
         h(AnimPose.BELLY_FLOP, k(SQUASH, 0.85f, RAX, -2.5f, LAX, -2.5f),
                 k(LEAN, 70, RAX, -2.8f, LAX, -2.8f, RLX, 0.4f, LLX, 0.4f));
+        h(AnimPose.PECK, k(HX, -0.65f, LEAN, -12, RAX, -0.8f, LAX, -0.8f),
+                k(HX, 0.6f, LEAN, 24, FWD, 0.18f, RAX, 0.45f, LAX, 0.45f, RAY, 0, LAY, 0));
+        h(AnimPose.FLAP, k(RAX, -0.3f, RAZ, 1.6f, LAX, -0.3f, LAZ, -1.6f, LEAN, -6, UP, 0.04f),
+                k(RAX, -1.4f, RAZ, 0.1f, LAX, -1.4f, LAZ, -0.1f, LEAN, 14, FWD, 0.1f));
+        h(AnimPose.DRINK, k(RAX, -2.0f, RAY, -0.5f, RAZ, 0.3f, HX, -0.2f, LAX, -0.9f),
+                k(RAX, -2.5f, RAY, -0.7f, RAZ, 0.45f, HX, -0.75f, LEAN, -8, LAX, -0.6f, UP, 0.03f));
+        h(AnimPose.SCREAM, k(HX, 0.35f, LEAN, 8, SQUASH, 0.92f, RAX, -0.6f, LAX, -0.6f),
+                k(HX, -0.7f, LEAN, -14, RAX, -0.8f, RAZ, 1.0f, LAX, -0.8f, LAZ, -1.0f, UP, 0.05f));
 
         // ---------------- four-legged bodies: RAX = front legs, RLX = hind legs, HX = head
         float[] snoutWind = k(HX, -0.45f, LEAN, -6);
@@ -170,10 +193,43 @@ public final class AnimClips {
         q(AnimPose.SHOOT, snoutWind, snoutHit);
         q(AnimPose.SHOOT_UP, k(HX, -0.5f), k(HX, -0.8f, LEAN, -12));
         q(AnimPose.BACKFLIP, k(SQUASH, 0.85f), k(RAX, -0.8f, RLX, 0.8f));
+        q(AnimPose.PECK, snoutWind, snoutHit);
+        q(AnimPose.FLAP, rearUp, slamDown);
+        q(AnimPose.DRINK, k(HX, -0.6f, LEAN, -10), k(HX, -0.9f, LEAN, -16));
+        q(AnimPose.SCREAM, k(HX, 0.4f, LEAN, 6, SQUASH, 0.9f), k(HX, -0.75f, LEAN, -20, RAX, -0.5f, UP, 0.05f));
+
+        // ---------------- chicken
+        float[] peckWind = k(HX, -0.75f, LEAN, -16, RAZ, 0.3f);
+        float[] peckHit = k(HX, 1.0f, LEAN, 30, FWD, 0.14f, RAZ, 0.5f);
+        b(peckWind, peckHit, AnimPose.JAB, AnimPose.STRAIGHT, AnimPose.PECK, AnimPose.LOW_JAB, AnimPose.BODY_BLOW,
+                AnimPose.HEADBUTT, AnimPose.PALM, AnimPose.AIR_PUNCH, AnimPose.GRAB, AnimPose.THROW_FWD, AnimPose.RUSH,
+                AnimPose.SHOOT, AnimPose.CHARGE, AnimPose.LUNGE);
+        float[] wingWind = k(RAZ, 1.5f, LEAN, -10, UP, 0.05f, HX, -0.3f);
+        float[] wingHit = k(RAZ, -0.3f, LEAN, 18, FWD, 0.12f, HX, 0.4f);
+        b(wingWind, wingHit, AnimPose.FLAP, AnimPose.HOOK, AnimPose.OVERHEAD, AnimPose.SLAM, AnimPose.AIR_SLAM,
+                AnimPose.THROW, AnimPose.DRIVE_IMPACT, AnimPose.SUMMON);
+        float[] talonWind = k(RLX, 0.7f, LLX, -0.2f, LEAN, -10, RAZ, 0.8f);
+        float[] talonHit = k(RLX, -1.4f, LLX, 0.3f, LEAN, -22, FWD, 0.1f, RAZ, 1.2f, HX, -0.3f);
+        b(talonWind, talonHit, AnimPose.SHIN_KICK, AnimPose.FRONT_KICK, AnimPose.ROUNDHOUSE, AnimPose.LOW_KICK,
+                AnimPose.POKE_KICK, AnimPose.AXE_KICK, AnimPose.SPIN_KICK, AnimPose.AIR_KICK, AnimPose.FLYING_KICK,
+                AnimPose.THROW_BACK, AnimPose.STOMP);
+        b(k(SQUASH, 0.8f, RAZ, 0.6f), k(SQUASH, 0.7f, RLX, -1.5f, LLX, 0.5f, LEAN, -30, FWD, 0.12f, RAZ, 1.3f),
+                AnimPose.SWEEP, AnimPose.SLIDE);
+        b(k(RAZ, 1.4f, LEAN, -20), k(RAZ, 0.4f, LEAN, 40, HX, 0.6f, RLX, -1.2f, LLX, -1.2f), AnimPose.DIVE_KICK,
+                AnimPose.BELLY_FLOP);
+        b(k(SQUASH, 0.78f, HX, 0.4f, RAZ, 0.2f), k(LEAN, -40, HX, -1.0f, RAZ, 1.6f, UP, 0.1f, RLX, 0.6f, LLX, 0.6f),
+                AnimPose.ANTI_AIR, AnimPose.UPPERCUT);
+        b(k(HX, 0.3f, LEAN, 6, RAZ, 0.5f), k(HX, -0.9f, LEAN, -22, RAZ, 1.6f, UP, 0.06f), AnimPose.SCREAM,
+                AnimPose.TAUNT, AnimPose.SHOOT_UP, AnimPose.DRINK);
+        b(k(SQUASH, 0.85f), k(RAZ, 1.6f, RLX, -0.8f, LLX, -0.8f), AnimPose.BACKFLIP);
     }
 
     public static Clip humanoid(AnimPose p) {
         return HUMANOID.getOrDefault(p, HUMANOID.get(AnimPose.JAB));
+    }
+
+    public static Clip bird(AnimPose p) {
+        return BIRD.getOrDefault(p, BIRD.get(AnimPose.PECK));
     }
 
     public static Clip quadruped(AnimPose p) {

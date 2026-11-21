@@ -19,6 +19,8 @@ public final class FightInput {
     public int commandNormal = -1;
     /** AI shortcut: universal moves. */
     public boolean throwReq, backThrowReq, driveImpact, parry;
+    /** AI shortcut: flap for an extra jump while airborne. */
+    public boolean airJump;
 
     public void clear() {
         left = right = up = down = false;
@@ -27,7 +29,7 @@ public final class FightInput {
         strength = 1;
         superLevel = 0;
         commandNormal = -1;
-        throwReq = backThrowReq = driveImpact = parry = false;
+        throwReq = backThrowReq = driveImpact = parry = airJump = false;
     }
 
     public boolean anyButton() {
@@ -41,6 +43,7 @@ public final class FightInput {
         c.lp = lp; c.mp = mp; c.hp = hp; c.lk = lk; c.mk = mk; c.hk = hk; c.sp = sp;
         c.special = special; c.strength = strength; c.superLevel = superLevel; c.commandNormal = commandNormal;
         c.throwReq = throwReq; c.backThrowReq = backThrowReq; c.driveImpact = driveImpact; c.parry = parry;
+        c.airJump = airJump;
         return c;
     }
 }

@@ -10,6 +10,7 @@ import com.streetfighter.fight.HitLevel;
 import com.streetfighter.fight.Move;
 import com.streetfighter.fight.Projectile;
 import com.streetfighter.fight.ProjectileVisual;
+import com.streetfighter.fight.StatusEffect;
 import com.streetfighter.network.ModNetwork;
 import com.streetfighter.network.WallBreakPacket;
 import net.minecraft.client.Minecraft;
@@ -119,6 +120,39 @@ public final class WorldFx {
         if (mc.player != null) sound(sound, mc.player.getEyePosition(), volume, pitch);
     }
 
+    /** The vanilla potion a status effect looks like (null = Instant Damage). */
+    public static net.minecraft.core.Holder<net.minecraft.world.item.alchemy.Potion> potionFor(StatusEffect e) {
+        if (e == null) return net.minecraft.world.item.alchemy.Potions.HARMING;
+        return switch (e) {
+            case POISON -> net.minecraft.world.item.alchemy.Potions.POISON;
+            case SLOW -> net.minecraft.world.item.alchemy.Potions.SLOWNESS;
+            case STRENGTH -> net.minecraft.world.item.alchemy.Potions.STRENGTH;
+            case SPEED -> net.minecraft.world.item.alchemy.Potions.SWIFTNESS;
+            case REGEN -> net.minecraft.world.item.alchemy.Potions.REGENERATION;
+        };
+    }
+
+    private static int effectColor(StatusEffect e) {
+        return e == null ? 0xA9273A : e.color;
+    }
+
+    private static ParticleOptions swirl(int rgb) {
+        return net.minecraft.core.particles.ColorParticleOption.create(ParticleTypes.ENTITY_EFFECT, 0xFF000000 | rgb);
+    }
+
+    private static StatusEffect effectByName(String name) {
+        if (name == null) return null;
+        try {
+            return StatusEffect.valueOf(name);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    private void feathers(Vec3 p, int count) {
+        burst(new ItemParticleOption(ParticleTypes.ITEM, new ItemStack(Items.FEATHER)), p, count, 0.25, 0.4);
+    }
+
     private int colorOf(int index) {
         return index == 0 ? C_P1 : C_P2;
     }
@@ -217,7 +251,17 @@ public final class WorldFx {
                         level().addParticle(ParticleTypes.EXPLOSION_EMITTER, p.x, p.y, p.z, 0, 0, 0);
                         sound(SoundEvents.GENERIC_EXPLODE.value(), p, 1f, 0.8f);
                     }
-                    if (attacker.move.level == HitLevel.GRAB) {
+                    FighterType at = attacker.moves.type();
+                    if (at == FighterType.GOAT && ev.heavy() && attacker.move.pose != AnimPose.THROW_FWD) {
+                        sound(SoundEvents.GOAT_RAM_IMPACT, p, 1f, 0.9f);
+                    }
+                    if (at == FighterType.CHICKEN && attacker.move.pose == AnimPose.PECK) {
+                        feathers(p, 3);
+                    }
+                    if (attacker.move.level == HitLevel.GRAB && at == FighterType.ALCHEMIST) {
+                        burst(swirl(StatusEffect.POISON.color), p, 16, 0.5, 0.8);
+                        sound(SoundEvents.WITCH_THROW, p, 1f, 1f);
+                    } else if (attacker.move.level == HitLevel.GRAB) {
                         burst(ParticleTypes.HAPPY_VILLAGER, p, 14, 0.5, 0.8);
                         burst(new ItemParticleOption(ParticleTypes.ITEM, new ItemStack(Items.EMERALD)), p, 10, 0.4, 0.4);
                         sound(SoundEvents.VILLAGER_TRADE, p, 1f, 1f);
@@ -310,12 +354,57 @@ public final class WorldFx {
                         sound(SoundEvents.RAID_HORN.value(), p, 0.4f, 1.5f);
                     }
                     case PIG -> sound(SoundEvents.PIG_AMBIENT, p, 1f, 0.8f);
+                    case EGG, GOLDEN_EGG -> {
+                        sound(SoundEvents.EGG_THROW, p, 1f, ev.visual() == ProjectileVisual.GOLDEN_EGG ? 0.8f : 1.1f);
+                        sound(SoundEvents.CHICKEN_EGG, p, 0.7f, 1.3f);
+                    }
+                    case CHICKEN -> {
+                        sound(SoundEvents.CHICKEN_AMBIENT, p, 1f, 0.8f);
+                        sound(SoundEvents.CHICKEN_HURT, p, 0.6f, 1.4f);
+                    }
+                    case POTION -> sound(SoundEvents.SPLASH_POTION_THROW, p, 1f, 0.9f);
+                    case CLOUD -> {
+                        sound(SoundEvents.LINGERING_POTION_THROW, p, 1f, 0.8f);
+                        sound(SoundEvents.BREWING_STAND_BREW, p, 0.8f, 1.2f);
+                    }
+                    case SNOWBALL -> sound(SoundEvents.POWDER_SNOW_FALL, p, 1f, 0.8f);
+                    case GOAT -> {
+                        sound(SoundEvents.GOAT_SCREAMING_PREPARE_RAM, p, 1f, 1f);
+                        sound(SoundEvents.GOAT_HORN_SOUND_VARIANTS.get(0).value(), p, 0.7f, 1f);
+                    }
+                    case SHOCKWAVE -> {
+                        if (f.moves.type() == FighterType.GOAT) {
+                            sound(SoundEvents.GOAT_SCREAMING_AMBIENT, p, 1.2f, 0.9f);
+                            quads.ring(front(at(f.x + f.dir() * 30, 70)), 0.3f, 2.6f, 0.3f, 0xE8F4FF);
+                        }
+                    }
                     default -> {
                     }
                 }
             }
             case EXPLOSION -> {
                 Vec3 p = at(ev.x(), ev.y());
+                if (ev.visual() == ProjectileVisual.POTION) {
+                    Projectile src = null;
+                    for (Projectile pr : engine.projectiles) {
+                        if (pr.exploded && pr.spec.visual == ProjectileVisual.POTION && Math.abs(pr.x - ev.x()) < 2) src = pr;
+                    }
+                    StatusEffect e = src != null ? src.spec.effect : null;
+                    int col = effectColor(e);
+                    Vec3 g = p.add(0, -0.4, 0);
+                    burst(swirl(col), g, 40, 1.2, 0.6);
+                    burst(e == null ? ParticleTypes.INSTANT_EFFECT : ParticleTypes.EFFECT, g, 20, 0.8, 0.5);
+                    burst(new ItemParticleOption(ParticleTypes.ITEM, new ItemStack(Items.SPLASH_POTION)), g, 10, 0.3, 0.3);
+                    float size = src != null ? src.spec.blastSize / 60f : 2f;
+                    quads.ring(front(g), 0.3f, size * 1.6f, 0.4f, col);
+                    quads.glow(front(g), size * 1.4f, 0.3f, col);
+                    sound(SoundEvents.SPLASH_POTION_BREAK, p, 1.2f, 1f);
+                    if (size > 3) {
+                        sound(SoundEvents.GENERIC_EXPLODE.value(), p, 0.6f, 1.3f);
+                        session.fovKick = Math.max(session.fovKick, 0.04f);
+                    }
+                    break;
+                }
                 level().addParticle(ParticleTypes.EXPLOSION_EMITTER, p.x, p.y, p.z, 0, 0, 0);
                 quads.ring(front(p), 0.5f, 5f, 0.4f, C_FIRE);
                 quads.glow(front(p), 4f, 0.35f, C_FIRE);
@@ -413,6 +502,44 @@ public final class WorldFx {
                     announce(SoundEvents.WITHER_DEATH, 0.25f, 1.6f);
                 }
             }
+            case AIR_JUMP -> {
+                if (f == null) break;
+                Vec3 p = at(f.x, f.y + 40);
+                feathers(p, 10);
+                quads.ring(front(at(f.x, f.y + 10)), 0.2f, 1.6f, 0.25f, 0xFFFFFF);
+                sound(SoundEvents.ENDER_DRAGON_FLAP, p, 0.5f, 1.9f);
+                sound(SoundEvents.CHICKEN_AMBIENT, p, 0.6f, 1.2f);
+            }
+            case STATUS -> {
+                if (f == null) break;
+                StatusEffect e = effectByName(ev.text());
+                if (e == null) break;
+                Vec3 p = at(f.x, f.y + 70);
+                int r = ((e.color >> 16 & 255) + 255) / 2, gg = ((e.color >> 8 & 255) + 255) / 2, bb = ((e.color & 255) + 255) / 2;
+                int argb = 0xFF000000 | r << 16 | gg << 8 | bb;
+                hud.callout(e.label + "!", f.index, argb);
+                burst(swirl(e.color), p, 24, 0.6, 0.9);
+                quads.glow(front(p), 2.2f, 0.35f, e.color);
+                if (e.buff) {
+                    sound(SoundEvents.GENERIC_DRINK, p, 1f, 1f);
+                    sound(SoundEvents.BREWING_STAND_BREW, p, 0.7f, 1.4f);
+                    quads.ring(front(at(f.x, f.y + 5)), 0.3f, 2.4f, 0.4f, e.color);
+                } else {
+                    sound(e == StatusEffect.SLOW ? SoundEvents.POWDER_SNOW_STEP : SoundEvents.WITCH_DRINK, p, 0.8f, 1.3f);
+                }
+            }
+            case STATUS_TICK -> {
+                if (f == null) break;
+                StatusEffect e = effectByName(ev.text());
+                Vec3 p = at(f.x, f.y + 60);
+                burst(swirl(effectColor(e)), p, 6, 0.3, 0.8);
+                if (e == StatusEffect.POISON) {
+                    burst(ParticleTypes.DAMAGE_INDICATOR, p, 1, 0.1, 0.3);
+                    sound(SoundEvents.PLAYER_HURT_SWEET_BERRY_BUSH, p, 0.25f, 1.6f);
+                } else if (e == StatusEffect.REGEN) {
+                    burst(ParticleTypes.HEART, p.add(0, 0.5, 0), 1, 0.1, 0.4);
+                }
+            }
             case WHIFF -> {
             }
         }
@@ -498,6 +625,41 @@ public final class WorldFx {
                 case PIG -> {
                     if (frame % 3 == 0) dust(p.x, 2, 0.08);
                 }
+                case EGG -> {
+                }
+                case GOLDEN_EGG -> {
+                    if (frame % 3 == 0) level().addParticle(ParticleTypes.WAX_OFF, w.x, w.y, w.z, 0, 0, 0);
+                }
+                case CHICKEN -> {
+                    if (frame % 5 == 0) feathers(w, 1);
+                }
+                case POTION -> {
+                    if (frame % 2 == 0) {
+                        ParticleOptions sw = swirl(effectColor(p.spec.effect));
+                        level().addParticle(sw, w.x, w.y, w.z, 0, 0, 0);
+                    }
+                }
+                case CLOUD -> {
+                    int col = effectColor(p.spec.effect);
+                    float fade = Math.min(1f, (p.spec.lifetime - p.age) / 30f);
+                    for (int i = 0; i < 3; i++) {
+                        if (random.nextFloat() > fade) continue;
+                        float ox = (random.nextFloat() - 0.5f) * p.width();
+                        float oy = random.nextFloat() * p.height() * 0.8f;
+                        Vec3 c = at(p.x + ox, oy).add(session.arena.normal.scale((random.nextFloat() - 0.5f) * 1.2f));
+                        level().addParticle(swirl(col), c.x, c.y, c.z, 0, 0.01, 0);
+                    }
+                    if (frame % 6 == 0 && fade > 0.3f) {
+                        Vec3 c = at(p.x, 30);
+                        level().addParticle(ParticleTypes.EFFECT, c.x, c.y, c.z, 0, 0.02, 0);
+                    }
+                }
+                case SNOWBALL -> {
+                    if (frame % 2 == 0) level().addParticle(ParticleTypes.SNOWFLAKE, w.x, w.y, w.z, 0, 0, 0);
+                }
+                case GOAT -> {
+                    if (frame % 3 == 0) dust(p.x, 3, 0.1);
+                }
                 case BELL, SHOCKWAVE -> {
                     dust(p.x, 3, 0.18);
                     if (frame % 3 == 0) quads.ring(front(ground(p.x).add(0, 0.6, 0)), 0.4f, 1.8f, 0.25f, C_GOLD);
@@ -549,6 +711,15 @@ public final class WorldFx {
                     level().addParticle(ParticleTypes.END_ROD, w.x, w.y, w.z, 0, 0.03, 0);
                 }
             }
+            if (frame % 4 == f.index * 2) {
+                for (StatusEffect e : StatusEffect.ALL) {
+                    if (!f.has(e)) continue;
+                    Vec3 w = at(f.x, f.y + random.nextFloat() * f.hurtHeight())
+                            .add(session.arena.axis.scale((random.nextFloat() - 0.5f) * 0.6f));
+                    level().addParticle(swirl(e.color), w.x, w.y, w.z, 0, 0.01, 0);
+                }
+            }
+            if (f.gliding && frame % 4 == 0) feathers(at(f.x, f.y + 30), 1);
             if (f.state == Fighter.State.PARRY && frame % 3 == 0) {
                 burst(PARRY_GREEN, at(f.x, 70), 2, 0.1, 1.0);
             }
@@ -597,6 +768,9 @@ public final class WorldFx {
             case SKELETON -> SoundEvents.SKELETON_AMBIENT;
             case VILLAGER -> SoundEvents.VILLAGER_AMBIENT;
             case PIG -> SoundEvents.PIG_AMBIENT;
+            case CHICKEN -> SoundEvents.CHICKEN_AMBIENT;
+            case ALCHEMIST -> SoundEvents.VILLAGER_WORK_CLERIC;
+            case GOAT -> SoundEvents.GOAT_PREPARE_RAM;
             default -> SoundEvents.PLAYER_ATTACK_SWEEP;
         };
     }

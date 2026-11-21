@@ -123,7 +123,8 @@ public final class WorldRenderEvents {
         for (Projectile p : engine.projectiles) {
             if (p.delay > 0) continue;
             float rx = p.prevX + (p.x - p.prevX) * s.alpha(), ry = p.prevY + (p.y - p.prevY) * s.alpha();
-            if (p.exploded || p.spec.visual == com.streetfighter.fight.ProjectileVisual.SHOCKWAVE) continue;
+            if (p.exploded || p.spec.visual == com.streetfighter.fight.ProjectileVisual.SHOCKWAVE
+                    || p.spec.visual == com.streetfighter.fight.ProjectileVisual.CLOUD) continue;
             Vec3 w = p.bottomAnchored() ? arena.toWorld(rx, ry, 0.5) : arena.toWorldFlat(rx, ry);
             int light = LevelRenderer.getLightColor(mc.level, BlockPos.containing(w.x, w.y + 0.6, w.z));
             switch (p.spec.visual) {
@@ -144,11 +145,19 @@ public final class WorldRenderEvents {
                     dispatcher.render(s.arrowDummy, 0, 0, 0, yRot, 1f, ps, buffers, light);
                     ps.popPose();
                 }
-                case GOLEM, PIG -> {
-                    LivingEntity dummy = p.spec.visual == com.streetfighter.fight.ProjectileVisual.GOLEM ? s.golemDummy : s.pigDummy;
+                case GOLEM, PIG, GOAT, CHICKEN -> {
+                    LivingEntity dummy = switch (p.spec.visual) {
+                        case GOLEM -> s.golemDummy;
+                        case GOAT -> s.goatDummy;
+                        case CHICKEN -> s.chickenDummy;
+                        default -> s.pigDummy;
+                    };
                     if (dummy == null) break;
                     Fighter target = engine.fighter(1 - p.owner);
-                    boolean faceRight = p.spec.visual == com.streetfighter.fight.ProjectileVisual.PIG ? p.vx >= 0 : target.x >= p.x;
+                    boolean faceRight = p.spec.visual != com.streetfighter.fight.ProjectileVisual.GOLEM ? p.vx >= 0 : target.x >= p.x;
+                    if (p.spec.visual == com.streetfighter.fight.ProjectileVisual.CHICKEN) {
+                        w = w.add(0, -p.spec.height / 2f / Arena.UNITS_PER_BLOCK, 0); // centred -> feet
+                    }
                     Vec3 face = arena.axis.scale(faceRight ? 1 : -1);
                     float yaw = (float) (Mth.atan2(face.z, face.x) * Mth.RAD_TO_DEG) - 90f;
                     dummy.setPos(w.x, w.y, w.z);
@@ -172,6 +181,15 @@ public final class WorldRenderEvents {
                         case TNT -> new ItemStack(Items.TNT);
                         case SKULL -> new ItemStack(Items.WITHER_SKELETON_SKULL);
                         case BELL -> new ItemStack(Items.BELL);
+                        case EGG -> new ItemStack(Items.EGG);
+                        case GOLDEN_EGG -> {
+                            ItemStack egg = new ItemStack(Items.EGG);
+                            egg.set(net.minecraft.core.component.DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true);
+                            yield egg;
+                        }
+                        case FEATHER -> new ItemStack(Items.FEATHER);
+                        case POTION -> net.minecraft.world.item.alchemy.PotionContents.createItemStack(Items.SPLASH_POTION,
+                                WorldFx.potionFor(p.spec.effect));
                         default -> new ItemStack(Items.SNOWBALL);
                     };
                     float spin = p.age * 14f * (p.vx >= 0 ? 1 : -1);
@@ -184,6 +202,8 @@ public final class WorldRenderEvents {
                         case TNT -> 0.85f + (p.age % 10 < 5 ? 0.06f : 0f); // pulsing fuse
                         case BELL -> 1.6f;
                         case SKULL -> 0.9f;
+                        case GOLDEN_EGG -> 0.85f;
+                        case EGG, POTION -> 0.7f;
                         default -> 0.8f;
                     };
                     if (p.spec.visual == com.streetfighter.fight.ProjectileVisual.BELL) {

@@ -58,11 +58,12 @@ public final class FightHud {
         g.fill(x - 2, y - 2, x + size + 2, y + size + 2, border);
         g.fillGradient(x, y, x + size, y + size, 0xFF2A3350, 0xFF0B0F1C);
         if (e == null) return;
-        boolean upright = FighterRenderer.isUpright(e);
         float bbH = Math.max(0.3f, e.getBbHeight());
-        float px = upright ? size / 0.7f : size / Math.max(0.6f, bbH * 0.95f);
+        boolean small = bbH < 1.0f; // chickens & co: show the whole mob, head centred
+        boolean upright = !small && FighterRenderer.isUpright(e);
+        float px = small ? size / 1.05f : upright ? size / 0.7f : size / Math.max(0.6f, bbH * 0.95f);
         float feetY = upright ? y + bbH * px - size * 0.02f : y + size * 0.92f;
-        float cx = x + size / 2f + (upright ? 0 : (faceRight ? -1 : 1) * size * 0.22f);
+        float cx = x + size / 2f + (upright ? 0 : (faceRight ? -1 : 1) * size * (small ? 0.12f : 0.22f));
         g.enableScissor(x, y, x + size, y + size);
         FighterRenderer.Pose pose = new FighterRenderer.Pose();
         FighterRenderer.render(g, e, cx, feetY, px, faceRight, pose);
@@ -122,6 +123,8 @@ public final class FightHud {
         int my = h - mh - 12 - (int) (s.hud.letterbox * h * 0.06f);
         superMeter(g, e.player, 12, my, mw, mh, false);
         superMeter(g, e.enemy, w - 12 - mw, my, mw, mh, true);
+        statusTags(g, e.player, 12, my - 24, false, w);
+        statusTags(g, e.enemy, w - 12, my - 24, true, w);
 
         combo(g, e.player, false, w, h);
         combo(g, e.enemy, true, w, h);
@@ -134,6 +137,30 @@ public final class FightHud {
         if (e.phase == FightEngine.Phase.INTRO || (e.phase == FightEngine.Phase.FIGHTING && e.round == 1
                 && e.timer > FightEngine.ROUND_FRAMES - 60 * 6)) {
             help(g, w, my - 16);
+        }
+    }
+
+    /** Small coloured pills for active status effects (POISON 4s, STRENGTH 8s...). */
+    private void statusTags(GuiGraphics g, Fighter f, int x, int y, boolean rightSide, int w) {
+        int cx = x;
+        for (com.streetfighter.fight.StatusEffect fx : com.streetfighter.fight.StatusEffect.ALL) {
+            int left = f.status[fx.ordinal()];
+            if (left <= 0) continue;
+            String name = switch (fx) {
+                case POISON -> "POISON";
+                case SLOW -> "SLOW";
+                case STRENGTH -> "STR";
+                case SPEED -> "SPEED";
+                case REGEN -> "REGEN";
+            };
+            String txt = name + " " + (left + 59) / 60 + "s";
+            int tw = font.width(txt) + 6;
+            int x0 = rightSide ? cx - tw : cx;
+            boolean blink = left < 60 && (left / 6) % 2 == 0;
+            g.fill(x0, y, x0 + tw, y + 10, blink ? 0x60000000 : 0xC0000000 | (fx.color & 0xFFFFFF) >> 1 & 0x7F7F7F);
+            g.fill(x0, y, x0 + 2, y + 10, 0xFF000000 | fx.color);
+            g.drawString(font, txt, x0 + 4, y + 1, fx.buff ? 0xFFFFF2B0 : 0xFFD8FFC0, true);
+            cx = rightSide ? x0 - 3 : x0 + tw + 3;
         }
     }
 
