@@ -18,7 +18,11 @@ public record TreeChallengePacket(BlockPos pos) {
 
     public static void handle(TreeChallengePacket msg, CustomPayloadEvent.Context ctx) {
         ServerPlayer player = ctx.getSender();
-        if (player != null) TreeFights.challenge(player, msg.pos);
+        if (player != null) {
+            var state = player.serverLevel().getBlockState(msg.pos);
+            if (com.streetfighter.server.OreFights.isIronOre(state)) com.streetfighter.server.OreFights.challenge(player, msg.pos);
+            else TreeFights.challenge(player, msg.pos);
+        }
         ctx.setPacketHandled(true);
     }
 }

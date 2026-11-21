@@ -143,6 +143,7 @@ public final class FightHud {
                 case STRENGTH -> "STR";
                 case SPEED -> "SPEED";
                 case REGEN -> "REGEN";
+                case HUNGER -> "HUNGER";
             };
             String txt = name + " " + (left + 59) / 60 + "s";
             int tw = font.width(txt) + 6;

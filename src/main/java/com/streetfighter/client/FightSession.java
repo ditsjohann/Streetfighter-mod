@@ -64,7 +64,7 @@ public final class FightSession {
     public float fovKick;
 
     // dummies used to draw projectiles/assists with real models
-    public LivingEntity golemDummy, pigDummy, goatDummy;
+    public LivingEntity golemDummy, pigDummy, goatDummy, zombieDummy, babyZombieDummy;
     public net.minecraft.world.entity.animal.Chicken chickenDummy;
     public Arrow arrowDummy;
 
@@ -134,6 +134,10 @@ public final class FightSession {
         golemDummy = (LivingEntity) EntityType.IRON_GOLEM.create(mc.level);
         pigDummy = (LivingEntity) EntityType.PIG.create(mc.level);
         goatDummy = (LivingEntity) EntityType.GOAT.create(mc.level);
+        zombieDummy = EntityType.ZOMBIE.create(mc.level);
+        var baby = EntityType.ZOMBIE.create(mc.level);
+        if (baby != null) baby.setBaby(true);
+        babyZombieDummy = baby;
         chickenDummy = EntityType.CHICKEN.create(mc.level);
         arrowDummy = EntityType.ARROW.create(mc.level);
 
@@ -272,6 +276,8 @@ public final class FightSession {
                 hud.step();
                 if (pigDummy != null) pigDummy.walkAnimation.update(1.3f, 0.5f);
                 if (goatDummy != null) goatDummy.walkAnimation.update(1.4f, 0.5f);
+                if (zombieDummy != null) zombieDummy.walkAnimation.update(0.8f, 0.5f);
+                if (babyZombieDummy != null) babyZombieDummy.walkAnimation.update(1.6f, 0.5f);
                 if (chickenDummy != null) {
                     chickenDummy.oFlap = chickenDummy.flap;
                     chickenDummy.oFlapSpeed = chickenDummy.flapSpeed;

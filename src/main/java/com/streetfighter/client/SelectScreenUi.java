@@ -34,12 +34,13 @@ import java.util.Random;
  * </ul>
  */
 final class SelectScreenUi {
-    static final int COLS = 7, ROWS = 2;
+    static final int COLS = 7, ROWS = 3;
     /** Grid layout; null = empty (future) slot. */
     private static final FighterType[] GRID = {
             FighterType.STEVE, FighterType.PIG, FighterType.SKELETON, FighterType.VILLAGER, FighterType.ALCHEMIST,
             FighterType.CHICKEN, FighterType.GOAT,
-            FighterType.OAK, null, null, null, null, null, null};
+            FighterType.OAK, FighterType.IRON_ORE, FighterType.STONE_PICKAXE, null, FighterType.ZOMBIE, null, null,
+            null, null, null, null, null, null, null};
     private static final int RANDOM_CELL = 10; // centre of the bottom row
     private static final float SELECT_SECONDS = 30f;
 
@@ -85,6 +86,9 @@ final class SelectScreenUi {
             case CHICKEN -> new Profile("AERIAL RUSHDOWN", "THE COOP", 2, 5, 1, 2, 0xFFD84A);
             case GOAT -> new Profile("RAMMER", "SNOWY PEAKS", 5, 2, 3, 2, 0x9CD2FF);
             case OAK -> new Profile("ROOTED BRUISER", "OAK FOREST", 4, 1, 5, 4, 0x7DBA3C);
+            case IRON_ORE -> new Profile("JUGGERNAUT", "DEEP CAVES", 5, 1, 5, 2, 0xD8AF93);
+            case STONE_PICKAXE -> new Profile("RUSHDOWN", "CRAFTING TABLE", 3, 4, 2, 2, 0xA0A0A0);
+            case ZOMBIE -> new Profile("UNDEAD GRAPPLER", "THE NIGHT", 4, 2, 4, 1, 0x5DAA46);
             case BRAWLER -> new Profile("WILD MOB", "THE WILD", 3, 3, 3, 2, 0xFF6A4A);
         };
     }
@@ -92,9 +96,12 @@ final class SelectScreenUi {
     private LivingEntity entityFor(FighterType t) {
         Minecraft mc = Minecraft.getInstance();
         if (t == FighterType.STEVE) return mc.player;
-        if (t == FighterType.OAK) {
-            return dummies.computeIfAbsent(t, k -> mc.level == null ? null
-                    : com.streetfighter.entity.ModEntities.OAK_TREANT.get().create(mc.level));
+        if (t == FighterType.OAK || t == FighterType.IRON_ORE || t == FighterType.STONE_PICKAXE) {
+            return dummies.computeIfAbsent(t, k -> mc.level == null ? null : (switch (k) {
+                case OAK -> com.streetfighter.entity.ModEntities.OAK_TREANT.get();
+                case IRON_ORE -> com.streetfighter.entity.ModEntities.IRON_ORE_GOLEM.get();
+                default -> com.streetfighter.entity.ModEntities.STONE_PICKAXE.get();
+            }).create(mc.level));
         }
         return dummies.computeIfAbsent(t, k -> {
             if (mc.level == null) return null;
@@ -104,6 +111,7 @@ final class SelectScreenUi {
                 case PIG -> EntityType.PIG;
                 case CHICKEN -> EntityType.CHICKEN;
                 case GOAT -> EntityType.GOAT;
+                case ZOMBIE -> EntityType.ZOMBIE;
                 default -> EntityType.ZOMBIE;
             };
             var e = type.create(mc.level);
@@ -313,7 +321,7 @@ final class SelectScreenUi {
 
     private static Layout layout(int w, int h) {
         int gap = 3;
-        int cs = (int) Mth.clamp(Math.min((w * 0.5f - (COLS - 1) * gap) / COLS, h * 0.12f), 20, 64);
+        int cs = (int) Mth.clamp(Math.min((w * 0.5f - (COLS - 1) * gap) / COLS, h * 0.1f), 18, 60);
         int gridW = COLS * cs + (COLS - 1) * gap;
         int gx = (w - gridW) / 2;
         int gy = h - ROWS * cs - gap - 16;

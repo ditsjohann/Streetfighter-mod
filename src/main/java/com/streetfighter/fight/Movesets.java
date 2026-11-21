@@ -30,6 +30,9 @@ public final class Movesets {
         SETS.put(FighterType.ALCHEMIST, alchemist());
         SETS.put(FighterType.GOAT, goat());
         SETS.put(FighterType.OAK, oak());
+        SETS.put(FighterType.IRON_ORE, ironOre());
+        SETS.put(FighterType.STONE_PICKAXE, stonePickaxe());
+        SETS.put(FighterType.ZOMBIE, zombie());
         SETS.put(FighterType.BRAWLER, brawler());
     }
 
@@ -724,6 +727,215 @@ public final class Movesets {
                 .knockdown().multiHit(8, 8).invuln(0, 8).lockOnHit().groundBounce().pose(AnimPose.GRAB)
                 .callout("ANCIENT OAK!").build()));
         universals(m, "Branch Toss", "Uproot Slam", 130);
+        return m;
+    }
+
+    // =====================================================================================================
+    // IRON ORE: a living ore vein. Super heavy armored bruiser: slow, huge damage, stone spikes and cave-ins
+    // =====================================================================================================
+
+    private static Moveset ironOre() {
+        FighterStats stats = new FighterStats(1080, 2.1f, 1.9f, 12.5f, 3.2f, 0.85f, 74, 140, 96);
+        Moveset m = new Moveset(FighterType.IRON_ORE, stats);
+        Tune t = new Tune(2, 4, 1.0f, 1.05f, 6);
+        normals(m, t, new String[]{"Pebble Jab", "Ore Punch", "Iron Hook", "Gravel Kick", "Boulder Boot", "Quarry Spin",
+                "Low Pebble", "Ore Body Blow", "Stalagmite Rise", "Gravel Tap", "Bedrock Poke", "Landslide",
+                "Air Pebble", "Air Ore", "Anvil Drop", "Air Gravel", "Air Boulder", "Meteor Stomp"});
+        // iron skin: the heavies don't flinch from one light hit
+        m.stand.put(Button.HP, m.stand.get(Button.HP).toBuilder().armor(1, 13).build());
+
+        m.commandNormals.add(new Moveset.CommandNormal(6, Button.HP,
+                commandNormal("Anvil Fist", AnimPose.OVERHEAD, 21, 3, 20, 92, 10, 95, 60, 160, HitLevel.HIGH)
+                        .toBuilder().knockdown().build()));
+        m.commandNormals.add(new Moveset.CommandNormal(4, Button.HK,
+                commandNormal("Rockslide Kick", AnimPose.SWEEP, 12, 5, 26, 80, 15, 120, 0, 30, HitLevel.LOW)
+                        .toBuilder().knockdown().crouching().build()));
+
+        Move forge = Move.builder("Forge Combo").kind(Kind.TARGET).frames(10, 4, 20).damage(85).box(12, 100, 56, 130)
+                .stun(22, 15).push(9).cancelable().pose(AnimPose.HOOK).build();
+        Move smelt = Move.builder("Smelt Smash").kind(Kind.TARGET).frames(12, 4, 24).damage(95).box(10, 105, 40, 140)
+                .stun(24, 16).push(10).knockdown().launch(5).pose(AnimPose.SLAM).build();
+        m.targetCombos.add(new Moveset.TargetCombo(m.stand.get(Button.MP), Button.HP, forge));
+        m.targetCombos.add(new Moveset.TargetCombo(forge, Button.HK, smelt));
+
+        m.specials.add(new Moveset.Special("Ore Chunk", Motion.QCF, false, Role.PROJECTILE, 5, variants(s -> Move.builder("")
+                .frames(pick(s, 16, 15, 14, 14), 2, pick(s, 26, 25, 24, 24)).damage(0).box(0, 0, 0, 0)
+                .projectile(ProjectileSpec.builder(s == 3 ? ProjectileVisual.COBBLE : ProjectileVisual.RAW_IRON)
+                        .velocity(pick(s, 6f, 7.5f, 9f, 8f), pick(s, 5f, 4f, 3f, 4f)).gravity(pick(s, 0.24f, 0.22f, 0.18f, 0.2f))
+                        .size(s == 3 ? 44 : 32, s == 3 ? 44 : 32).offset(35, 110).damage(pick(s, 72f, 78f, 84f, 70f))
+                        .stun(21, 15).push(9).spin().multiHit(s == 3 ? 2 : 1, 8).lifetime(170).build(), pick(s, 16, 15, 14, 14))
+                .pose(AnimPose.THROW), "Ore Chunk")));
+        m.specials.add(new Moveset.Special("Stalagmite", Motion.DP, false, Role.ANTI_AIR, 6, variants(s -> Move.builder("")
+                .frames(pick(s, 13, 15, 17, 12), 2, pick(s, 26, 28, 30, 24)).damage(0).box(0, 0, 0, 0).invuln(0, s == 3 ? 12 : 0)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.SPIKE).velocity(0f, 0f)
+                        .size(s == 3 ? 120 : 60, 180).offset(pick(s, 90f, 150f, 210f, 140f), 0)
+                        .damage(pick(s, 88f, 94f, 100f, 108f)).stun(28, 16).push(3).launch(12).knockdown()
+                        .durable().lifetime(26).build(), pick(s, 13, 15, 17, 12))
+                .pose(AnimPose.STOMP), "Stalagmite")));
+        m.specials.add(new Moveset.Special("Boulder Roll", Motion.QCF, true, Role.RUSH, 2, variants(s -> Move.builder("")
+                .frames(pick(s, 17, 16, 15, 14), 26, pick(s, 26, 28, 30, 24)).damage(pick(s, 90f, 98f, 108f, 120f))
+                .box(10, 95, 0, 110).stun(24, 16).push(14).launch(7).knockdown().stopOnHit()
+                .dash(pick(s, 7.5f, 9f, 10.5f, 10.5f), pick(s, 17, 16, 15, 14), pick(s, 43, 42, 41, 40))
+                .armor(s == 3 ? 2 : s == 2 ? 1 : 0, 40).wallSplat().pose(AnimPose.CHARGE), "Boulder Roll")));
+        m.specials.add(new Moveset.Special("Smelter Grab", Motion.HCB, false, Role.GRAB, 4, variants(s -> Move.builder("")
+                .frames(pick(s, 8, 9, 10, 7), 3, 38).damage(pick(s, 118f, 128f, 138f, 170f))
+                .box(5, pick(s, 78, 88, 98, 92), 20, 140).level(HitLevel.GRAB).stun(32, 0).push(11).launch(10).knockdown()
+                .invuln(s == 3 ? 0 : -1, s == 3 ? 7 : -1).pose(AnimPose.GRAB).callout(s == 3 ? "EX Smelter Grab!" : "SMELTED!"),
+                "Smelter Grab")));
+
+        m.supers.add(new Moveset.Super(1, Motion.QCF2, false, Move.builder("Cave-In").superLevel(1)
+                .frames(14, 2, 40).damage(0).box(0, 0, 0, 0).invuln(0, 14)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.COBBLE).velocity(0f, -14f).size(40, 40)
+                        .damage(52).stun(22, 12).push(3).launch(4).count(9, 5).fromSky(120, 560).spin().lifetime(100).build(), 14)
+                .pose(AnimPose.SLAM).callout("CAVE-IN!").build()));
+        m.supers.add(new Moveset.Super(2, Motion.QCB2, false, Move.builder("Minecart Rush").superLevel(2)
+                .frames(12, 2, 38).damage(0).box(0, 0, 0, 0).invuln(0, 14)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.MINECART).velocity(13f, 0f).size(80, 70).offset(-220, 0)
+                        .damage(78).stun(26, 14).push(6).launch(7).count(3, 6).durable().lifetime(150).build(), 12)
+                .pose(AnimPose.SUMMON).callout("MINECART RUSH!").build()));
+        m.supers.add(new Moveset.Super(3, Motion.QCF2, true, Move.builder("Molten Core").superLevel(3)
+                .frames(8, 68, 36).damage(46).box(5, 100, 20, 140).stun(30, 12).push(0.5f).launch(14).knockdown()
+                .multiHit(9, 7).dash(8f, 8, 16).invuln(0, 14).lockOnHit().wallSplat().pose(AnimPose.RUSH)
+                .callout("MOLTEN CORE!").build()));
+        universals(m, "Ore Toss", "Mine Shaft Slam", 135);
+        return m;
+    }
+
+    // =====================================================================================================
+    // STONE PICKAXE: a tool that refuses to be crafted. Fast, mining-themed rushdown with drills and rubble
+    // =====================================================================================================
+
+    private static Moveset stonePickaxe() {
+        FighterStats stats = new FighterStats(940, 4.0f, 3.6f, 15.5f, 4.8f, 0.78f, 44, 120, 80);
+        Moveset m = new Moveset(FighterType.STONE_PICKAXE, stats);
+        Tune t = new Tune(-1, 14, 1.06f, 1f, 0);
+        normals(m, t, new String[]{"Tap Pick", "Chip Swing", "Mining Strike", "Handle Poke", "Handle Kick", "Pick Spin",
+                "Low Tap", "Ore Chip", "Upward Mine", "Handle Tap", "Tunnel Poke", "Strip Sweep",
+                "Air Tap", "Air Chip", "Drill Drop", "Air Handle", "Air Spin", "Pick Dive"});
+        m.commandNormals.add(new Moveset.CommandNormal(6, Button.MP,
+                commandNormal("Overhead Mine", AnimPose.OVERHEAD, 17, 3, 16, 62, 10, 90, 70, 150, HitLevel.HIGH)));
+        m.commandNormals.add(new Moveset.CommandNormal(3, Button.MK,
+                commandNormal("Tunnel Dig", AnimPose.SLIDE, 9, 8, 18, 50, 10, 105, 0, 28, HitLevel.LOW)
+                        .toBuilder().dash(5f, 6, 16).crouching().build()));
+
+        Move mine2 = Move.builder("Double Mine").kind(Kind.TARGET).frames(5, 3, 12).damage(45).box(10, 85, 60, 120)
+                .stun(16, 11).push(4).pose(AnimPose.STRAIGHT).build();
+        Move mine3 = Move.builder("Triple Mine").kind(Kind.TARGET).frames(7, 3, 16).damage(58).box(10, 90, 50, 125)
+                .stun(19, 13).push(5).cancelable().pose(AnimPose.OVERHEAD).build();
+        Move mine4 = Move.builder("Bedrock Breaker").kind(Kind.TARGET).frames(9, 4, 22).damage(75).box(10, 95, 30, 130)
+                .stun(22, 15).push(8).knockdown().launch(6).pose(AnimPose.SLAM).build();
+        m.targetCombos.add(new Moveset.TargetCombo(m.stand.get(Button.LP), Button.MP, mine2));
+        m.targetCombos.add(new Moveset.TargetCombo(mine2, Button.HP, mine3));
+        m.targetCombos.add(new Moveset.TargetCombo(mine3, Button.HK, mine4));
+
+        m.specials.add(new Moveset.Special("Rubble Toss", Motion.QCF, false, Role.PROJECTILE, 5, variants(s -> Move.builder("")
+                .frames(pick(s, 12, 11, 10, 10), 2, pick(s, 20, 19, 18, 18)).damage(0).box(0, 0, 0, 0)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.COBBLE)
+                        .velocity(pick(s, 8f, 10f, 12f, 11f), 3f, 4.5f, 1.5f).gravity(0.2f).size(22, 22).offset(30, 80)
+                        .damage(pick(s, 26f, 28f, 30f, 26f)).stun(15, 10).push(3).spin()
+                        .count(s == 3 ? 3 : 2, 4).lifetime(140).build(), pick(s, 12, 11, 10, 10))
+                .pose(AnimPose.SWEEP), "Rubble Toss")));
+        m.specials.add(new Moveset.Special("Uppick", Motion.DP, false, Role.ANTI_AIR, 6, variants(s -> Move.builder("")
+                .frames(3, pick(s, 12, 14, 16, 16), pick(s, 21, 24, 27, 24)).damage(pick(s, 92f, 52f, 40f, 44f))
+                .box(0, 62, 50, 165).stun(26, 16).push(3).launch(11).knockdown().multiHit(pick(s, 1, 2, 3, 3), 5)
+                .leap(pick(s, 11f, 13f, 15f, 15f), 2f, 3).invuln(0, pick(s, 4, 5, 7, 12)).landingLag(13)
+                .pose(AnimPose.UPPERCUT), "Uppick")));
+        m.specials.add(new Moveset.Special("Spin Mine", Motion.QCF, true, Role.RUSH, 2, variants(s -> Move.builder("")
+                .frames(8, pick(s, 15, 22, 29, 34), 17).damage(34).box(0, 82, 40, 125).stun(17, 10).push(2)
+                .multiHit(pick(s, 3, 4, 5, 6), 6).dash(pick(s, 4.5f, 5.5f, 6.5f, 7f), 8, pick(s, 23, 30, 37, 42))
+                .launch(s >= 2 ? 8 : 0).knockdown().projInvuln(s == 3 ? 0 : -1, s == 3 ? 30 : -1).pose(AnimPose.SPIN_KICK), "Spin Mine")));
+        m.specials.add(new Moveset.Special("Drill Dive", Motion.QCB, true, Role.OVERHEAD, 4, variants(s -> {
+            Move.Builder b = Move.builder("").frames(12, 1, 18).damage(pick(s, 80f, 88f, 96f, 104f)).box(-10, 80, -10, 70)
+                    .level(HitLevel.HIGH).stun(22, 14).push(6).launch(4).knockdown().untilLanding()
+                    .leap(pick(s, 12f, 13.5f, 15f, 15f), pick(s, 3.5f, 5f, 6.5f, 6f), 3).pose(AnimPose.DIVE_KICK);
+            if (s == 3) b.groundBounce().invuln(0, 10);
+            return b;
+        }, "Drill Dive")));
+
+        m.supers.add(new Moveset.Super(1, Motion.QCF2, false, Move.builder("Strip Mine").superLevel(1)
+                .frames(6, 34, 28).damage(36).box(5, 85, 30, 130).stun(18, 10).push(1.5f).launch(12).knockdown()
+                .multiHit(7, 5).dash(7f, 6, 28).invuln(0, 10).pose(AnimPose.SPIN_KICK).callout("STRIP MINE!").build()));
+        m.supers.add(new Moveset.Super(2, Motion.QCB2, false, Move.builder("Cave Collapse").superLevel(2)
+                .frames(12, 2, 38).damage(0).box(0, 0, 0, 0).invuln(0, 14)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.COBBLE).velocity(0f, -14f).size(42, 42)
+                        .damage(42).stun(22, 12).push(3).launch(4).count(10, 4).fromSky(100, 560).spin().lifetime(100).build(), 12)
+                .pose(AnimPose.SLAM).callout("CAVE COLLAPSE!").build()));
+        m.supers.add(new Moveset.Super(3, Motion.QCF2, true, Move.builder("Diamond Strike").superLevel(3)
+                .frames(6, 70, 34).damage(40).box(5, 90, 20, 130).stun(30, 12).push(0.5f).launch(15).knockdown()
+                .multiHit(10, 6).dash(9.5f, 6, 14).invuln(0, 12).lockOnHit().wallSplat().pose(AnimPose.OVERHEAD)
+                .callout("DIAMOND STRIKE!").build()));
+        universals(m, "Pick Hook", "Mine Cart Flip", 110);
+        return m;
+    }
+
+    // =====================================================================================================
+    // ZOMBIE: undead grappler. Bites drain your super meter (HUNGER), hordes, command grabs
+    // =====================================================================================================
+
+    private static Moveset zombie() {
+        FighterStats stats = new FighterStats(1150, 2.5f, 2.3f, 13.5f, 3.6f, 0.78f, 46, 130, 86);
+        Moveset m = new Moveset(FighterType.ZOMBIE, stats);
+        Tune t = new Tune(1, 4, 1.05f, 1f, 0);
+        normals(m, t, new String[]{"Claw Jab", "Rotten Swipe", "Grave Hook", "Shamble Kick", "Stagger Boot", "Undead Spin",
+                "Low Claw", "Gut Rake", "Grave Rise Punch", "Ankle Bite", "Crawl Poke", "Grave Sweep",
+                "Air Claw", "Air Swipe", "Brain Drop", "Air Shamble", "Air Boot", "Corpse Dive"});
+        m.commandNormals.add(new Moveset.CommandNormal(6, Button.HP,
+                commandNormal("Headbutt of the Dead", AnimPose.HEADBUTT, 16, 4, 18, 72, 10, 85, 80, 135, HitLevel.HIGH)
+                        .toBuilder().dash(3f, 6, 14).build()));
+        m.commandNormals.add(new Moveset.CommandNormal(3, Button.HP,
+                commandNormal("Ankle Grab Bite", AnimPose.LOW_JAB, 11, 4, 20, 55, 10, 95, 0, 35, HitLevel.LOW)
+                        .toBuilder().crouching().hitEffect(StatusEffect.HUNGER, 150).build()));
+
+        Move maul = Move.builder("Zombie Maul").kind(Kind.TARGET).frames(8, 3, 18).damage(72).box(12, 92, 56, 125)
+                .stun(21, 15).push(7).cancelable().pose(AnimPose.HOOK).build();
+        Move feast = Move.builder("Feast").kind(Kind.TARGET).frames(9, 6, 20).damage(40).box(10, 80, 70, 125)
+                .stun(22, 15).push(3).multiHit(2, 5).hitEffect(StatusEffect.HUNGER, 180).pose(AnimPose.HEADBUTT).build();
+        m.targetCombos.add(new Moveset.TargetCombo(m.stand.get(Button.MP), Button.HP, maul));
+        m.targetCombos.add(new Moveset.TargetCombo(maul, Button.HK, feast));
+
+        m.specials.add(new Moveset.Special("Flesh Toss", Motion.QCF, false, Role.PROJECTILE, 5, variants(s -> Move.builder("")
+                .frames(pick(s, 13, 12, 11, 11), 2, pick(s, 24, 23, 22, 21)).damage(0).box(0, 0, 0, 0)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.ROTTEN_FLESH)
+                        .velocity(pick(s, 6.5f, 8f, 9.5f, 9f), pick(s, 5f, 4f, 3f, 4f)).gravity(0.22f).size(30, 26).offset(30, 105)
+                        .damage(pick(s, 46f, 50f, 54f, 42f)).stun(18, 12).push(5).spin()
+                        .effect(StatusEffect.HUNGER, pick(s, 150, 180, 210, 300)).count(s == 3 ? 2 : 1, 8)
+                        .lifetime(150).build(), pick(s, 13, 12, 11, 11))
+                .pose(AnimPose.THROW), "Flesh Toss")));
+        m.specials.add(new Moveset.Special("Grave Rise", Motion.DP, false, Role.ANTI_AIR, 6, variants(s -> Move.builder("")
+                .frames(5, pick(s, 12, 14, 16, 16), pick(s, 24, 27, 30, 26)).damage(pick(s, 96f, 106f, 116f, 126f))
+                .box(0, 65, 40, 165).stun(28, 16).push(3).launch(12).knockdown()
+                .leap(pick(s, 10f, 12f, 14f, 14f), 1.8f, 5).invuln(0, pick(s, 5, 6, 8, 14)).landingLag(15)
+                .hitEffect(s == 3 ? StatusEffect.HUNGER : null, 240).pose(AnimPose.ANTI_AIR), "Grave Rise")));
+        m.specials.add(new Moveset.Special("Lunge Bite", Motion.QCF, true, Role.RUSH, 2, variants(s -> {
+            Move.Builder b = Move.builder("").frames(pick(s, 13, 12, 11, 11), 14, pick(s, 22, 24, 26, 20))
+                    .damage(pick(s, 76f, 84f, 92f, 100f)).box(15, 90, 50, 125).stun(24, 16).push(8).stopOnHit()
+                    .dash(pick(s, 7f, 9f, 11f, 11f), pick(s, 13, 12, 11, 11), pick(s, 27, 26, 25, 25))
+                    .hitEffect(StatusEffect.HUNGER, pick(s, 150, 180, 210, 300)).pose(AnimPose.LUNGE);
+            if (s == 3) b.armor(1, 25);
+            return b;
+        }, "Lunge Bite")));
+        m.specials.add(new Moveset.Special("Grave Grab", Motion.HCB, false, Role.GRAB, 4, variants(s -> Move.builder("")
+                .frames(pick(s, 6, 7, 8, 5), 3, 32).damage(pick(s, 135f, 150f, 165f, 205f))
+                .box(5, pick(s, 72, 82, 92, 88), 20, 125).level(HitLevel.GRAB).stun(30, 0).push(9).launch(8).knockdown()
+                .hitEffect(StatusEffect.HUNGER, 240).invuln(s == 3 ? 0 : -1, s == 3 ? 6 : -1).pose(AnimPose.GRAB)
+                .callout(s == 3 ? "EX Grave Grab!" : "BRAAAINS!"), "Grave Grab")));
+
+        m.supers.add(new Moveset.Super(1, Motion.QCF2, false, Move.builder("The Horde").superLevel(1)
+                .frames(12, 2, 40).damage(0).box(0, 0, 0, 0).invuln(0, 12)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.ZOMBIE).velocity(6.5f, 0f).size(60, 125).offset(-200, 0)
+                        .damage(48).stun(26, 14).push(3).count(4, 10).durable()
+                        .effect(StatusEffect.HUNGER, 180).lifetime(200).build(), 12)
+                .pose(AnimPose.SUMMON).callout("THE HORDE!").build()));
+        m.supers.add(new Moveset.Super(2, Motion.QCB2, false, Move.builder("Baby Zombie Blitz").superLevel(2)
+                .frames(10, 2, 36).damage(0).box(0, 0, 0, 0).invuln(0, 12)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.BABY_ZOMBIE).velocity(14f, 0f).size(40, 66).offset(-160, 0)
+                        .damage(60).stun(24, 12).push(4).launch(7).count(4, 6).durable().lifetime(140).build(), 10)
+                .pose(AnimPose.TAUNT).callout("BABY ZOMBIE BLITZ!").build()));
+        m.supers.add(new Moveset.Super(3, Motion.QCF2, true, Move.builder("Apocalypse Feast").superLevel(3)
+                .frames(6, 70, 34).damage(44).box(5, 85, 20, 125).level(HitLevel.GRAB).stun(30, 0).push(0.5f).launch(13)
+                .knockdown().multiHit(8, 8).invuln(0, 8).lockOnHit().wallSplat().hitEffect(StatusEffect.HUNGER, 600)
+                .selfEffect(480, StatusEffect.REGEN).pose(AnimPose.GRAB).callout("APOCALYPSE FEAST!").build()));
+        universals(m, "Corpse Toss", "Grave Dig", 125);
         return m;
     }
 

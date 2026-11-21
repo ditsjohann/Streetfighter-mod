@@ -26,6 +26,10 @@ public final class SFConfig {
             .comment("Multiplies the amount of loot a beaten mob drops (a pig drops ~10 porkchops at 1.0).")
             .defineInRange("rewardMultiplier", 1.0, 0.0, 10.0);
 
+    public static final ForgeConfigSpec.BooleanValue PICKAXE_CHALLENGE = BUILDER
+            .comment("Taking a stone pickaxe out of a crafting table makes it fight you first (win to get it).")
+            .define("stonePickaxeChallenge", true);
+
     public static final ForgeConfigSpec.BooleanValue LOSER_PENALTY = BUILDER
             .comment("Players who lose a fight are left bruised (Weakness + Slowness for 30 seconds).")
             .define("loserPenalty", true);

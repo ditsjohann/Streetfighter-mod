@@ -26,6 +26,7 @@ public final class ClientEvents {
     private static LivingEntity lookTarget;
     /** An oak log you're looking at (trees can be challenged too). */
     private static net.minecraft.core.BlockPos treeTarget;
+    private static String treeLabel = "the Oak Tree";
     private static int holdTarget = -1;
     private static int holdTicks;
     private static int cooldown;
@@ -174,7 +175,13 @@ public final class ClientEvents {
             pos = best;
             state = mc.level.getBlockState(pos);
         }
-        if (!state.is(net.minecraft.world.level.block.Blocks.OAK_LOG) && !state.is(net.minecraft.world.level.block.Blocks.OAK_WOOD)) return null;
+        if (state.is(net.minecraft.world.level.block.Blocks.IRON_ORE) || state.is(net.minecraft.world.level.block.Blocks.DEEPSLATE_IRON_ORE)) {
+            treeLabel = "the Iron Ore";
+        } else if (state.is(net.minecraft.world.level.block.Blocks.OAK_LOG) || state.is(net.minecraft.world.level.block.Blocks.OAK_WOOD)) {
+            treeLabel = "the Oak Tree";
+        } else {
+            return null;
+        }
         double range = SFConfig.CHALLENGE_RANGE.get() + 3;
         return pos.distToCenterSqr(player.getEyePosition()) <= range * range ? pos.immutable() : null;
     }
@@ -192,7 +199,7 @@ public final class ClientEvents {
         int cx = g.guiWidth() / 2;
         int y = g.guiHeight() / 2 + 14;
         String key = ClientSetup.CHALLENGE_KEY.getTranslatedKeyMessage().getString();
-        String text = "Hold [" + key + "] to challenge " + (lookTarget != null ? lookTarget.getDisplayName().getString() : "the Oak Tree");
+        String text = "Hold [" + key + "] to challenge " + (lookTarget != null ? lookTarget.getDisplayName().getString() : treeLabel);
         int w = font.width(text);
         g.fill(cx - w / 2 - 4, y - 3, cx + w / 2 + 4, y + 11, 0x90000000);
         g.drawString(font, text, cx - w / 2, y, 0xFFFFD84A, true);

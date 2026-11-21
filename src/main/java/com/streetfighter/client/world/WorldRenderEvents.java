@@ -145,11 +145,13 @@ public final class WorldRenderEvents {
                     dispatcher.render(s.arrowDummy, 0, 0, 0, yRot, 1f, ps, buffers, light);
                     ps.popPose();
                 }
-                case GOLEM, PIG, GOAT, CHICKEN -> {
+                case GOLEM, PIG, GOAT, CHICKEN, ZOMBIE, BABY_ZOMBIE -> {
                     LivingEntity dummy = switch (p.spec.visual) {
                         case GOLEM -> s.golemDummy;
                         case GOAT -> s.goatDummy;
                         case CHICKEN -> s.chickenDummy;
+                        case ZOMBIE -> s.zombieDummy;
+                        case BABY_ZOMBIE -> s.babyZombieDummy;
                         default -> s.pigDummy;
                     };
                     if (dummy == null) break;
@@ -190,12 +192,18 @@ public final class WorldRenderEvents {
                         case FEATHER -> new ItemStack(Items.FEATHER);
                         case APPLE -> new ItemStack(Items.APPLE);
                         case ROOTS -> new ItemStack(Items.MANGROVE_ROOTS);
+                        case SPIKE -> new ItemStack(Items.POINTED_DRIPSTONE);
+                        case RAW_IRON -> new ItemStack(Items.RAW_IRON);
+                        case ROTTEN_FLESH -> new ItemStack(Items.ROTTEN_FLESH);
+                        case MINECART -> new ItemStack(Items.MINECART);
                         case POTION -> net.minecraft.world.item.alchemy.PotionContents.createItemStack(Items.SPLASH_POTION,
                                 WorldFx.potionFor(p.spec.effect));
                         default -> new ItemStack(Items.SNOWBALL);
                     };
-                    boolean roots = p.spec.visual == com.streetfighter.fight.ProjectileVisual.ROOTS;
-                    float spin = roots ? 0 : p.age * 14f * (p.vx >= 0 ? 1 : -1);
+                    boolean roots = p.spec.visual == com.streetfighter.fight.ProjectileVisual.ROOTS
+                            || p.spec.visual == com.streetfighter.fight.ProjectileVisual.SPIKE;
+                    boolean cart = p.spec.visual == com.streetfighter.fight.ProjectileVisual.MINECART;
+                    float spin = roots || cart ? 0 : p.age * 14f * (p.vx >= 0 ? 1 : -1);
                     Vec3 f = arena.axis;
                     ps.pushPose();
                     ps.translate(w.x - cam.x, w.y - cam.y, w.z - cam.z);
@@ -211,6 +219,10 @@ public final class WorldRenderEvents {
                     };
                     if (p.spec.visual == com.streetfighter.fight.ProjectileVisual.BELL) {
                         ps.translate(0, 0.7, 0);
+                    }
+                    if (cart) {
+                        ps.translate(0, 0.45, 0);
+                        ps.scale(2.2f, 2.2f, 2.2f);
                     }
                     if (roots) {
                         // roots burst out of the ground, then sink back

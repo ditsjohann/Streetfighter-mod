@@ -90,6 +90,16 @@ Based on the SF2 / SF4 / SF6 select screens and the MUGEN/Ikemen `select.def` mo
     restarts.
   - The renderer builds the treant from block models and drives its limbs with the same humanoid animation channels.
 
+### Round 6: Iron Ore, Stone Pickaxe, Zombie
+- **`entity/BlockBodyEntity`:** generalises the treant. It's a fighter made of world blocks that restores them unless
+  beaten (oak trees, iron ore veins). The crafting-table pickaxe uses it with no blocks to restore.
+- **Crafting trap:** a mixin on `Slot.mayPickup` refuses a stone pickaxe from a `ResultSlot`, on both sides so the
+  client never predicts the pickup.
+  - The server then closes the container (vanilla returns the grid to the player) and spawns the pickaxe fighter.
+  - The fight opens a few ticks later, once the client has the new entity.
+- **HUNGER:** a status effect that drains the super meter, a Minecraft take on meter-drain mechanics such as SF6
+  Drive gauge damage.
+
 ## Not adopted (yet)
 - Rollback netcode (GGPO-style), which several engines plan for. In Minecraft the simulation runs on the challenger's
   client, so it isn't needed for 1-player fights.

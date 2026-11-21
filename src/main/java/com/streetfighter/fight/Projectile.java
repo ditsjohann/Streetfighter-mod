@@ -28,7 +28,9 @@ public final class Projectile {
         return spec.visual == ProjectileVisual.GOLEM || spec.visual == ProjectileVisual.PIG
                 || spec.visual == ProjectileVisual.BELL || spec.visual == ProjectileVisual.SHOCKWAVE
                 || spec.visual == ProjectileVisual.CLOUD || spec.visual == ProjectileVisual.GOAT
-                || spec.visual == ProjectileVisual.ROOTS;
+                || spec.visual == ProjectileVisual.ROOTS || spec.visual == ProjectileVisual.SPIKE
+                || spec.visual == ProjectileVisual.MINECART || spec.visual == ProjectileVisual.ZOMBIE
+                || spec.visual == ProjectileVisual.BABY_ZOMBIE;
     }
 
     public float width() {

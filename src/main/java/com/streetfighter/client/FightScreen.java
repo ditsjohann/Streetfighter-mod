@@ -171,6 +171,9 @@ public class FightScreen extends Screen {
                     net.minecraft.world.item.alchemy.Potions.POISON);
             case GOAT -> new ItemStack(Items.GOAT_HORN);
             case OAK -> new ItemStack(Items.OAK_SAPLING);
+            case IRON_ORE -> new ItemStack(Items.RAW_IRON);
+            case STONE_PICKAXE -> new ItemStack(Items.STONE_PICKAXE);
+            case ZOMBIE -> new ItemStack(Items.ROTTEN_FLESH);
             default -> new ItemStack(Items.ROTTEN_FLESH);
         };
     }
@@ -185,6 +188,9 @@ public class FightScreen extends Screen {
             case ALCHEMIST -> "Status zoner: poison, slowness & harming potions, lingering clouds, Brew Up buffs.";
             case GOAT -> "Rammer: huge jumps, wall-splatting charges and a scream that slows you down.";
             case OAK -> "Rooted bruiser: enormous reach, armored charges, apple lobs and roots that erupt under you.";
+            case IRON_ORE -> "Juggernaut: armored heavies, stalagmites, a command grab and boulder rolls. Slowest of all.";
+            case STONE_PICKAXE -> "Rushdown: 4-hit mining target combo, spin mines, drill dives and rubble tosses.";
+            case ZOMBIE -> "Undead grappler: bites inflict HUNGER (your super meter drains), command grab, the horde.";
             case BRAWLER -> "Wild mob: scrappy and straightforward.";
         };
     }

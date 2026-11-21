@@ -54,6 +54,9 @@ the world**, on the actual terrain. Beat a mob and you learn its fighting style.
   | Chicken | chicken, a pile of feathers and eggs |
   | Goat | a goat horn, leather, snowballs, maybe milk |
   | Oak Tree | **twice the tree's logs** plus extra, saplings, apples, sticks, a rare golden apple |
+  | Iron Ore | **2 raw iron per ore in the vein** + 4–8 extra, cobblestone, iron ingots, maybe a raw iron block |
+  | Stone Pickaxe | an enchanted stone pickaxe (Efficiency + Unbreaking) plus a plain one, cobblestone, sticks |
+  | Zombie | a pile of rotten flesh, iron ingots, carrots, potatoes, a rare zombie head |
   | Any other mob | its own loot rolled 2–4 extra times |
 
   - **Bonuses:** ×1.5 on Hard AI and ×1.25 for a perfect win, plus XP orbs.
@@ -65,8 +68,18 @@ the world**, on the actual terrain. Beat a mob and you learn its fighting style.
   - **Win:** the tree is felled for a pile of logs.
   - **Lose or back out:** it plants itself back exactly as it was.
   - **Limits:** it respects protection/claim mods, and player-built log structures (no natural leaves) can't be challenged.
-- **Learn styles by winning.** Defeat a Skeleton, Pig, plain Villager, Chicken, Cleric villager (the Alchemist), Goat or Oak Tree
-  and its style becomes selectable.
+- **Challenge iron ore.** Hold E on iron ore (or deepslate iron ore):
+  - **The golem:** the whole vein tears out of the rock as a stone golem with an ore torso and raw-iron fists.
+  - **Win:** the vein is "mined" for far more raw iron than a pickaxe would get.
+  - **Lose or back out:** the ore sinks back into the wall.
+- **Stone pickaxes fight back.** Try to take a stone pickaxe out of a crafting table and it refuses to be crafted:
+  - **The fight:** the table closes, your cobblestone and sticks go back to your inventory, and a giant living pickaxe
+    hops out to fight you.
+  - **Win:** you get the pickaxe (enchanted!) plus a spare.
+  - **Exempt:** creative mode.
+  - **Config:** turn it off with `stonePickaxeChallenge`.
+- **Learn styles by winning.** Defeat a Skeleton, Pig, plain Villager, Chicken, Cleric villager (the Alchemist), Goat, Oak Tree, Iron Ore,
+  Stone Pickaxe or Zombie and its style becomes selectable.
 
 ## Fighting system
 
@@ -96,6 +109,9 @@ Every style has a Street Fighter–sized kit (~44 moves each):
 | **Chicken** | Egg Toss 236P, Rooster Rise 623P, Fowl Play 236K (pecking rush), Feather Dive 214K (overhead dive) | Egg Barrage, Flock Call, Phoenix Fury |
 | **Alchemist** (Cleric villager) | Splash Potion 236P (L poison / M slowness / H harming), Lingering Cloud 214P, Brew Up 214K (L speed / M strength / H regeneration / EX all three), Fizz Rocket 623P | Potion Barrage, Witch's Brew, Elixir of the Ancients |
 | **Oak Tree** | Apple Toss 236P, Root Eruption 623P (roots burst out of the ground at a distance), Timber Rush 236K (armored charge), Canopy Crash 214K (overhead) | Orchard Rain, Root Wave, Ancient Oak |
+| **Iron Ore** | Ore Chunk 236P, Stalagmite 623P (a stone spike bursts from the ground), Boulder Roll 236K (armored), Smelter Grab 63214P (command grab) | Cave-In, Minecart Rush, Molten Core |
+| **Stone Pickaxe** | Rubble Toss 236P, Uppick 623P, Spin Mine 236K, Drill Dive 214K (overhead); 4-hit "mining" target combo | Strip Mine, Cave Collapse, Diamond Strike |
+| **Zombie** | Flesh Toss 236P, Grave Rise 623P, Lunge Bite 236K, Grave Grab 63214P (command grab); bites inflict HUNGER | The Horde, Baby Zombie Blitz, Apocalypse Feast |
 | **Goat** | Ram Charge 236P (wall-splats on H/EX, armored EX), Horn Toss 623P, Screaming Bleat 214P (low shockwave that slows), Goat Leap 214K (overhead) | Avalanche, Herd Charge, Peak Breaker |
 | **Any other mob** | Lunge, Rising Claw, Pounce, Leap Smash | Frenzy, Bone Storm, Rampage |
 
@@ -118,6 +134,9 @@ The pause menu (ESC) shows the full move list for your style.
   - Charges hit with huge knockback.
   - Its scream shockwave hits low and slows you down.
   - Herd Charge stampedes goats across the screen, and Avalanche buries you in snowballs.
+
+- **Zombie: Undead Brawler.** Bites, flesh tosses and grabs inflict **HUNGER**, which drains your super meter.
+  Zombies, husks, drowned and zombie villagers all fight in this style.
 
 **Status effects** show as coloured tags above the super meter (e.g. `POISON 4s`) and as swirling potion particles around
 the fighter:
@@ -160,7 +179,7 @@ Strikes leave additive swoosh trails. Hits throw spark bursts and shockwave ring
 - `/streetfighter difficulty [normal|hard]`: show or set (op) the AI difficulty
 - `/streetfighter styles`: list your learned styles and wins
 - `/streetfighter training on|off`: training mode (the dummy stands still and refills its health, your meter is full, no rewards or penalties)
-- `/streetfighter unlock <skeleton|villager|pig|chicken|alchemist|goat|oak|all>`: op/testing
+- `/streetfighter unlock <skeleton|villager|pig|chicken|alchemist|goat|oak|iron_ore|stone_pickaxe|zombie|all>`: op/testing
 - `/streetfighter resetstyles`: op/testing
 
 Settings are in `config/streetfighter-common.toml`: peaceful mobs, challenge range, hold time, whether defeated mobs die
@@ -171,7 +190,7 @@ Settings are in `config/streetfighter-common.toml`: peaceful mobs, challenge ran
 Requires Java 21.
 
 ```bash
-./gradlew build        # mod jar -> build/libs/streetfighter-0.4.0.jar
+./gradlew build        # mod jar -> build/libs/streetfighter-0.5.0.jar
 ./gradlew runClient    # launch a dev client with the mod
 ```
 

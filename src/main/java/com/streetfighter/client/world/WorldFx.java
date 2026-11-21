@@ -129,6 +129,7 @@ public final class WorldFx {
             case STRENGTH -> net.minecraft.world.item.alchemy.Potions.STRENGTH;
             case SPEED -> net.minecraft.world.item.alchemy.Potions.SWIFTNESS;
             case REGEN -> net.minecraft.world.item.alchemy.Potions.REGENERATION;
+            case HUNGER -> net.minecraft.world.item.alchemy.Potions.WEAKNESS;
         };
     }
 
@@ -255,6 +256,15 @@ public final class WorldFx {
                     if (at == FighterType.GOAT && ev.heavy() && attacker.move.pose != AnimPose.THROW_FWD) {
                         sound(SoundEvents.GOAT_RAM_IMPACT, p, 1f, 0.9f);
                     }
+                    if (at == FighterType.IRON_ORE || at == FighterType.STONE_PICKAXE) {
+                        burst(new BlockParticleOption(ParticleTypes.BLOCK, (at == FighterType.IRON_ORE ? Blocks.IRON_ORE
+                                : Blocks.STONE).defaultBlockState()), p, 10, 0.3, 0.4);
+                        if (ev.heavy()) sound(at == FighterType.IRON_ORE ? SoundEvents.ANVIL_LAND : SoundEvents.STONE_BREAK, p, 0.6f, 0.8f);
+                    }
+                    if (at == FighterType.ZOMBIE && attacker.move.hitEffect == StatusEffect.HUNGER) {
+                        sound(SoundEvents.ZOMBIE_ATTACK_WOODEN_DOOR, p, 0.5f, 1.4f);
+                        sound(SoundEvents.GENERIC_EAT, p, 0.8f, 0.8f);
+                    }
                     if (at == FighterType.OAK) {
                         burst(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.OAK_LEAVES.defaultBlockState()), p, 10, 0.3, 0.4);
                         if (ev.heavy()) sound(SoundEvents.WOOD_BREAK, p, 1f, 0.7f);
@@ -368,6 +378,26 @@ public final class WorldFx {
                     }
                     case POTION -> sound(SoundEvents.SPLASH_POTION_THROW, p, 1f, 0.9f);
                     case APPLE -> sound(SoundEvents.SNOWBALL_THROW, p, 1f, 0.7f);
+                    case RAW_IRON -> sound(SoundEvents.STONE_HIT, p, 1.2f, 0.7f);
+                    case ROTTEN_FLESH -> {
+                        sound(SoundEvents.SNOWBALL_THROW, p, 1f, 0.6f);
+                        sound(SoundEvents.ZOMBIE_AMBIENT, p, 0.8f, 1.1f);
+                    }
+                    case SPIKE -> {
+                        Vec3 g = ground(f.x + f.dir() * (f.move != null && f.move.projectile != null ? f.move.projectile.offX : 100));
+                        sound(SoundEvents.POINTED_DRIPSTONE_LAND, g, 1.4f, 0.6f);
+                        sound(SoundEvents.STONE_BREAK, g, 1.2f, 0.6f);
+                        burst(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.STONE.defaultBlockState()), g.add(0, 0.2, 0), 24, 0.25, 0.5);
+                        session.fovKick = Math.max(session.fovKick, 0.02f);
+                    }
+                    case MINECART -> {
+                        sound(SoundEvents.MINECART_RIDING, p, 1f, 1.2f);
+                        sound(SoundEvents.IRON_GOLEM_ATTACK, p, 0.8f, 0.8f);
+                    }
+                    case ZOMBIE, BABY_ZOMBIE -> {
+                        sound(SoundEvents.ZOMBIE_AMBIENT, p, 1.2f, ev.visual() == ProjectileVisual.BABY_ZOMBIE ? 1.6f : 0.8f);
+                        sound(SoundEvents.ZOMBIE_VILLAGER_AMBIENT, p, 0.8f, 0.9f);
+                    }
                     case ROOTS -> {
                         Vec3 g = ground(f.x + f.dir() * (f.move != null && f.move.projectile != null ? f.move.projectile.offX : 100));
                         sound(SoundEvents.ROOTED_DIRT_BREAK, g, 1.4f, 0.6f);
@@ -548,6 +578,8 @@ public final class WorldFx {
                 if (e == StatusEffect.POISON) {
                     burst(ParticleTypes.DAMAGE_INDICATOR, p, 1, 0.1, 0.3);
                     sound(SoundEvents.PLAYER_HURT_SWEET_BERRY_BUSH, p, 0.25f, 1.6f);
+                } else if (e == StatusEffect.HUNGER) {
+                    burst(new ItemParticleOption(ParticleTypes.ITEM, new ItemStack(Items.ROTTEN_FLESH)), p, 3, 0.2, 0.3);
                 } else if (e == StatusEffect.REGEN) {
                     burst(ParticleTypes.HEART, p.add(0, 0.5, 0), 1, 0.1, 0.4);
                 }
@@ -676,6 +708,20 @@ public final class WorldFx {
                     if (frame % 3 == 0) burst(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.ROOTED_DIRT.defaultBlockState()),
                             ground(p.x).add(0, 0.1, 0), 3, 0.15, 0.4);
                 }
+                case SPIKE -> {
+                    if (frame % 3 == 0) burst(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.STONE.defaultBlockState()),
+                            ground(p.x).add(0, 0.1, 0), 3, 0.15, 0.4);
+                }
+                case MINECART -> {
+                    if (frame % 2 == 0) level().addParticle(ParticleTypes.CRIT, w.x, w.y - 0.3, w.z, 0, 0.05, 0);
+                    if (frame % 3 == 0) dust(p.x, 2, 0.08);
+                }
+                case ZOMBIE, BABY_ZOMBIE -> {
+                    if (frame % 4 == 0) dust(p.x, 2, 0.06);
+                }
+                case ROTTEN_FLESH -> {
+                    if (frame % 3 == 0) level().addParticle(swirl(StatusEffect.HUNGER.color), w.x, w.y, w.z, 0, 0, 0);
+                }
                 case BELL, SHOCKWAVE -> {
                     dust(p.x, 3, 0.18);
                     if (frame % 3 == 0) quads.ring(front(ground(p.x).add(0, 0.6, 0)), 0.4f, 1.8f, 0.25f, C_GOLD);
@@ -797,6 +843,9 @@ public final class WorldFx {
             case ALCHEMIST -> SoundEvents.VILLAGER_WORK_CLERIC;
             case GOAT -> SoundEvents.GOAT_PREPARE_RAM;
             case OAK -> SoundEvents.WOOD_HIT;
+            case IRON_ORE -> SoundEvents.IRON_GOLEM_HURT;
+            case STONE_PICKAXE -> SoundEvents.STONE_HIT;
+            case ZOMBIE -> SoundEvents.ZOMBIE_AMBIENT;
             default -> SoundEvents.PLAYER_ATTACK_SWEEP;
         };
     }

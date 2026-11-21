@@ -35,6 +35,10 @@ public final class ClientSetup {
     private static void registerRenderers(net.minecraftforge.client.event.EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(com.streetfighter.entity.ModEntities.OAK_TREANT.get(),
                 com.streetfighter.client.world.TreantRenderer::new);
+        event.registerEntityRenderer(com.streetfighter.entity.ModEntities.IRON_ORE_GOLEM.get(),
+                com.streetfighter.client.world.OreGolemRenderer::new);
+        event.registerEntityRenderer(com.streetfighter.entity.ModEntities.STONE_PICKAXE.get(),
+                com.streetfighter.client.world.PickaxeRenderer::new);
     }
 
     private static void registerKeys(RegisterKeyMappingsEvent event) {

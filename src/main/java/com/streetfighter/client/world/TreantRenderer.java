@@ -124,7 +124,7 @@ public class TreantRenderer extends EntityRenderer<TreantEntity> {
         ps.popPose();
     }
 
-    private static void cube(PoseStack ps, BlockRenderDispatcher br, MultiBufferSource buf, int light, int overlay,
+    static void cube(PoseStack ps, BlockRenderDispatcher br, MultiBufferSource buf, int light, int overlay,
                              BlockState state, float x, float y, float z, float sx, float sy, float sz) {
         ps.pushPose();
         ps.translate(x, y, z);

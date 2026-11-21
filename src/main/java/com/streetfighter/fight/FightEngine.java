@@ -300,6 +300,11 @@ public final class FightEngine {
             if (e == StatusEffect.POISON && left % 20 == 0) {
                 f.hp = Math.max(1, f.hp - 7);
                 events.add(FightEvent.text(Type.STATUS_TICK, f.index, f.x, f.y + f.hurtHeight() * 0.6f, e.name()));
+            } else if (e == StatusEffect.HUNGER) {
+                f.meter = Math.max(0, f.meter - 0.35f);
+                if (left % 30 == 0) {
+                    events.add(FightEvent.text(Type.STATUS_TICK, f.index, f.x, f.y + f.hurtHeight() * 0.6f, e.name()));
+                }
             } else if (e == StatusEffect.REGEN && left % 15 == 0 && f.hp < f.maxHp) {
                 f.hp = Math.min(f.maxHp, f.hp + 8);
                 events.add(FightEvent.text(Type.STATUS_TICK, f.index, f.x, f.y + f.hurtHeight() * 0.6f, e.name()));

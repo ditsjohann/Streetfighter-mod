@@ -154,11 +154,18 @@ public final class FightManager {
             // the spoils: big type-specific drops, then the knockout (which also drops the mob's normal loot)
             FightRewards.grant(player, s.level, mob, s.type, WorldFightData.get(player.server).difficultyOrDefault(),
                     result.perfect());
-            if (mob instanceof com.streetfighter.entity.TreantEntity treant) {
-                treant.markFelled();
-                s.level.playSound(null, mob.blockPosition(), SoundEvents.WOOD_BREAK, SoundSource.BLOCKS, 1.5f, 0.6f);
-                player.sendSystemMessage(Component.literal("TIMBER! ").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD)
-                        .append(Component.literal("The oak is felled.").withStyle(ChatFormatting.YELLOW)));
+            if (mob instanceof com.streetfighter.entity.BlockBodyEntity body) {
+                body.markDefeated();
+                String[] msg = switch (s.type) {
+                    case OAK -> new String[]{"TIMBER! ", "The oak is felled."};
+                    case IRON_ORE -> new String[]{"MINED! ", "The iron vein crumbles into ore."};
+                    case STONE_PICKAXE -> new String[]{"CRAFTED! ", "The stone pickaxe accepts you as its wielder."};
+                    default -> new String[]{"BROKEN! ", ""};
+                };
+                s.level.playSound(null, mob.blockPosition(), s.type == FighterType.OAK ? SoundEvents.WOOD_BREAK
+                        : SoundEvents.STONE_BREAK, SoundSource.BLOCKS, 1.5f, 0.6f);
+                player.sendSystemMessage(Component.literal(msg[0]).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD)
+                        .append(Component.literal(msg[1]).withStyle(ChatFormatting.YELLOW)));
             }
             mob.setLastHurtByPlayer(player);
             mob.hurt(player.damageSources().playerAttack(player), Math.max(1000f, mob.getMaxHealth() * 10f));

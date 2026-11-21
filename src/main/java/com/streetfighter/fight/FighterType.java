@@ -19,6 +19,9 @@ public enum FighterType {
     ALCHEMIST("alchemist", "Alchemist", "Potion Master", true),
     GOAT("goat", "Goat", "Mountain Rammer", true),
     OAK("oak", "Oak Tree", "Timber Titan", true),
+    IRON_ORE("iron_ore", "Iron Ore", "Raw Power", true),
+    STONE_PICKAXE("stone_pickaxe", "Stone Pickaxe", "Tool of War", true),
+    ZOMBIE("zombie", "Zombie", "Undead Brawler", true),
     BRAWLER("brawler", "Brawler", "Wild Mob", false);
 
     public final String id;
@@ -44,8 +47,17 @@ public enum FighterType {
     /** Works out which fighter a world entity becomes when challenged. */
     public static FighterType fromEntity(Entity entity) {
         if (entity.getType() == EntityType.SKELETON) return SKELETON;
-        if ("streetfighter".equals(EntityType.getKey(entity.getType()).getNamespace())
-                && "oak_treant".equals(EntityType.getKey(entity.getType()).getPath())) return OAK;
+        var key = EntityType.getKey(entity.getType());
+        if ("streetfighter".equals(key.getNamespace())) {
+            switch (key.getPath()) {
+                case "oak_treant" -> { return OAK; }
+                case "iron_ore_golem" -> { return IRON_ORE; }
+                case "stone_pickaxe" -> { return STONE_PICKAXE; }
+                default -> { }
+            }
+        }
+        if (entity instanceof net.minecraft.world.entity.monster.Zombie
+                && !(entity instanceof net.minecraft.world.entity.monster.ZombifiedPiglin)) return ZOMBIE;
         if (entity.getType() == EntityType.PIG) return PIG;
         if (entity.getType() == EntityType.CHICKEN) return CHICKEN;
         if (entity.getType() == EntityType.GOAT) return GOAT;

@@ -75,6 +75,9 @@ public class FighterAI {
             case ALCHEMIST -> new AlchemistAI(difficulty);
             case GOAT -> new GoatAI(difficulty);
             case OAK -> new OakAI(difficulty);
+            case IRON_ORE -> new IronOreAI(difficulty);
+            case STONE_PICKAXE -> new StonePickaxeAI(difficulty);
+            case ZOMBIE -> new ZombieAI(difficulty);
             default -> new BrawlerAI(difficulty);
         };
     }

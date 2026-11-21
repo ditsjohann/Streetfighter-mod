@@ -35,6 +35,11 @@ public final class TreeFights {
     private record Pending(UUID player, UUID treant, ServerLevel level, int ticks) {
     }
 
+    /** Opens the fight a few ticks from now, once the client has received the freshly spawned opponent. */
+    public static void queue(ServerPlayer player, net.minecraft.world.entity.Mob opponent) {
+        PENDING.add(new Pending(player.getUUID(), opponent.getUUID(), player.serverLevel(), 4));
+    }
+
     private static final List<Pending> PENDING = new ArrayList<>();
 
     private TreeFights() {
@@ -139,7 +144,7 @@ public final class TreeFights {
             }
             ServerPlayer player = p.level.getServer().getPlayerList().getPlayer(p.player);
             var e = p.level.getEntity(p.treant);
-            if (player != null && e instanceof TreantEntity t && t.isAlive()) FightManager.startFight(player, t);
+            if (player != null && e instanceof net.minecraft.world.entity.Mob t && t.isAlive()) FightManager.startFight(player, t);
         }
         PENDING.addAll(next);
     }

@@ -42,7 +42,7 @@ import static com.streetfighter.client.world.AnimClips.*;
  * {@code RenderLivingEvent}.
  */
 public final class FightAnimator {
-    public enum Body { HUMANOID, VILLAGER, QUAD, BIRD, TREE, OTHER }
+    public enum Body { HUMANOID, VILLAGER, QUAD, BIRD, TREE, TOOL, OTHER }
 
     public static boolean suspended;
 
@@ -97,7 +97,8 @@ public final class FightAnimator {
 
     public static Body bodyOf(LivingEntity e) {
         var renderer = net.minecraft.client.Minecraft.getInstance().getEntityRenderDispatcher().getRenderer(e);
-        if ((Object) renderer instanceof TreantRenderer) return Body.TREE;
+        if ((Object) renderer instanceof TreantRenderer || (Object) renderer instanceof OreGolemRenderer) return Body.TREE;
+        if ((Object) renderer instanceof PickaxeRenderer) return Body.TOOL;
         if (renderer instanceof net.minecraft.client.renderer.entity.LivingEntityRenderer<?, ?> ler) {
             Object m = ler.getModel();
             if (m instanceof HumanoidModel<?>) return Body.HUMANOID;
@@ -237,6 +238,11 @@ public final class FightAnimator {
             }
             case WALK -> {
                 float ph = s.walkPhase;
+                if (body == Body.TOOL) { // hops along on its handle
+                    t[UP] = Math.abs(Mth.sin(ph * 0.8f)) * 0.3f;
+                    t[LEAN] = (Math.signum(f.vx) == f.dir() ? 10 : -6);
+                    return 22f;
+                }
                 if (quad) {
                     t[RAZ] = Mth.sin(ph) * 0.75f;
                 } else {
@@ -299,7 +305,7 @@ public final class FightAnimator {
             case HITSTUN -> {
                 boolean low = f.lastHitLevel == HitLevel.LOW;
                 if (f.launched) {
-                    if (quad || bird || body == Body.OTHER) t[FLIP] = -Math.min(200, 40 + f.stateAge * 9f);
+                    if (quad || bird || body == Body.OTHER || body == Body.TOOL) t[FLIP] = -Math.min(200, 40 + f.stateAge * 9f);
                     else t[LEAN] = -40 - Math.min(50, f.stateAge * 3f);
                     t[RAX] = -0.4f; t[RAZ] = 1.1f; t[LAX] = -0.4f; t[LAZ] = -1.1f; t[RLX] = 0.4f; t[LLX] = -0.3f;
                     t[HX] = -0.5f;
@@ -318,7 +324,7 @@ public final class FightAnimator {
             }
             case KNOCKDOWN, KO -> {
                 boolean gettingUp = f.state == Fighter.State.KNOCKDOWN && f.stateTimer < 12;
-                if (quad || bird || body == Body.OTHER) {
+                if (quad || bird || body == Body.OTHER || body == Body.TOOL) {
                     t[FLIP] = gettingUp ? 0 : -180;
                     t[RAX] = Mth.sin(tm * 22f) * 0.6f;
                     t[RLX] = -t[RAX];
@@ -331,7 +337,7 @@ public final class FightAnimator {
                 return gettingUp ? 12f : 9f;
             }
             case WALL_SPLAT -> {
-                if (quad || bird || body == Body.OTHER) {
+                if (quad || bird || body == Body.OTHER || body == Body.TOOL) {
                     t[FLIP] = -70; t[RAX] = -1.3f; t[RLX] = 1.3f;
                 } else {
                     t[LEAN] = -10; t[RAX] = -2.7f; t[RAZ] = 0.7f; t[LAX] = -2.7f; t[LAZ] = -0.7f;

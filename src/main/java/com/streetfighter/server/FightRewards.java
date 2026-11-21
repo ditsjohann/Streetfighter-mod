@@ -97,6 +97,31 @@ public final class FightRewards {
                 bag.add(Items.STICK, 6, 12);
                 bag.chance(Items.GOLDEN_APPLE, 0.05f);
             }
+            case IRON_ORE -> {
+                int vein = mob instanceof com.streetfighter.entity.BlockBodyEntity b ? Math.max(1, b.blockCount()) : 2;
+                bag.add(Items.RAW_IRON, vein * 2 + 4, vein * 2 + 8); // way more than mining it
+                bag.add(Items.COBBLESTONE, 6, 12);
+                bag.add(Items.IRON_INGOT, 1, 3);
+                bag.chance(Items.RAW_IRON_BLOCK, 0.08f);
+            }
+            case STONE_PICKAXE -> {
+                ItemStack pick = new ItemStack(Items.STONE_PICKAXE);
+                var enchants = level.registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT);
+                pick.enchant(enchants.getHolderOrThrow(net.minecraft.world.item.enchantment.Enchantments.EFFICIENCY),
+                        difficulty == AIDifficulty.HARD ? 3 : 2);
+                pick.enchant(enchants.getHolderOrThrow(net.minecraft.world.item.enchantment.Enchantments.UNBREAKING), 1);
+                bag.stacks.add(pick);
+                bag.add(Items.STONE_PICKAXE, 1, 1);
+                bag.add(Items.COBBLESTONE, 6, 12);
+                bag.add(Items.STICK, 4, 8);
+            }
+            case ZOMBIE -> {
+                bag.add(Items.ROTTEN_FLESH, 10, 16);
+                bag.add(Items.IRON_INGOT, 1, 3);
+                bag.add(Items.CARROT, 1, 3);
+                bag.add(Items.POTATO, 1, 3);
+                bag.chance(Items.ZOMBIE_HEAD, 0.05f);
+            }
             default -> {
                 // any other mob: its own vanilla loot, rolled several times
                 int rolls = 2 + (difficulty == AIDifficulty.HARD ? 1 : 0) + (perfect ? 1 : 0);

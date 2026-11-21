@@ -9,7 +9,9 @@ public enum StatusEffect {
     SLOW("SLOWED", false, 0x5A6C81),
     STRENGTH("STRENGTH UP", true, 0x932423),
     SPEED("SPEED UP", true, 0x7CAFC6),
-    REGEN("REGENERATION", true, 0xCD5CAB);
+    REGEN("REGENERATION", true, 0xCD5CAB),
+    /** Zombie bites: the super meter drains away. */
+    HUNGER("HUNGER", false, 0x587653);
 
     public final String label;
     public final boolean buff;
