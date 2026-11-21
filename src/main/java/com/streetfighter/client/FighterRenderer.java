@@ -55,7 +55,8 @@ final class FighterRenderer {
         float bbH = Math.max(0.3f, e.getBbHeight());
         boolean small = bbH < 1.0f;
         boolean upright = !small && isUpright(e);
-        float px = (small ? size / 1.05f : upright ? size / 0.7f : size / Math.max(0.6f, bbH * 0.95f)) * zoom;
+        float window = Math.max(0.7f, bbH * 0.42f); // head-and-shoulders; more of tall mobs (trees, endermen)
+        float px = (small ? size / 1.05f : upright ? size / window : size / Math.max(0.6f, bbH * 0.95f)) * zoom;
         float feetY = upright ? y + (h - size) / 2f + bbH * px - size * 0.02f * zoom : y + h * 0.92f;
         float cx = x + w / 2f + (upright ? 0 : (faceRight ? -1 : 1) * size * (small ? 0.12f : 0.22f));
         g.enableScissor(x, y, x + w, y + h);

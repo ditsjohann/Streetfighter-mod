@@ -27,7 +27,8 @@ public final class Projectile {
     public boolean bottomAnchored() {
         return spec.visual == ProjectileVisual.GOLEM || spec.visual == ProjectileVisual.PIG
                 || spec.visual == ProjectileVisual.BELL || spec.visual == ProjectileVisual.SHOCKWAVE
-                || spec.visual == ProjectileVisual.CLOUD || spec.visual == ProjectileVisual.GOAT;
+                || spec.visual == ProjectileVisual.CLOUD || spec.visual == ProjectileVisual.GOAT
+                || spec.visual == ProjectileVisual.ROOTS;
     }
 
     public float width() {

@@ -29,6 +29,7 @@ public final class Movesets {
         SETS.put(FighterType.CHICKEN, chicken());
         SETS.put(FighterType.ALCHEMIST, alchemist());
         SETS.put(FighterType.GOAT, goat());
+        SETS.put(FighterType.OAK, oak());
         SETS.put(FighterType.BRAWLER, brawler());
     }
 
@@ -646,6 +647,83 @@ public final class Movesets {
                 .multiHit(9, 7).dash(10f, 8, 16).invuln(0, 14).lockOnHit().wallSplat().pose(AnimPose.CHARGE)
                 .callout("PEAK BREAKER!").build()));
         universals(m, "Head Toss", "Cliff Drop", 125);
+        return m;
+    }
+
+    // =====================================================================================================
+    // OAK TREE: slow, huge, long-reaching bruiser with armor, apples and erupting roots
+    // =====================================================================================================
+
+    private static Moveset oak() {
+        FighterStats stats = new FighterStats(1200, 2.6f, 2.3f, 13.5f, 3.4f, 0.8f, 64, 170, 112);
+        Moveset m = new Moveset(FighterType.OAK, stats);
+        Tune t = new Tune(2, 18, 1.15f, 1.15f, 6);
+        normals(m, t, new String[]{"Twig Jab", "Branch Swat", "Log Hammer", "Root Tap", "Root Kick", "Trunk Spin",
+                "Low Twig", "Bark Punch", "Canopy Rise", "Root Poke", "Root Lash", "Root Sweep",
+                "Air Twig", "Air Branch", "Timber Drop", "Air Root", "Air Lash", "Stump Stomp"});
+        // heavy branches don't flinch from a single jab
+        m.stand.put(Button.HP, m.stand.get(Button.HP).toBuilder().armor(1, 12).build());
+
+        m.commandNormals.add(new Moveset.CommandNormal(6, Button.HP,
+                commandNormal("Timber!", AnimPose.SLAM, 22, 4, 22, 100, 10, 120, 0, 190, HitLevel.HIGH)
+                        .toBuilder().knockdown().launch(3).groundBounce().build()));
+        m.commandNormals.add(new Moveset.CommandNormal(3, Button.HK,
+                commandNormal("Root Snare", AnimPose.POKE_KICK, 11, 4, 22, 58, 20, 165, 0, 26, HitLevel.LOW)
+                        .toBuilder().crouching().hitEffect(StatusEffect.SLOW, 90).build()));
+
+        Move barrage = Move.builder("Branch Barrage").kind(Kind.TARGET).frames(9, 4, 20).damage(78).box(14, 118, 60, 160)
+                .stun(22, 15).push(9).cancelable().pose(AnimPose.HOOK).build();
+        Move rumble = Move.builder("Root Rumble").kind(Kind.TARGET).frames(8, 8, 18).damage(34).box(14, 120, 0, 40)
+                .level(HitLevel.LOW).stun(18, 12).push(5).multiHit(2, 5).cancelable().crouching().pose(AnimPose.STOMP).build();
+        m.targetCombos.add(new Moveset.TargetCombo(m.stand.get(Button.MP), Button.HP, barrage));
+        m.targetCombos.add(new Moveset.TargetCombo(m.stand.get(Button.LK), Button.MK, rumble));
+
+        m.specials.add(new Moveset.Special("Apple Toss", Motion.QCF, false, Role.PROJECTILE, 5, variants(s -> Move.builder("")
+                .frames(pick(s, 14, 13, 12, 12), 2, pick(s, 24, 23, 22, 22)).damage(0).box(0, 0, 0, 0)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.APPLE)
+                        .velocity(pick(s, 6f, 8f, 10f, 9f), pick(s, 4f, 3f, 2f, 3f), 5f, 7f).gravity(pick(s, 0.26f, 0.24f, 0.2f, 0.22f))
+                        .size(30, 30).offset(40, 140).damage(pick(s, 56f, 60f, 64f, 46f)).stun(19, 13).push(6).spin()
+                        .count(s == 3 ? 3 : 1, 6).lifetime(170).build(), pick(s, 14, 13, 12, 12))
+                .pose(AnimPose.THROW), "Apple Toss")));
+        m.specials.add(new Moveset.Special("Root Eruption", Motion.DP, false, Role.ANTI_AIR, 6, variants(s -> Move.builder("")
+                .frames(pick(s, 12, 14, 16, 12), 2, pick(s, 26, 28, 30, 24)).damage(0).box(0, 0, 0, 0).invuln(0, s == 3 ? 12 : 0)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.ROOTS).velocity(0f, 0f)
+                        .size(s == 3 ? 130 : 70, 190).offset(pick(s, 100f, 160f, 220f, 150f), 0)
+                        .damage(pick(s, 80f, 86f, 92f, 100f)).stun(28, 16).push(3).launch(12).knockdown()
+                        .durable().lifetime(28).build(), pick(s, 12, 14, 16, 12))
+                .pose(AnimPose.STOMP), "Root Eruption")));
+        m.specials.add(new Moveset.Special("Timber Rush", Motion.QCF, true, Role.RUSH, 2, variants(s -> {
+            Move.Builder b = Move.builder("").frames(pick(s, 16, 15, 14, 13), 22, pick(s, 26, 28, 30, 24))
+                    .damage(pick(s, 82f, 90f, 100f, 112f)).box(15, 105, 20, 160).stun(24, 16).push(13).launch(6).knockdown()
+                    .stopOnHit().dash(pick(s, 7f, 8.5f, 10f, 10f), pick(s, 16, 15, 14, 13), pick(s, 38, 37, 36, 35))
+                    .pose(AnimPose.CHARGE);
+            if (s >= 1) b.armor(s == 3 ? 2 : 1, pick(s, 0, 24, 26, 30));
+            if (s == 3) b.wallSplat();
+            return b;
+        }, "Timber Rush")));
+        m.specials.add(new Moveset.Special("Canopy Crash", Motion.QCB, true, Role.OVERHEAD, 4, variants(s -> {
+            Move.Builder b = Move.builder("").frames(16, 1, 22).damage(pick(s, 92f, 100f, 110f, 118f)).box(-30, 120, -10, 120)
+                    .level(HitLevel.HIGH).stun(24, 16).push(8).launch(5).knockdown().untilLanding()
+                    .leap(pick(s, 12f, 13.5f, 15f, 15f), pick(s, 2.5f, 3.5f, 4.5f, 4f), 5).pose(AnimPose.SLAM);
+            if (s == 3) b.groundBounce().armor(1, 16);
+            return b;
+        }, "Canopy Crash")));
+
+        m.supers.add(new Moveset.Super(1, Motion.QCF2, false, Move.builder("Orchard Rain").superLevel(1)
+                .frames(14, 2, 40).damage(0).box(0, 0, 0, 0).invuln(0, 14)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.APPLE).velocity(0f, -12f).size(30, 30)
+                        .damage(46).stun(20, 12).push(3).launch(3).count(10, 5).fromSky(120, 540).lifetime(100).build(), 14)
+                .pose(AnimPose.SUMMON).callout("ORCHARD RAIN!").build()));
+        m.supers.add(new Moveset.Super(2, Motion.QCB2, false, Move.builder("Root Wave").superLevel(2)
+                .frames(12, 2, 36).damage(0).box(0, 0, 0, 0).invuln(0, 14)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.ROOTS).velocity(7f, 0f).size(70, 170).offset(60, 0)
+                        .damage(62).stun(26, 14).push(3).launch(9).count(4, 7).durable().lifetime(70).build(), 12)
+                .pose(AnimPose.STOMP).callout("ROOT WAVE!").build()));
+        m.supers.add(new Moveset.Super(3, Motion.QCF2, true, Move.builder("Ancient Oak").superLevel(3)
+                .frames(6, 72, 36).damage(44).box(5, 110, 20, 170).level(HitLevel.GRAB).stun(30, 0).push(0.5f).launch(14)
+                .knockdown().multiHit(8, 8).invuln(0, 8).lockOnHit().groundBounce().pose(AnimPose.GRAB)
+                .callout("ANCIENT OAK!").build()));
+        universals(m, "Branch Toss", "Uproot Slam", 130);
         return m;
     }
 

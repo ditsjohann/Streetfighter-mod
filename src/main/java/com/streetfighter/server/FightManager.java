@@ -73,6 +73,13 @@ public final class FightManager {
             return;
         }
         if (player.isSpectator()) return;
+        startFight(player, mob);
+    }
+
+    /** Opens a fight against an already-validated opponent. */
+    public static void startFight(ServerPlayer player, Mob mob) {
+        if (SESSIONS.containsKey(player.getUUID()) || isFighting(mob)) return;
+        ServerLevel level = player.serverLevel();
 
         WorldFightData data = WorldFightData.get(player.server);
         AIDifficulty difficulty = data.difficultyOrDefault();
@@ -143,8 +150,16 @@ public final class FightManager {
         player.giveExperiencePoints(result.perfect() ? 15 : 8);
 
         if (mob == null) return;
-        boolean dies = s.hostile ? SFConfig.DEFEATED_HOSTILES_DIE.get() : SFConfig.DEFEATED_PASSIVES_DIE.get();
-        if (dies) {
+        if (SFConfig.DEFEATED_MOBS_DIE.get()) {
+            // the spoils: big type-specific drops, then the knockout (which also drops the mob's normal loot)
+            FightRewards.grant(player, s.level, mob, s.type, WorldFightData.get(player.server).difficultyOrDefault(),
+                    result.perfect());
+            if (mob instanceof com.streetfighter.entity.TreantEntity treant) {
+                treant.markFelled();
+                s.level.playSound(null, mob.blockPosition(), SoundEvents.WOOD_BREAK, SoundSource.BLOCKS, 1.5f, 0.6f);
+                player.sendSystemMessage(Component.literal("TIMBER! ").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD)
+                        .append(Component.literal("The oak is felled.").withStyle(ChatFormatting.YELLOW)));
+            }
             mob.setLastHurtByPlayer(player);
             mob.hurt(player.damageSources().playerAttack(player), Math.max(1000f, mob.getMaxHealth() * 10f));
         } else {
@@ -212,6 +227,7 @@ public final class FightManager {
     }
 
     public static void tick(MinecraftServer server) {
+        TreeFights.tick();
         if (SESSIONS.isEmpty()) return;
         Iterator<Map.Entry<UUID, Session>> it = SESSIONS.entrySet().iterator();
         while (it.hasNext()) {

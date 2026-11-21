@@ -18,6 +18,7 @@ public enum FighterType {
     CHICKEN("chicken", "Chicken", "Feather Fury", true),
     ALCHEMIST("alchemist", "Alchemist", "Potion Master", true),
     GOAT("goat", "Goat", "Mountain Rammer", true),
+    OAK("oak", "Oak Tree", "Timber Titan", true),
     BRAWLER("brawler", "Brawler", "Wild Mob", false);
 
     public final String id;
@@ -43,6 +44,8 @@ public enum FighterType {
     /** Works out which fighter a world entity becomes when challenged. */
     public static FighterType fromEntity(Entity entity) {
         if (entity.getType() == EntityType.SKELETON) return SKELETON;
+        if ("streetfighter".equals(EntityType.getKey(entity.getType()).getNamespace())
+                && "oak_treant".equals(EntityType.getKey(entity.getType()).getPath())) return OAK;
         if (entity.getType() == EntityType.PIG) return PIG;
         if (entity.getType() == EntityType.CHICKEN) return CHICKEN;
         if (entity.getType() == EntityType.GOAT) return GOAT;

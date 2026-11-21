@@ -42,7 +42,30 @@ the world**, on the actual terrain. Beat a mob and you learn its fighting style.
 - **Hold E to challenge any mob.** A quick tap of E still opens your inventory. Short mobs like pigs are easy to target.
 - **AI difficulty per world.** When a new world starts, you choose **Normal** or **Hard**.
   Ops can change it later with `/streetfighter difficulty normal|hard`.
-- **Learn styles by winning.** Defeat a Skeleton, Pig, plain Villager, Chicken, Cleric villager (the Alchemist) or Goat
+- **Fight for loot.** Street fighting is how you get stuff now. A beaten mob is knocked out for good and drops far more
+  than killing it normally would (on top of its usual drops):
+
+  | Opponent | Drops |
+  |---|---|
+  | Pig | ~10 porkchops, carrots, sometimes a saddle |
+  | Skeleton | a stack of bones and arrows, bone meal, maybe a bow or skull |
+  | Villager | 6–12 emeralds, bread, wheat |
+  | Alchemist | emeralds, redstone, glowstone, nether wart, bottles o' enchanting, random potions |
+  | Chicken | chicken, a pile of feathers and eggs |
+  | Goat | a goat horn, leather, snowballs, maybe milk |
+  | Oak Tree | **twice the tree's logs** plus extra, saplings, apples, sticks, a rare golden apple |
+  | Any other mob | its own loot rolled 2–4 extra times |
+
+  - **Bonuses:** ×1.5 on Hard AI and ×1.25 for a perfect win, plus XP orbs.
+  - **Chat summary:** a "LOOT" line lists what dropped.
+  - **Config:** `rewardMultiplier` scales all rewards; turning off `defeatedMobsDie` lets beaten mobs walk away (no loot).
+- **Challenge oak trees.** Hold E on an oak's trunk or its leaves:
+  - **Uproot:** the whole tree (logs and natural leaves) rips itself out of the ground and fights you as a walking
+    treant built from real oak blocks.
+  - **Win:** the tree is felled for a pile of logs.
+  - **Lose or back out:** it plants itself back exactly as it was.
+  - **Limits:** it respects protection/claim mods, and player-built log structures (no natural leaves) can't be challenged.
+- **Learn styles by winning.** Defeat a Skeleton, Pig, plain Villager, Chicken, Cleric villager (the Alchemist), Goat or Oak Tree
   and its style becomes selectable.
 
 ## Fighting system
@@ -72,6 +95,7 @@ Every style has a Street Fighter–sized kit (~44 moves each):
 | **Pig** | Hog Charge 236P, Snout Uppercut 623P, Mud Slide 236K (low), Belly Flop 214K (overhead) | Stampede, Carrot Frenzy, Pigstep Apocalypse |
 | **Chicken** | Egg Toss 236P, Rooster Rise 623P, Fowl Play 236K (pecking rush), Feather Dive 214K (overhead dive) | Egg Barrage, Flock Call, Phoenix Fury |
 | **Alchemist** (Cleric villager) | Splash Potion 236P (L poison / M slowness / H harming), Lingering Cloud 214P, Brew Up 214K (L speed / M strength / H regeneration / EX all three), Fizz Rocket 623P | Potion Barrage, Witch's Brew, Elixir of the Ancients |
+| **Oak Tree** | Apple Toss 236P, Root Eruption 623P (roots burst out of the ground at a distance), Timber Rush 236K (armored charge), Canopy Crash 214K (overhead) | Orchard Rain, Root Wave, Ancient Oak |
 | **Goat** | Ram Charge 236P (wall-splats on H/EX, armored EX), Horn Toss 623P, Screaming Bleat 214P (low shockwave that slows), Goat Leap 214K (overhead) | Avalanche, Herd Charge, Peak Breaker |
 | **Any other mob** | Lunge, Rising Claw, Pounce, Leap Smash | Frenzy, Bone Storm, Rampage |
 
@@ -136,18 +160,18 @@ Strikes leave additive swoosh trails. Hits throw spark bursts and shockwave ring
 - `/streetfighter difficulty [normal|hard]`: show or set (op) the AI difficulty
 - `/streetfighter styles`: list your learned styles and wins
 - `/streetfighter training on|off`: training mode (the dummy stands still and refills its health, your meter is full, no rewards or penalties)
-- `/streetfighter unlock <skeleton|villager|pig|chicken|alchemist|goat|all>`: op/testing
+- `/streetfighter unlock <skeleton|villager|pig|chicken|alchemist|goat|oak|all>`: op/testing
 - `/streetfighter resetstyles`: op/testing
 
-Settings are in `config/streetfighter-common.toml`: peaceful mobs, challenge range, hold time, what happens to defeated mobs,
-and the loser penalty.
+Settings are in `config/streetfighter-common.toml`: peaceful mobs, challenge range, hold time, whether defeated mobs die
+(`defeatedMobsDie`), the loot multiplier (`rewardMultiplier`) and the loser penalty.
 
 ## Building
 
 Requires Java 21.
 
 ```bash
-./gradlew build        # mod jar -> build/libs/streetfighter-0.3.0.jar
+./gradlew build        # mod jar -> build/libs/streetfighter-0.4.0.jar
 ./gradlew runClient    # launch a dev client with the mod
 ```
 

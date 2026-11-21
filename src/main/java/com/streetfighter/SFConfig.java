@@ -17,13 +17,14 @@ public final class SFConfig {
             .comment("How long (in ticks, 20 = 1 second) the challenge key must be held.")
             .defineInRange("holdTicks", 20, 1, 100);
 
-    public static final ForgeConfigSpec.BooleanValue DEFEATED_HOSTILES_DIE = BUILDER
-            .comment("Hostile mobs that lose a fight are knocked out for good (and drop their loot).")
-            .define("defeatedHostilesDie", true);
+    public static final ForgeConfigSpec.BooleanValue DEFEATED_MOBS_DIE = BUILDER
+            .comment("Mobs (and oak trees) that lose a fight are knocked out for good and drop their fight rewards.",
+                    "Turn off to let beaten mobs walk away (no rewards).")
+            .define("defeatedMobsDie", true);
 
-    public static final ForgeConfigSpec.BooleanValue DEFEATED_PASSIVES_DIE = BUILDER
-            .comment("Passive mobs (pigs, villagers...) that lose a fight are knocked out for good.")
-            .define("defeatedPassivesDie", false);
+    public static final ForgeConfigSpec.DoubleValue REWARD_MULTIPLIER = BUILDER
+            .comment("Multiplies the amount of loot a beaten mob drops (a pig drops ~10 porkchops at 1.0).")
+            .defineInRange("rewardMultiplier", 1.0, 0.0, 10.0);
 
     public static final ForgeConfigSpec.BooleanValue LOSER_PENALTY = BUILDER
             .comment("Players who lose a fight are left bruised (Weakness + Slowness for 30 seconds).")

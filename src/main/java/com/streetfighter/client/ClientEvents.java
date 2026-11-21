@@ -24,6 +24,8 @@ public final class ClientEvents {
     static boolean pendingDifficultyPrompt;
 
     private static LivingEntity lookTarget;
+    /** An oak log you're looking at (trees can be challenged too). */
+    private static net.minecraft.core.BlockPos treeTarget;
     private static int holdTarget = -1;
     private static int holdTicks;
     private static int cooldown;
@@ -53,12 +55,14 @@ public final class ClientEvents {
         if (cooldown > 0) cooldown--;
 
         lookTarget = mc.screen == null && !player.isSpectator() ? findTarget(mc, player) : null;
+        treeTarget = lookTarget == null && mc.screen == null && !player.isSpectator() ? findTree(mc, player) : null;
+        boolean hasTarget = lookTarget != null || treeTarget != null;
 
         // When aiming at a mob, E means "challenge" if held. A quick tap still opens the inventory.
         boolean sharesInventoryKey = ClientSetup.CHALLENGE_KEY.getKey().equals(mc.options.keyInventory.getKey());
         boolean held = mc.screen == null && ClientSetup.CHALLENGE_KEY.isDown();
         boolean swallowed = false;
-        if (lookTarget != null && sharesInventoryKey) {
+        if (hasTarget && sharesInventoryKey) {
             while (mc.options.keyInventory.consumeClick()) swallowed = true;
         }
         while (ClientSetup.CHALLENGE_KEY.consumeClick()) {
@@ -75,14 +79,16 @@ public final class ClientEvents {
 
         if (held) {
             pressTicks++;
-            if (lookTarget != null && cooldown == 0) {
-                if (lookTarget.getId() != holdTarget) {
-                    holdTarget = lookTarget.getId();
+            if (hasTarget && cooldown == 0) {
+                int key = lookTarget != null ? lookTarget.getId() : -2 - (treeTarget.hashCode() & 0x3FFFFFFF);
+                if (key != holdTarget) {
+                    holdTarget = key;
                     holdTicks = 0;
                 }
                 holdTicks++;
                 if (holdTicks >= requiredTicks()) {
-                    ModNetwork.sendToServer(new ChallengePacket(lookTarget.getId()));
+                    if (lookTarget != null) ModNetwork.sendToServer(new ChallengePacket(lookTarget.getId()));
+                    else ModNetwork.sendToServer(new com.streetfighter.network.TreeChallengePacket(treeTarget));
                     holdTicks = 0;
                     holdTarget = -1;
                     cooldown = 40;
@@ -146,6 +152,33 @@ public final class ClientEvents {
         return best;
     }
 
+    private static net.minecraft.core.BlockPos findTree(Minecraft mc, LocalPlayer player) {
+        if (!(mc.hitResult instanceof net.minecraft.world.phys.BlockHitResult bhr) || bhr.getType() != HitResult.Type.BLOCK) return null;
+        var pos = bhr.getBlockPos();
+        var state = mc.level.getBlockState(pos);
+        if (state.is(net.minecraft.world.level.block.Blocks.OAK_LEAVES)
+                && !state.getValue(net.minecraft.world.level.block.LeavesBlock.PERSISTENT)) {
+            // looking at the crown: snap to the nearest log of that tree
+            net.minecraft.core.BlockPos best = null;
+            double bestD = Double.MAX_VALUE;
+            for (var p : net.minecraft.core.BlockPos.betweenClosed(pos.offset(-3, -5, -3), pos.offset(3, 1, 3))) {
+                var st = mc.level.getBlockState(p);
+                if (!st.is(net.minecraft.world.level.block.Blocks.OAK_LOG) && !st.is(net.minecraft.world.level.block.Blocks.OAK_WOOD)) continue;
+                double d = p.distSqr(pos);
+                if (d < bestD) {
+                    bestD = d;
+                    best = p.immutable();
+                }
+            }
+            if (best == null) return null;
+            pos = best;
+            state = mc.level.getBlockState(pos);
+        }
+        if (!state.is(net.minecraft.world.level.block.Blocks.OAK_LOG) && !state.is(net.minecraft.world.level.block.Blocks.OAK_WOOD)) return null;
+        double range = SFConfig.CHALLENGE_RANGE.get() + 3;
+        return pos.distToCenterSqr(player.getEyePosition()) <= range * range ? pos.immutable() : null;
+    }
+
     private static boolean canSee(Minecraft mc, LocalPlayer player, Vec3 eye, Vec3 target) {
         HitResult block = mc.level.clip(new ClipContext(eye, target, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
         return block.getType() == HitResult.Type.MISS || block.getLocation().distanceToSqr(eye) >= target.distanceToSqr(eye) - 0.01;
@@ -154,12 +187,12 @@ public final class ClientEvents {
     /** HUD layer registered through AddGuiOverlayLayersEvent. */
     public static void renderHud(GuiGraphics g) {
         Minecraft mc = Minecraft.getInstance();
-        if (lookTarget == null || mc.screen != null || mc.options.hideGui || mc.player == null) return;
+        if ((lookTarget == null && treeTarget == null) || mc.screen != null || mc.options.hideGui || mc.player == null) return;
         Font font = mc.font;
         int cx = g.guiWidth() / 2;
         int y = g.guiHeight() / 2 + 14;
         String key = ClientSetup.CHALLENGE_KEY.getTranslatedKeyMessage().getString();
-        String text = "Hold [" + key + "] to challenge " + lookTarget.getDisplayName().getString();
+        String text = "Hold [" + key + "] to challenge " + (lookTarget != null ? lookTarget.getDisplayName().getString() : "the Oak Tree");
         int w = font.width(text);
         g.fill(cx - w / 2 - 4, y - 3, cx + w / 2 + 4, y + 11, 0x90000000);
         g.drawString(font, text, cx - w / 2, y, 0xFFFFD84A, true);

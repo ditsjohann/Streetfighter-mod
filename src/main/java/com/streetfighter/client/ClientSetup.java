@@ -22,6 +22,7 @@ public final class ClientSetup {
     public static void init(IEventBus modBus) {
         modBus.addListener(ClientSetup::registerKeys);
         modBus.addListener(ClientSetup::registerOverlays);
+        modBus.addListener(ClientSetup::registerRenderers);
         MinecraftForge.EVENT_BUS.register(ClientEvents.class);
         MinecraftForge.EVENT_BUS.register(com.streetfighter.client.world.WorldRenderEvents.class);
     }
@@ -29,6 +30,11 @@ public final class ClientSetup {
     private static void registerOverlays(AddGuiOverlayLayersEvent event) {
         event.getLayeredDraw().add(ResourceLocation.fromNamespaceAndPath(StreetFighterMod.MODID, "challenge_prompt"),
                 (g, delta) -> ClientEvents.renderHud(g));
+    }
+
+    private static void registerRenderers(net.minecraftforge.client.event.EntityRenderersEvent.RegisterRenderers event) {
+        event.registerEntityRenderer(com.streetfighter.entity.ModEntities.OAK_TREANT.get(),
+                com.streetfighter.client.world.TreantRenderer::new);
     }
 
     private static void registerKeys(RegisterKeyMappingsEvent event) {

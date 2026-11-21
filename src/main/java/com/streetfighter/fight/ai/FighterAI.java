@@ -74,6 +74,7 @@ public class FighterAI {
             case CHICKEN -> new ChickenAI(difficulty);
             case ALCHEMIST -> new AlchemistAI(difficulty);
             case GOAT -> new GoatAI(difficulty);
+            case OAK -> new OakAI(difficulty);
             default -> new BrawlerAI(difficulty);
         };
     }

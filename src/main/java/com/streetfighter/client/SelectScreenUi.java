@@ -39,7 +39,7 @@ final class SelectScreenUi {
     private static final FighterType[] GRID = {
             FighterType.STEVE, FighterType.PIG, FighterType.SKELETON, FighterType.VILLAGER, FighterType.ALCHEMIST,
             FighterType.CHICKEN, FighterType.GOAT,
-            null, null, null, null, null, null, null};
+            FighterType.OAK, null, null, null, null, null, null};
     private static final int RANDOM_CELL = 10; // centre of the bottom row
     private static final float SELECT_SECONDS = 30f;
 
@@ -84,6 +84,7 @@ final class SelectScreenUi {
             case PIG -> new Profile("TANK", "THE FARM", 4, 3, 5, 1, 0xFF8FB0);
             case CHICKEN -> new Profile("AERIAL RUSHDOWN", "THE COOP", 2, 5, 1, 2, 0xFFD84A);
             case GOAT -> new Profile("RAMMER", "SNOWY PEAKS", 5, 2, 3, 2, 0x9CD2FF);
+            case OAK -> new Profile("ROOTED BRUISER", "OAK FOREST", 4, 1, 5, 4, 0x7DBA3C);
             case BRAWLER -> new Profile("WILD MOB", "THE WILD", 3, 3, 3, 2, 0xFF6A4A);
         };
     }
@@ -91,6 +92,10 @@ final class SelectScreenUi {
     private LivingEntity entityFor(FighterType t) {
         Minecraft mc = Minecraft.getInstance();
         if (t == FighterType.STEVE) return mc.player;
+        if (t == FighterType.OAK) {
+            return dummies.computeIfAbsent(t, k -> mc.level == null ? null
+                    : com.streetfighter.entity.ModEntities.OAK_TREANT.get().create(mc.level));
+        }
         return dummies.computeIfAbsent(t, k -> {
             if (mc.level == null) return null;
             EntityType<?> type = switch (k) {
@@ -611,7 +616,7 @@ final class SelectScreenUi {
             g.pose().translate(0, 0, 350);
             frame(g, ex, ey, cs, 2, (int) (t * 3) % 2 == 0 ? 0xFFFF3A2A : 0xFFFFB0A0);
             boolean shared = ec == (phase == Phase.ROULETTE ? rouletteIndex : cursor);
-            tag(g, "CPU", ex + cs - font.width("CPU") - 5, shared ? ey + cs + 1 : ey - 9, 0xFFE0301E);
+            tag(g, "CPU", ex + cs - font.width("CPU") - 5, shared || ec / COLS == ROWS - 1 ? ey + cs + 1 : ey - 9, 0xFFE0301E);
             g.pose().popPose();
         }
         // 1P cursor

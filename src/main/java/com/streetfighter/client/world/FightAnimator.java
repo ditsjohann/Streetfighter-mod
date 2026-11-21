@@ -42,7 +42,7 @@ import static com.streetfighter.client.world.AnimClips.*;
  * {@code RenderLivingEvent}.
  */
 public final class FightAnimator {
-    public enum Body { HUMANOID, VILLAGER, QUAD, BIRD, OTHER }
+    public enum Body { HUMANOID, VILLAGER, QUAD, BIRD, TREE, OTHER }
 
     public static boolean suspended;
 
@@ -83,6 +83,12 @@ public final class FightAnimator {
         return STATES.computeIfAbsent(e.getId(), k -> new State());
     }
 
+    /** The animation state of a fighter, or null when the entity isn't in a fight. */
+    public static State stateIfPresent(LivingEntity e) {
+        State s = STATES.get(e.getId());
+        return s != null && s.init ? s : null;
+    }
+
     public static void clear() {
         STATES.clear();
         current = null;
@@ -91,6 +97,7 @@ public final class FightAnimator {
 
     public static Body bodyOf(LivingEntity e) {
         var renderer = net.minecraft.client.Minecraft.getInstance().getEntityRenderDispatcher().getRenderer(e);
+        if ((Object) renderer instanceof TreantRenderer) return Body.TREE;
         if (renderer instanceof net.minecraft.client.renderer.entity.LivingEntityRenderer<?, ?> ler) {
             Object m = ler.getModel();
             if (m instanceof HumanoidModel<?>) return Body.HUMANOID;

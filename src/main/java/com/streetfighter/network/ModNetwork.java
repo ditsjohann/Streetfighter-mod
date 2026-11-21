@@ -16,7 +16,7 @@ public final class ModNetwork {
 
     public static void register() {
         CHANNEL = ChannelBuilder.named(ResourceLocation.fromNamespaceAndPath(StreetFighterMod.MODID, "main"))
-                .networkProtocolVersion(1)
+                .networkProtocolVersion(2)
                 .simpleChannel();
 
         CHANNEL.messageBuilder(ChallengePacket.class, NetworkDirection.PLAY_TO_SERVER)
@@ -34,6 +34,9 @@ public final class ModNetwork {
         CHANNEL.messageBuilder(WallBreakPacket.class, NetworkDirection.PLAY_TO_SERVER)
                 .encoder(WallBreakPacket::encode).decoder(WallBreakPacket::decode)
                 .consumerMainThread(WallBreakPacket::handle).add();
+        CHANNEL.messageBuilder(TreeChallengePacket.class, NetworkDirection.PLAY_TO_SERVER)
+                .encoder(TreeChallengePacket::encode).decoder(TreeChallengePacket::decode)
+                .consumerMainThread(TreeChallengePacket::handle).add();
         CHANNEL.messageBuilder(OpenFightPacket.class, NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(OpenFightPacket::encode).decoder(OpenFightPacket::decode)
                 .consumerMainThread(OpenFightPacket::handle).add();

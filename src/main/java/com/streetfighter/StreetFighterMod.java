@@ -19,6 +19,7 @@ public class StreetFighterMod {
 
     public StreetFighterMod(FMLJavaModLoadingContext context) {
         IEventBus modBus = context.getModEventBus();
+        com.streetfighter.entity.ModEntities.register(modBus);
         ModNetwork.register();
         context.registerConfig(ModConfig.Type.COMMON, SFConfig.SPEC);
 

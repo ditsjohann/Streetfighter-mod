@@ -188,11 +188,14 @@ public final class WorldRenderEvents {
                             yield egg;
                         }
                         case FEATHER -> new ItemStack(Items.FEATHER);
+                        case APPLE -> new ItemStack(Items.APPLE);
+                        case ROOTS -> new ItemStack(Items.MANGROVE_ROOTS);
                         case POTION -> net.minecraft.world.item.alchemy.PotionContents.createItemStack(Items.SPLASH_POTION,
                                 WorldFx.potionFor(p.spec.effect));
                         default -> new ItemStack(Items.SNOWBALL);
                     };
-                    float spin = p.age * 14f * (p.vx >= 0 ? 1 : -1);
+                    boolean roots = p.spec.visual == com.streetfighter.fight.ProjectileVisual.ROOTS;
+                    float spin = roots ? 0 : p.age * 14f * (p.vx >= 0 ? 1 : -1);
                     Vec3 f = arena.axis;
                     ps.pushPose();
                     ps.translate(w.x - cam.x, w.y - cam.y, w.z - cam.z);
@@ -208,6 +211,14 @@ public final class WorldRenderEvents {
                     };
                     if (p.spec.visual == com.streetfighter.fight.ProjectileVisual.BELL) {
                         ps.translate(0, 0.7, 0);
+                    }
+                    if (roots) {
+                        // roots burst out of the ground, then sink back
+                        float life = p.spec.lifetime;
+                        float rise = Math.min(1f, p.age / 5f) * Math.min(1f, (life - p.age) / 8f);
+                        float h = p.spec.height / Arena.UNITS_PER_BLOCK;
+                        ps.translate(0, -h * 0.5 + h * rise * 0.5, 0);
+                        ps.scale(1.6f, h * Math.max(0.05f, rise) * 1.1f, 1.6f);
                     }
                     ps.scale(sc, sc, sc);
                     mc.getItemRenderer().renderStatic(stack, ItemDisplayContext.FIXED, light, OverlayTexture.NO_OVERLAY, ps,

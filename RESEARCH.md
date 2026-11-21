@@ -81,6 +81,15 @@ Based on the SF2 / SF4 / SF6 select screens and the MUGEN/Ikemen `select.def` mo
   replaced by each fighter's home turf and item icon), SF4/SF6-style big models on coloured slabs, and a VS splash
   after both sides lock in.
 
+### Round 5: rewards and the Oak Tree
+- **Rewards (`server/FightRewards.java`):** typed loot "bags" scaled by difficulty and perfect wins. Other mobs reuse their
+  vanilla loot table, rolled extra times.
+- **Trees (`server/TreeFights.java`, `entity/TreantEntity.java`):**
+  - The trunk is found by flood-filling connected oak logs, plus natural (`persistent=false`) leaves around them.
+  - The blocks are removed and stored in the entity's NBT, so a tree that isn't felled always re-plants, even across
+    restarts.
+  - The renderer builds the treant from block models and drives its limbs with the same humanoid animation channels.
+
 ## Not adopted (yet)
 - Rollback netcode (GGPO-style), which several engines plan for. In Minecraft the simulation runs on the challenger's
   client, so it isn't needed for 1-player fights.

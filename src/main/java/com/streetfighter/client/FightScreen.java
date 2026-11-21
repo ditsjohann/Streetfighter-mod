@@ -170,6 +170,7 @@ public class FightScreen extends Screen {
             case ALCHEMIST -> net.minecraft.world.item.alchemy.PotionContents.createItemStack(Items.SPLASH_POTION,
                     net.minecraft.world.item.alchemy.Potions.POISON);
             case GOAT -> new ItemStack(Items.GOAT_HORN);
+            case OAK -> new ItemStack(Items.OAK_SAPLING);
             default -> new ItemStack(Items.ROTTEN_FLESH);
         };
     }
@@ -183,6 +184,7 @@ public class FightScreen extends Screen {
             case CHICKEN -> "Aerial pest: double jump (press up again in the air), hold up to glide. Tiny and fast.";
             case ALCHEMIST -> "Status zoner: poison, slowness & harming potions, lingering clouds, Brew Up buffs.";
             case GOAT -> "Rammer: huge jumps, wall-splatting charges and a scream that slows you down.";
+            case OAK -> "Rooted bruiser: enormous reach, armored charges, apple lobs and roots that erupt under you.";
             case BRAWLER -> "Wild mob: scrappy and straightforward.";
         };
     }

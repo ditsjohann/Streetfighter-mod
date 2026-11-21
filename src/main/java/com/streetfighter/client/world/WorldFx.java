@@ -255,6 +255,10 @@ public final class WorldFx {
                     if (at == FighterType.GOAT && ev.heavy() && attacker.move.pose != AnimPose.THROW_FWD) {
                         sound(SoundEvents.GOAT_RAM_IMPACT, p, 1f, 0.9f);
                     }
+                    if (at == FighterType.OAK) {
+                        burst(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.OAK_LEAVES.defaultBlockState()), p, 10, 0.3, 0.4);
+                        if (ev.heavy()) sound(SoundEvents.WOOD_BREAK, p, 1f, 0.7f);
+                    }
                     if (at == FighterType.CHICKEN && attacker.move.pose == AnimPose.PECK) {
                         feathers(p, 3);
                     }
@@ -363,6 +367,14 @@ public final class WorldFx {
                         sound(SoundEvents.CHICKEN_HURT, p, 0.6f, 1.4f);
                     }
                     case POTION -> sound(SoundEvents.SPLASH_POTION_THROW, p, 1f, 0.9f);
+                    case APPLE -> sound(SoundEvents.SNOWBALL_THROW, p, 1f, 0.7f);
+                    case ROOTS -> {
+                        Vec3 g = ground(f.x + f.dir() * (f.move != null && f.move.projectile != null ? f.move.projectile.offX : 100));
+                        sound(SoundEvents.ROOTED_DIRT_BREAK, g, 1.4f, 0.6f);
+                        sound(SoundEvents.MANGROVE_ROOTS_BREAK, g, 1.2f, 0.7f);
+                        burst(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.ROOTED_DIRT.defaultBlockState()), g.add(0, 0.2, 0), 24, 0.25, 0.5);
+                        session.fovKick = Math.max(session.fovKick, 0.02f);
+                    }
                     case CLOUD -> {
                         sound(SoundEvents.LINGERING_POTION_THROW, p, 1f, 0.8f);
                         sound(SoundEvents.BREWING_STAND_BREW, p, 0.8f, 1.2f);
@@ -660,6 +672,10 @@ public final class WorldFx {
                 case GOAT -> {
                     if (frame % 3 == 0) dust(p.x, 3, 0.1);
                 }
+                case ROOTS -> {
+                    if (frame % 3 == 0) burst(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.ROOTED_DIRT.defaultBlockState()),
+                            ground(p.x).add(0, 0.1, 0), 3, 0.15, 0.4);
+                }
                 case BELL, SHOCKWAVE -> {
                     dust(p.x, 3, 0.18);
                     if (frame % 3 == 0) quads.ring(front(ground(p.x).add(0, 0.6, 0)), 0.4f, 1.8f, 0.25f, C_GOLD);
@@ -720,6 +736,15 @@ public final class WorldFx {
                 }
             }
             if (f.gliding && frame % 4 == 0) feathers(at(f.x, f.y + 30), 1);
+            if (f.state == Fighter.State.ATTACK && m != null && m.projectile != null && m.projectile.visual == ProjectileVisual.ROOTS
+                    && m.projectile.vx == 0 && f.curFrame < m.projectileFrame && frame % 2 == 0) {
+                // the ground rumbles where the roots will burst out
+                Vec3 g = ground(f.x + f.dir() * m.projectile.offX);
+                burst(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.ROOTED_DIRT.defaultBlockState()), g.add(0, 0.05, 0), 2, 0.3, 0.1);
+            }
+            if (f.moves.type() == FighterType.OAK && f.body == FighterType.OAK && f.state == Fighter.State.WALK && frame % 10 == 0) {
+                burst(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.OAK_LEAVES.defaultBlockState()), at(f.x, f.y + 150), 2, 0.4, 0.2);
+            }
             if (f.state == Fighter.State.PARRY && frame % 3 == 0) {
                 burst(PARRY_GREEN, at(f.x, 70), 2, 0.1, 1.0);
             }
@@ -771,6 +796,7 @@ public final class WorldFx {
             case CHICKEN -> SoundEvents.CHICKEN_AMBIENT;
             case ALCHEMIST -> SoundEvents.VILLAGER_WORK_CLERIC;
             case GOAT -> SoundEvents.GOAT_PREPARE_RAM;
+            case OAK -> SoundEvents.WOOD_HIT;
             default -> SoundEvents.PLAYER_ATTACK_SWEEP;
         };
     }
