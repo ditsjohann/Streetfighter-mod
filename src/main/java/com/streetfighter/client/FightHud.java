@@ -114,6 +114,8 @@ public final class FightHud {
         int my = h - mh - 12 - (int) (s.hud.letterbox * h * 0.06f);
         superMeter(g, e.player, 12, my, mw, mh, false);
         superMeter(g, e.enemy, w - 12 - mw, my, mw, mh, true);
+        heldProp(g, e.player, 12, my - 50, false);
+        heldProp(g, e.enemy, w - 12, my - 50, true);
         statusTags(g, e.player, 12, my - 24, false, w);
         statusTags(g, e.enemy, w - 12, my - 24, true, w);
 
@@ -125,10 +127,28 @@ public final class FightHud {
         if (s.hud.superBanner > 0) superCutIn(g, w, h);
         if (s.hud.flash > 0) g.fill(0, 0, w, h, argb(s.hud.flash * 18, 0xFFFFFF));
 
-        if (e.phase == FightEngine.Phase.INTRO || (e.phase == FightEngine.Phase.FIGHTING && e.round == 1
-                && e.timer > FightEngine.ROUND_FRAMES - 60 * 6)) {
+        if ((e.phase == FightEngine.Phase.INTRO || (e.phase == FightEngine.Phase.FIGHTING && e.round == 1
+                && e.timer > FightEngine.ROUND_FRAMES - 60 * 6)) && e.player.heldProp == null && e.enemy.heldProp == null) {
             help(g, w, my - 16);
         }
+    }
+
+    /** What a fighter is holding: icon, name, time/uses left, and (for the player) how to use it. */
+    private void heldProp(GuiGraphics g, Fighter f, int x, int y, boolean rightSide) {
+        com.streetfighter.fight.Prop pr = f.heldProp;
+        if (pr == null) return;
+        String name = pr.displayName.toUpperCase() + "  " + (f.heldTimer + 59) / 60 + "s  x" + f.heldUses;
+        String help = "PUNCH: " + pr.wayA.name + "   KICK: " + pr.wayB.name;
+        int tw = Math.max(font.width(name), f.index == 0 ? font.width(help) : 0) + 26;
+        int x0 = rightSide ? x - tw : x;
+        int h = f.index == 0 ? 22 : 13;
+        boolean blink = f.heldTimer < 90 && (f.heldTimer / 6) % 2 == 0;
+        g.fill(x0, y, x0 + tw, y + h, blink ? 0x80301000 : 0xC0101808);
+        g.fill(x0, y + h - 1, x0 + (int) (tw * Math.min(1f, f.heldTimer / (float) com.streetfighter.fight.Prop.HOLD_FRAMES)), y + h,
+                0xFFFFD21A);
+        g.renderItem(com.streetfighter.client.world.PropRenderer.stackOf(pr), x0 + 3, y + (h - 16) / 2);
+        g.drawString(font, name, x0 + 22, y + 2, 0xFFFFE27A, true);
+        if (f.index == 0) g.drawString(font, help, x0 + 22, y + 12, 0xFFBBBBBB, false);
     }
 
     /** Small coloured pills for active status effects (POISON 4s, STRENGTH 8s...). */

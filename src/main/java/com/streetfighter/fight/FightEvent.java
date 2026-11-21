@@ -11,7 +11,9 @@ public record FightEvent(Type type, int fighter, float x, float y, String text, 
         EXPLOSION, PARRY, PERFECT_PARRY, ARMOR, CRUMPLE, WALL_SPLAT, WALL_BOUNCE, WALL_BREAK, WALL_JUMP,
         HAZARD, CALLOUT, TECH, GROUND_BOUNCE, WHIFF,
         // round 4
-        AIR_JUMP, STATUS, STATUS_TICK
+        AIR_JUMP, STATUS, STATUS_TICK,
+        // props
+        PROP_VILLAGER, PROP_THROW, PROP_LAND, PROP_PICKUP, PROP_DROP, PROP_EXPIRE, TELEPORT
     }
 
     public static FightEvent of(Type type, int fighter, float x, float y) {

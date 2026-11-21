@@ -68,6 +68,11 @@ public final class Fighter {
     public int glideLeft;
     public boolean gliding;
 
+    // --- props
+    /** The item this fighter is holding (thrown in by the villager), or null. */
+    public Prop heldProp;
+    public int heldTimer, heldUses;
+
     public boolean has(StatusEffect e) {
         return status[e.ordinal()] > 0;
     }

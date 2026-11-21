@@ -45,6 +45,23 @@ public final class FightEngine {
     public final List<Projectile> projectiles = new ArrayList<>();
     public final List<FightEvent> events = new ArrayList<>();
 
+    // ---- props: the funny villager who throws items into the fight
+    public static final float PROP_CHANCE = 0.2f;
+    public static final int PROP_ROLL_FRAMES = 8 * 60;
+    public final List<FieldProp> props = new ArrayList<>();
+    public boolean propsEnabled = true;
+    public float propChance = PROP_CHANCE;
+    public int villagerTimer;
+    public float villagerX;
+    public boolean villagerFacingRight;
+    private int propRollTimer = PROP_ROLL_FRAMES;
+    private Prop pendingProp;
+    private float pendingTarget;
+    private int throwIn;
+    private int propIds;
+    private static final String[] VILLAGER_LINES = {"Hrmm! CATCH!", "Hmm-hmm! Use THIS!", "No refunds!", "Hrrm? FIGHT!",
+            "Special offer!", "Hmmm... take it!", "Free sample!", "HRMM! HERE!"};
+
     public Phase phase = Phase.INTRO;
     public int phaseTimer;
     public int round = 1;
@@ -132,6 +149,11 @@ public final class FightEngine {
         player.facingRight = true;
         enemy.facingRight = false;
         projectiles.clear();
+        props.clear();
+        pendingProp = null;
+        villagerTimer = 0;
+        propRollTimer = PROP_ROLL_FRAMES / 2 + random.nextInt(PROP_ROLL_FRAMES);
+        for (Fighter f : fighters) f.heldProp = null;
         timer = ROUND_FRAMES;
         hitstop = 0;
         freeze = 0;
@@ -274,6 +296,7 @@ public final class FightEngine {
         for (Fighter f : fighters) advance(f);
         resolveMeleeHits();
         updateProjectiles();
+        updateProps();
         resolveBodies();
         for (Fighter f : fighters) {
             if (f.actionable()) {
@@ -508,6 +531,15 @@ public final class FightEngine {
             }
         }
         if (m == null) m = pickSpecial(f, in);
+        if (m == null && f.heldProp != null) {
+            // holding a prop: punches use it one way, kicks the other
+            int way = in.itemUse;
+            if (way == 0) {
+                Button btn = strongestPressed(b, null);
+                if (btn != null) way = btn.isKick() ? 2 : 1;
+            }
+            if (way > 0) m = way == 1 ? f.heldProp.wayA : f.heldProp.wayB;
+        }
         if (m == null && in.commandNormal >= 0 && in.commandNormal < f.moves.commandNormals.size()) {
             m = f.moves.commandNormals.get(in.commandNormal).move();
         }
@@ -622,6 +654,10 @@ public final class FightEngine {
         if (!chain) f.chainCount = 0;
         if (!m.air && f.grounded() && !icy(f)) f.vx = 0;
         if (m.meterCost > 0) f.meter = Math.max(0, f.meter - m.meterCost);
+        if (m.kind == Move.Kind.ITEM && f.heldProp != null) {
+            f.heldUses--;
+            if (m.consumesProp || f.heldUses <= 0) f.heldProp = null;
+        }
         if (m.isSuper()) {
             freeze = 40 + m.superLevel * 8;
             freezeOwner = f.index;
@@ -807,6 +843,20 @@ public final class FightEngine {
         if (m.armorHits > 0 && fr >= m.armorEnd) f.armorLeft = 0;
         if (m.projectile != null && fr == m.projectileFrame) spawnProjectiles(f, m.projectile);
         if (fr == m.startup) for (StatusEffect e : m.selfEffects) giveStatus(f, e, m.selfEffectFrames);
+        if (fr == m.startup && m.teleport) {
+            // Ender Pearl: reappear behind the opponent
+            Fighter o = other(f);
+            float from = f.x;
+            f.x = clampArena(o.x - o.dir() * ((o.hurtWidth() + f.hurtWidth()) / 2f + 30));
+            f.facingRight = o.x > f.x;
+            f.vx = 0;
+            events.add(new FightEvent(Type.TELEPORT, f.index, from, f.y, null, null, false));
+        }
+        if (fr == m.startup && m.randomBrew) {
+            // mystery bottle: usually a buff... sometimes it backfires
+            StatusEffect[] brews = {StatusEffect.STRENGTH, StatusEffect.SPEED, StatusEffect.REGEN, StatusEffect.POISON};
+            giveStatus(f, brews[random.nextInt(brews.length)], 360);
+        }
         // cinematic supers keep the victim pinned in front of the attacker
         if (m.lockOnHit && f.moveConnected) {
             Fighter d = other(f);
@@ -1089,6 +1139,7 @@ public final class FightEngine {
             d.vx = dirAway * h.push;
         }
         if (melee && nearWall(d)) a.vx -= dirAway * h.push * 0.5f;
+        if ((h.knockdown || h.crumple) && d.heldProp != null) dropProp(d, dirAway);
         a.meter = Math.min(Fighter.MAX_METER, a.meter + 3 + h.damage / 25f);
         d.meter = Math.min(Fighter.MAX_METER, d.meter + 3);
         boolean heavy = dmg >= 70 || h.knockdown;
@@ -1302,6 +1353,123 @@ public final class FightEngine {
         owner.meter = Math.min(Fighter.MAX_METER, owner.meter + 1);
         events.add(FightEvent.text(Type.STATUS_TICK, target.index, target.x, target.y + target.hurtHeight() * 0.6f,
                 p.spec.effect == null ? "POISON" : p.spec.effect.name()));
+    }
+
+    // ------------------------------------------------------------------ props
+
+    private void updateProps() {
+        if (villagerTimer > 0) villagerTimer--;
+        boolean live = phase == Phase.FIGHTING;
+        if (live && propsEnabled) {
+            if (pendingProp != null) {
+                if (--throwIn <= 0) throwProp();
+            } else if (--propRollTimer <= 0) {
+                propRollTimer = PROP_ROLL_FRAMES;
+                boolean busy = !props.isEmpty() || player.heldProp != null || enemy.heldProp != null;
+                if (!busy && random.nextFloat() < propChance) summonVillager();
+            }
+        }
+        for (FieldProp p : props) {
+            p.prevX = p.x;
+            p.prevY = p.y;
+            if (!p.landed) {
+                p.age++;
+                p.vy -= 0.4f;
+                p.x += p.vx;
+                p.y += p.vy;
+                if (p.x < arenaMin + WALL + 20 || p.x > arenaMax - WALL - 20) {
+                    p.x = clampArena(p.x);
+                    p.vx = -p.vx * 0.3f;
+                }
+                if (p.y <= 0 && p.vy < 0) {
+                    p.y = 0;
+                    p.vx = p.vy = 0;
+                    p.landed = true;
+                    events.add(new FightEvent(Type.PROP_LAND, -1, p.x, 0, p.kind.name(), null, p.kind.block));
+                }
+                continue;
+            }
+            if (--p.groundLeft <= 0) {
+                p.dead = true;
+                events.add(new FightEvent(Type.PROP_EXPIRE, -1, p.x, 10, p.kind.name(), null, false));
+                continue;
+            }
+            if (!live) continue;
+            for (Fighter f : fighters) {
+                if (f.heldProp != null || !f.grounded() || !f.actionable()) continue;
+                if (Math.abs(f.x - p.x) < f.hurtWidth() / 2f + 24) {
+                    f.heldProp = p.kind;
+                    f.heldTimer = p.holdLeft;
+                    f.heldUses = p.usesLeft;
+                    p.dead = true;
+                    events.add(new FightEvent(Type.PROP_PICKUP, f.index, p.x, 60, p.kind.name(), null, false));
+                    break;
+                }
+            }
+        }
+        props.removeIf(p -> p.dead);
+        if (live) {
+            for (Fighter f : fighters) {
+                if (f.heldProp != null && --f.heldTimer <= 0) {
+                    events.add(new FightEvent(Type.PROP_EXPIRE, f.index, f.x, f.y + 90, f.heldProp.name(), null, true));
+                    f.heldProp = null;
+                }
+            }
+        }
+    }
+
+    /** Drops a prop straight onto the ground at {@code x} (tests / debugging). */
+    public void spawnPropAt(Prop kind, float x) {
+        FieldProp p = new FieldProp(propIds++, kind);
+        p.x = p.prevX = clampArena(x);
+        p.landed = true;
+        props.add(p);
+    }
+
+    private void summonVillager() {
+        int spot = random.nextInt(3); // left, middle or right of the screen
+        float[] at = {0.2f, 0.5f, 0.8f};
+        float cam = cameraX();
+        pendingTarget = clampArena(cam + VIEW_WIDTH * at[spot]);
+        boolean fromRight = spot == 0 || (spot == 1 && random.nextBoolean());
+        villagerX = clampArena(fromRight ? cam + VIEW_WIDTH - 30 : cam + 30);
+        villagerFacingRight = !fromRight;
+        villagerTimer = 110;
+        pendingProp = Prop.ALL[random.nextInt(Prop.ALL.length)];
+        throwIn = 34;
+        events.add(new FightEvent(Type.PROP_VILLAGER, -1, villagerX, 0,
+                VILLAGER_LINES[random.nextInt(VILLAGER_LINES.length)], null, villagerFacingRight));
+    }
+
+    private void throwProp() {
+        FieldProp p = new FieldProp(propIds++, pendingProp);
+        float flight = 42;
+        p.x = villagerX;
+        p.y = 150;
+        p.vx = (pendingTarget - villagerX) / flight;
+        p.vy = (0.4f * flight * flight / 2f - p.y) / flight;
+        p.prevX = p.x;
+        p.prevY = p.y;
+        props.add(p);
+        pendingProp = null;
+        events.add(new FightEvent(Type.PROP_THROW, -1, p.x, p.y, p.kind.name(), null, false));
+    }
+
+    /** A knocked-down fighter drops what it was holding (it keeps its remaining time and uses). */
+    private void dropProp(Fighter f, int dirAway) {
+        FieldProp p = new FieldProp(propIds++, f.heldProp);
+        p.x = f.x;
+        p.y = f.y + 80;
+        p.vx = -dirAway * 2.5f;
+        p.vy = 6f;
+        p.holdLeft = Math.max(120, f.heldTimer);
+        p.usesLeft = Math.max(1, f.heldUses);
+        p.groundLeft = 6 * 60;
+        p.prevX = p.x;
+        p.prevY = p.y;
+        props.add(p);
+        events.add(new FightEvent(Type.PROP_DROP, f.index, f.x, f.y + 80, f.heldProp.name(), null, false));
+        f.heldProp = null;
     }
 
     private boolean overlaps(Projectile p, Fighter f) {

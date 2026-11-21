@@ -196,6 +196,12 @@ public final class WorldRenderEvents {
                         case RAW_IRON -> new ItemStack(Items.RAW_IRON);
                         case ROTTEN_FLESH -> new ItemStack(Items.ROTTEN_FLESH);
                         case MINECART -> new ItemStack(Items.MINECART);
+                        case ANVIL -> new ItemStack(Items.ANVIL);
+                        case SLIME -> new ItemStack(Items.SLIME_BLOCK);
+                        case WEB, COBWEB -> new ItemStack(Items.COBWEB);
+                        case TRIDENT -> new ItemStack(Items.TRIDENT);
+                        case PEARL -> new ItemStack(Items.ENDER_PEARL);
+                        case BOTTLE -> new ItemStack(Items.HONEY_BOTTLE);
                         case POTION -> net.minecraft.world.item.alchemy.PotionContents.createItemStack(Items.SPLASH_POTION,
                                 WorldFx.potionFor(p.spec.effect));
                         default -> new ItemStack(Items.SNOWBALL);
@@ -203,7 +209,19 @@ public final class WorldRenderEvents {
                     boolean roots = p.spec.visual == com.streetfighter.fight.ProjectileVisual.ROOTS
                             || p.spec.visual == com.streetfighter.fight.ProjectileVisual.SPIKE;
                     boolean cart = p.spec.visual == com.streetfighter.fight.ProjectileVisual.MINECART;
-                    float spin = roots || cart ? 0 : p.age * 14f * (p.vx >= 0 ? 1 : -1);
+                    var vis = p.spec.visual;
+                    boolean web = vis == com.streetfighter.fight.ProjectileVisual.WEB;
+                    if (vis == com.streetfighter.fight.ProjectileVisual.CHAIR) {
+                        ps.pushPose();
+                        ps.translate(w.x - cam.x, w.y - cam.y, w.z - cam.z);
+                        ps.mulPose(com.mojang.math.Axis.YP.rotation((float) Math.atan2(cam.x - w.x, cam.z - w.z)));
+                        ps.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(-p.age * 12f * (p.vx >= 0 ? 1 : -1)));
+                        PropRenderer.draw(com.streetfighter.fight.Prop.CHAIR, ps, buffers, light, p.id);
+                        ps.popPose();
+                        break;
+                    }
+                    boolean trident = vis == com.streetfighter.fight.ProjectileVisual.TRIDENT;
+                    float spin = roots || cart || web ? 0 : trident ? (p.vx >= 0 ? -45 : 45) : p.age * 14f * (p.vx >= 0 ? 1 : -1);
                     Vec3 f = arena.axis;
                     ps.pushPose();
                     ps.translate(w.x - cam.x, w.y - cam.y, w.z - cam.z);
@@ -220,6 +238,11 @@ public final class WorldRenderEvents {
                     if (p.spec.visual == com.streetfighter.fight.ProjectileVisual.BELL) {
                         ps.translate(0, 0.7, 0);
                     }
+                    if (web) {
+                        ps.translate(0, 0.35, 0);
+                        ps.scale(1.8f, 1.8f, 1.8f);
+                    }
+                    if (vis == com.streetfighter.fight.ProjectileVisual.ANVIL || trident) ps.scale(1.6f, 1.6f, 1.6f);
                     if (cart) {
                         ps.translate(0, 0.45, 0);
                         ps.scale(2.2f, 2.2f, 2.2f);
@@ -239,6 +262,7 @@ public final class WorldRenderEvents {
                 }
             }
         }
+        PropRenderer.render(s, ps, cam, buffers, dispatcher);
         buffers.endBatch();
     }
 }

@@ -11,6 +11,7 @@ import com.streetfighter.fight.Move;
 import com.streetfighter.fight.Projectile;
 import com.streetfighter.fight.ProjectileVisual;
 import com.streetfighter.fight.StatusEffect;
+import com.streetfighter.fight.Prop;
 import com.streetfighter.network.ModNetwork;
 import com.streetfighter.network.WallBreakPacket;
 import net.minecraft.client.Minecraft;
@@ -150,6 +151,55 @@ public final class WorldFx {
         }
     }
 
+    private static Prop propByName(String name) {
+        if (name == null) return null;
+        try {
+            return Prop.valueOf(name);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    /** Sound when a fighter starts using a prop. */
+    private void propUseSound(Prop pr, Move m, Vec3 p) {
+        SoundEvent snd = switch (pr) {
+            case TNT -> SoundEvents.TNT_PRIMED;
+            case ANVIL -> SoundEvents.ANVIL_USE;
+            case SLIME -> SoundEvents.SLIME_JUMP;
+            case COBWEB -> SoundEvents.WOOL_PLACE;
+            case DIAMOND_SWORD -> SoundEvents.PLAYER_ATTACK_SWEEP;
+            case FISHING_ROD -> SoundEvents.FISHING_BOBBER_THROW;
+            case TRIDENT -> m.projectile != null ? SoundEvents.TRIDENT_THROW.value() : SoundEvents.TRIDENT_RIPTIDE_1.value();
+            case ENDER_PEARL -> SoundEvents.ENDER_PEARL_THROW;
+            case CHAIR -> SoundEvents.WOOD_PLACE;
+            case BOTTLE -> m.randomBrew ? SoundEvents.GENERIC_DRINK : SoundEvents.WITCH_THROW;
+        };
+        sound(snd, p, 1f, 1f);
+    }
+
+    private void propHitSound(Prop pr, Vec3 p) {
+        switch (pr) {
+            case DIAMOND_SWORD -> {
+                level().addParticle(ParticleTypes.SWEEP_ATTACK, p.x, p.y, p.z, 0, 0, 0);
+                sound(SoundEvents.PLAYER_ATTACK_SWEEP, p, 1f, 1.1f);
+            }
+            case ANVIL -> sound(SoundEvents.ANVIL_LAND, p, 1f, 0.9f);
+            case CHAIR -> {
+                sound(SoundEvents.WOOD_BREAK, p, 1.2f, 0.8f);
+                burst(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.OAK_PLANKS.defaultBlockState()), p, 18, 0.4, 0.5);
+                session.hud.flash = Math.max(session.hud.flash, 4);
+            }
+            case FISHING_ROD -> sound(SoundEvents.FISHING_BOBBER_RETRIEVE, p, 1f, 1f);
+            case TRIDENT -> sound(SoundEvents.TRIDENT_HIT, p, 1f, 1f);
+            case SLIME -> {
+                sound(SoundEvents.SLIME_SQUISH, p, 1.2f, 0.8f);
+                burst(ParticleTypes.ITEM_SLIME, p, 14, 0.4, 0.5);
+            }
+            default -> {
+            }
+        }
+    }
+
     private void feathers(Vec3 p, int count) {
         burst(new ItemParticleOption(ParticleTypes.ITEM, new ItemStack(Items.FEATHER)), p, count, 0.25, 0.4);
     }
@@ -185,6 +235,8 @@ public final class WorldFx {
                 Move m = f.move;
                 Vec3 p = at(f.x, 60);
                 if (m.callout != null) hud.callout(m.callout, f.index, f.index == 0 ? 0xFF7FE0FF : 0xFFFF8A6A);
+                Prop usedProp = Prop.of(m);
+                if (usedProp != null) propUseSound(usedProp, m, p);
                 if (m.special) {
                     sound(specialSound(f), p, 1f, 0.9f + random.nextFloat() * 0.2f);
                     if (m.strength == 3) {
@@ -253,6 +305,8 @@ public final class WorldFx {
                         sound(SoundEvents.GENERIC_EXPLODE.value(), p, 1f, 0.8f);
                     }
                     FighterType at = attacker.moves.type();
+                    Prop hitProp = Prop.of(attacker.move);
+                    if (hitProp != null) propHitSound(hitProp, p);
                     if (at == FighterType.GOAT && ev.heavy() && attacker.move.pose != AnimPose.THROW_FWD) {
                         sound(SoundEvents.GOAT_RAM_IMPACT, p, 1f, 0.9f);
                     }
@@ -426,6 +480,13 @@ public final class WorldFx {
             }
             case EXPLOSION -> {
                 Vec3 p = at(ev.x(), ev.y());
+                if (ev.visual() == ProjectileVisual.BOTTLE) {
+                    sound(SoundEvents.GLASS_BREAK, p, 1.2f, 1f);
+                    burst(new ItemParticleOption(ParticleTypes.ITEM, new ItemStack(Items.HONEY_BOTTLE)), p, 14, 0.4, 0.5);
+                    burst(ParticleTypes.DRIPPING_HONEY, p, 10, 0.6, 0.3);
+                    quads.ring(front(p), 0.3f, 2.4f, 0.3f, 0xE8A23A);
+                    break;
+                }
                 if (ev.visual() == ProjectileVisual.POTION) {
                     Projectile src = null;
                     for (Projectile pr : engine.projectiles) {
@@ -454,6 +515,7 @@ public final class WorldFx {
             }
             case BOUNCE -> {
                 Vec3 p = ground(ev.x());
+                if (ev.visual() == ProjectileVisual.SLIME) sound(SoundEvents.SLIME_SQUISH, p, 1f, 1.2f);
                 sound(SoundEvents.EXPERIENCE_ORB_PICKUP, p, 0.6f, 1.6f);
                 burst(ParticleTypes.HAPPY_VILLAGER, p.add(0, 0.2, 0), 4, 0.2, 0.3);
             }
@@ -583,6 +645,56 @@ public final class WorldFx {
                 } else if (e == StatusEffect.REGEN) {
                     burst(ParticleTypes.HEART, p.add(0, 0.5, 0), 1, 0.1, 0.4);
                 }
+            }
+            case PROP_VILLAGER -> {
+                Vec3 p = at(ev.x(), 60).add(session.arena.normal.scale(-session.camera.side() * 1.2));
+                burst(ParticleTypes.POOF, p, 16, 0.3, 0.6);
+                burst(ParticleTypes.HAPPY_VILLAGER, p.add(0, 0.8, 0), 8, 0.3, 0.5);
+                sound(SoundEvents.VILLAGER_CELEBRATE, p, 1.2f, 1.1f);
+                sound(SoundEvents.VILLAGER_TRADE, p, 1f, 1.3f);
+                hud.callout(ev.text(), ev.x() < engine.cameraX() + FightEngine.VIEW_WIDTH / 2f ? 0 : 1, 0xFF8FE36A);
+            }
+            case PROP_THROW -> {
+                Vec3 p = at(ev.x(), ev.y());
+                sound(SoundEvents.WITCH_THROW, p, 1f, 1.2f);
+                sound(SoundEvents.VILLAGER_YES, p, 1f, 1.2f);
+            }
+            case PROP_LAND -> {
+                Prop pr = propByName(ev.text());
+                Vec3 g = ground(ev.x());
+                dust(ev.x(), 6, 0.08);
+                quads.ring(front(g.add(0, 0.1, 0)), 0.2f, 1.6f, 0.3f, C_GOLD);
+                sound(ev.heavy() ? (pr == Prop.ANVIL ? SoundEvents.ANVIL_LAND : SoundEvents.STONE_PLACE)
+                        : SoundEvents.ITEM_PICKUP, g, 1f, ev.heavy() ? 0.9f : 0.6f);
+            }
+            case PROP_PICKUP -> {
+                Prop pr = propByName(ev.text());
+                if (f == null || pr == null) break;
+                Vec3 p = at(f.x, 70);
+                burst(ParticleTypes.HAPPY_VILLAGER, p, 10, 0.4, 0.6);
+                quads.glow(front(p), 1.8f, 0.3f, C_GOLD);
+                sound(SoundEvents.ITEM_PICKUP, p, 1f, 1f);
+                sound(SoundEvents.ARMOR_EQUIP_GENERIC.value(), p, 1f, 1.2f);
+                hud.callout(pr.displayName.toUpperCase() + "!", f.index, 0xFFFFE27A);
+            }
+            case PROP_DROP -> {
+                Vec3 p = at(ev.x(), ev.y());
+                sound(SoundEvents.ITEM_PICKUP, p, 1f, 0.5f);
+                burst(ParticleTypes.CRIT, p, 6, 0.3, 0.3);
+            }
+            case PROP_EXPIRE -> {
+                Vec3 p = at(ev.x(), ev.y());
+                burst(ParticleTypes.POOF, p, 10, 0.2, 0.3);
+                sound(SoundEvents.ITEM_BREAK, p, 0.8f, 1.2f);
+            }
+            case TELEPORT -> {
+                if (f == null) break;
+                Vec3 from = at(ev.x(), 70), to = at(f.x, 70);
+                burst(ParticleTypes.PORTAL, from, 40, 0.4, 1.0);
+                burst(ParticleTypes.PORTAL, to, 40, 0.4, 1.0);
+                burst(ParticleTypes.REVERSE_PORTAL, to, 20, 0.3, 0.6);
+                sound(SoundEvents.ENDERMAN_TELEPORT, to, 1f, 1.1f);
+                quads.glow(front(to), 2.2f, 0.3f, 0xB04FFF);
             }
             case WHIFF -> {
             }
@@ -728,6 +840,12 @@ public final class WorldFx {
                 }
                 default -> {
                 }
+            }
+        }
+        for (com.streetfighter.fight.FieldProp fp : engine.props) {
+            if (fp.landed && frame % 6 == fp.id % 6) {
+                Vec3 w = at(fp.x, 30 + (frame % 30));
+                level().addParticle(ParticleTypes.WAX_ON, w.x, w.y, w.z, 0, 0.02, 0);
             }
         }
         for (Fighter f : new Fighter[]{engine.player, engine.enemy}) {

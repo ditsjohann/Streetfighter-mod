@@ -7,7 +7,7 @@ package com.streetfighter.fight;
 public final class Move {
     public enum Cancel { NONE, CHAIN, SPECIAL, SUPER }
 
-    public enum Kind { NORMAL, COMMAND_NORMAL, TARGET, SPECIAL, SUPER, THROW, DRIVE_IMPACT }
+    public enum Kind { NORMAL, COMMAND_NORMAL, TARGET, SPECIAL, SUPER, THROW, DRIVE_IMPACT, ITEM }
 
     public final String name;
     public final Kind kind;
@@ -45,6 +45,8 @@ public final class Move {
     /** Status effect the move inflicts on hit. */
     public final StatusEffect hitEffect;
     public final int hitEffectFrames;
+    /** Item moves: Ender Pearl warp (teleport behind the opponent), mystery bottle (random brew), throws that use the item up. */
+    public final boolean teleport, randomBrew, consumesProp;
 
     private Move(Builder b) {
         name = b.name;
@@ -98,6 +100,9 @@ public final class Move {
         selfEffectFrames = b.selfEffectFrames;
         hitEffect = b.hitEffect;
         hitEffectFrames = b.hitEffectFrames;
+        teleport = b.teleport;
+        randomBrew = b.randomBrew;
+        consumesProp = b.consumesProp;
     }
 
     public boolean isSuper() {
@@ -156,6 +161,7 @@ public final class Move {
         private int selfEffectFrames;
         private StatusEffect hitEffect;
         private int hitEffectFrames;
+        private boolean teleport, randomBrew, consumesProp;
 
         private Builder(String name) {
             this.name = name;
@@ -176,6 +182,7 @@ public final class Move {
             lockOnHit = m.lockOnHit; backThrow = m.backThrow;
             selfEffects = m.selfEffects; selfEffectFrames = m.selfEffectFrames;
             hitEffect = m.hitEffect; hitEffectFrames = m.hitEffectFrames;
+            teleport = m.teleport; randomBrew = m.randomBrew; consumesProp = m.consumesProp;
         }
 
         public Builder name(String n) { this.name = n; return this; }
@@ -216,6 +223,9 @@ public final class Move {
         public Builder backThrow() { this.backThrow = true; return this; }
         public Builder selfEffect(int frames, StatusEffect... effects) { this.selfEffects = effects; this.selfEffectFrames = frames; return this; }
         public Builder hitEffect(StatusEffect e, int frames) { this.hitEffect = e; this.hitEffectFrames = frames; return this; }
+        public Builder teleport() { this.teleport = true; return this; }
+        public Builder randomBrew() { this.randomBrew = true; return this; }
+        public Builder consumesProp() { this.consumesProp = true; return this; }
 
         public Move build() {
             return new Move(this);

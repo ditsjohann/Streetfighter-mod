@@ -209,6 +209,19 @@ public class FighterAI {
             out.superLevel = Math.min(3, self.bars());
             return;
         }
+        // props: use what we hold, or go grab what the villager threw in
+        if (self.heldProp != null && usePropIfSensible(self, dist)) return;
+        if (self.heldProp == null) {
+            com.streetfighter.fight.FieldProp near = null;
+            for (com.streetfighter.fight.FieldProp p : e.props) {
+                if (p.landed && (near == null || Math.abs(p.x - self.x) < Math.abs(near.x - self.x))) near = p;
+            }
+            if (near != null && Math.abs(near.x - self.x) < 420 && Math.abs(near.x - self.x) < Math.abs(near.x - opp.x) + 120
+                    && chance(0.75f)) {
+                planHorizontal = Math.signum(near.x - self.x) == self.dir() ? 1 : -1;
+                return;
+            }
+        }
         int buff = ms.specialIndex(Role.BUFF);
         if (buff >= 0 && dist > 220 && !buffed(self) && chance(0.3f)) {
             pressSpecial(self, buff, self.meter >= 150 && chance(0.3f) ? 3 : rng.nextInt(3));
@@ -263,6 +276,26 @@ public class FighterAI {
         } else if (chance(zoning)) {
             planHorizontal = -1;
         }
+    }
+
+    private boolean usePropIfSensible(Fighter self, float dist) {
+        com.streetfighter.fight.Prop pr = self.heldProp;
+        boolean[] ok = new boolean[3];
+        Move[] ways = {null, pr.wayA, pr.wayB};
+        for (int w = 1; w <= 2; w++) {
+            Move m = ways[w];
+            if (m.randomBrew) ok[w] = dist > 200;
+            else if (m.teleport) ok[w] = dist < 260;
+            else if (m.projectile != null) ok[w] = m.projectile.fromSky || m.projectile.aura || dist > 110;
+            else ok[w] = dist < m.reach() + 25;
+        }
+        int way = ok[1] && ok[2] ? (chance(0.5f) ? 1 : 2) : ok[1] ? 1 : ok[2] ? 2 : 0;
+        if (way == 0) {
+            planHorizontal = 1; // close in to use it
+            return chance(0.5f);
+        }
+        out.itemUse = way;
+        return true;
     }
 
     /** Live non-cloud projectiles. */

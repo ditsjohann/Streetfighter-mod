@@ -100,6 +100,15 @@ Based on the SF2 / SF4 / SF6 select screens and the MUGEN/Ikemen `select.def` mo
 - **HUNGER:** a status effect that drains the super meter, a Minecraft take on meter-drain mechanics such as SF6
   Drive gauge damage.
 
+### Round 7: the prop villager
+- **Inspiration:** Smash Bros-style items, plus the breakable props of SF's bonus stages.
+- **Data:** every prop is data, with two `Move`s each (`fight/Prop.java`).
+- **Picking up:** a fighter holding one maps punch buttons to the first move and kicks to the second (or the AI's `itemUse`).
+  Pickup is automatic on contact, so the AI only has to walk over an item.
+- **Throws:** the arc is solved so the item lands exactly on the chosen spot (left/middle/right of the camera view)
+  after a fixed flight time.
+- **Drops:** a knockdown drops the held item with its remaining time and uses.
+
 ## Not adopted (yet)
 - Rollback netcode (GGPO-style), which several engines plan for. In Minecraft the simulation runs on the challenger's
   client, so it isn't needed for 1-player fights.

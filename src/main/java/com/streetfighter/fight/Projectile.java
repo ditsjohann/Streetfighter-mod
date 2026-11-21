@@ -30,7 +30,7 @@ public final class Projectile {
                 || spec.visual == ProjectileVisual.CLOUD || spec.visual == ProjectileVisual.GOAT
                 || spec.visual == ProjectileVisual.ROOTS || spec.visual == ProjectileVisual.SPIKE
                 || spec.visual == ProjectileVisual.MINECART || spec.visual == ProjectileVisual.ZOMBIE
-                || spec.visual == ProjectileVisual.BABY_ZOMBIE;
+                || spec.visual == ProjectileVisual.BABY_ZOMBIE || spec.visual == ProjectileVisual.WEB;
     }
 
     public float width() {

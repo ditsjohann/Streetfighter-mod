@@ -21,6 +21,8 @@ public final class FightInput {
     public boolean throwReq, backThrowReq, driveImpact, parry;
     /** AI shortcut: flap for an extra jump while airborne. */
     public boolean airJump;
+    /** AI shortcut: use the held prop (1 = punch way, 2 = kick way, 0 = none). */
+    public int itemUse;
 
     public void clear() {
         left = right = up = down = false;
@@ -30,6 +32,7 @@ public final class FightInput {
         superLevel = 0;
         commandNormal = -1;
         throwReq = backThrowReq = driveImpact = parry = airJump = false;
+        itemUse = 0;
     }
 
     public boolean anyButton() {
@@ -44,6 +47,7 @@ public final class FightInput {
         c.special = special; c.strength = strength; c.superLevel = superLevel; c.commandNormal = commandNormal;
         c.throwReq = throwReq; c.backThrowReq = backThrowReq; c.driveImpact = driveImpact; c.parry = parry;
         c.airJump = airJump;
+        c.itemUse = itemUse;
         return c;
     }
 }

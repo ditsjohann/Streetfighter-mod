@@ -143,6 +143,29 @@ the fighter:
 - **Poison** ticks damage but never KOs.
 - **Slowness** cuts walk and jump speed by 40%.
 
+## The funny villager (fight items)
+
+Every 8 seconds of fighting there's a **20% chance** a nitwit villager pops up at the edge of the fight:
+- He yells something ("Hrmm! CATCH!", "No refunds!", "Free sample!") and lobs a random item at the **left, middle
+  or right** of the screen.
+- **Anyone can grab it, you or the AI.** Just walk over it.
+- While you hold it, **punch buttons use it one way and kick buttons the other.**
+- It lasts **8 seconds** or a few uses. The HUD shows the item, its timer and its two moves.
+- **Get knocked down and you drop it**, so the other fighter can steal it.
+
+| Item | Punch | Kick |
+|---|---|---|
+| **TNT** (block) | Plant TNT: a lit trap on the ground | TNT Toss: explodes on impact |
+| **Anvil** (block) | Anvil Smash: armored overhead, ground bounce | Anvil Drop: falls from the sky onto them |
+| **Slime Block** (block) | Slime Bounce: a huge jump into a body slam | Slime Lob: a bouncing slime |
+| **Cobweb** (block) | Web Trap: a sticky patch that slows | Web Shot: slows on hit |
+| **Diamond Sword** | Sword Slash: fast and long | Sweeping Edge: a spinning slash that hits behind you too |
+| **Fishing Rod** | Hook Pull: yanks them to you from far away | Rod Whip |
+| **Trident** | Trident Stab: very long reach | Trident Throw: wall-splats |
+| **Ender Pearl** | Pearl Warp: teleport behind them | Pearl Throw |
+| **Chair** | Chair Shot: crumples them, wrestling style | Chair Toss |
+| **Mystery Bottle** | Swig: random Strength/Swiftness/Regeneration... or Poison | Bottle Smash: shatters and slows |
+
 ## Environment combat
 
 The arena is the real terrain, and the blocks matter:
@@ -190,7 +213,7 @@ Settings are in `config/streetfighter-common.toml`: peaceful mobs, challenge ran
 Requires Java 21.
 
 ```bash
-./gradlew build        # mod jar -> build/libs/streetfighter-0.5.0.jar
+./gradlew build        # mod jar -> build/libs/streetfighter-0.6.0.jar
 ./gradlew runClient    # launch a dev client with the mod
 ```
 

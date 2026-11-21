@@ -66,6 +66,8 @@ public final class FightSession {
     // dummies used to draw projectiles/assists with real models
     public LivingEntity golemDummy, pigDummy, goatDummy, zombieDummy, babyZombieDummy;
     public net.minecraft.world.entity.animal.Chicken chickenDummy;
+    /** The funny villager who throws props into the fight. */
+    public net.minecraft.world.entity.npc.Villager propVillager;
     public Arrow arrowDummy;
 
     private final float startSeparation;
@@ -139,6 +141,11 @@ public final class FightSession {
         if (baby != null) baby.setBaby(true);
         babyZombieDummy = baby;
         chickenDummy = EntityType.CHICKEN.create(mc.level);
+        propVillager = EntityType.VILLAGER.create(mc.level);
+        if (propVillager != null) {
+            propVillager.setVillagerData(propVillager.getVillagerData()
+                    .setProfession(net.minecraft.world.entity.npc.VillagerProfession.NITWIT));
+        }
         arrowDummy = EntityType.ARROW.create(mc.level);
 
         float bbH = Math.max(0.2f, enemyEntity.getBbHeight());
