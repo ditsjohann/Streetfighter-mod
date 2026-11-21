@@ -31,6 +31,9 @@ public final class ModNetwork {
         CHANNEL.messageBuilder(FightSyncPacket.class, NetworkDirection.PLAY_TO_SERVER)
                 .encoder(FightSyncPacket::encode).decoder(FightSyncPacket::decode)
                 .consumerMainThread(FightSyncPacket::handle).add();
+        CHANNEL.messageBuilder(WallBreakPacket.class, NetworkDirection.PLAY_TO_SERVER)
+                .encoder(WallBreakPacket::encode).decoder(WallBreakPacket::decode)
+                .consumerMainThread(WallBreakPacket::handle).add();
         CHANNEL.messageBuilder(OpenFightPacket.class, NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(OpenFightPacket::encode).decoder(OpenFightPacket::decode)
                 .consumerMainThread(OpenFightPacket::handle).add();

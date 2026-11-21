@@ -20,7 +20,26 @@ public final class InputBuffer {
     public static final int BUTTON_BUFFER = 6;
     private static final int HISTORY = 40;
 
-    public enum Button { LIGHT, HEAVY, SPECIAL1, SPECIAL2, SUPER }
+    public enum Button {
+        LP, MP, HP, LK, MK, HK, SP;
+
+        public boolean isPunch() {
+            return this == LP || this == MP || this == HP;
+        }
+
+        public boolean isKick() {
+            return this == LK || this == MK || this == HK;
+        }
+
+        /** 0 light, 1 medium, 2 heavy. */
+        public int strength() {
+            return switch (this) {
+                case LP, LK -> 0;
+                case MP, MK -> 1;
+                default -> 2;
+            };
+        }
+    }
 
     /** A motion command: a sequence of direction sets, newest step last. */
     public enum Motion {
@@ -30,8 +49,12 @@ public final class InputBuffer {
         QCB(18, new int[][]{{1, 2, 3}, {1}, {4, 7}}, new boolean[]{false, true, false}),
         /** 623 dragon punch (3,2,3 shortcut accepted). */
         DP(20, new int[][]{{6, 3, 9}, {2, 1}, {3}}, new boolean[]{false, false, false}),
-        /** 236236 double quarter circle (alternative super input). */
-        QCF2(30, new int[][]{{1, 2, 3}, {6, 9, 3}, {1, 2, 3}, {6, 9}}, new boolean[]{false, false, false, false});
+        /** 63214 half circle back (command grabs). */
+        HCB(24, new int[][]{{6, 3, 9}, {2, 3, 1}, {4, 1, 7}}, new boolean[]{false, false, false}),
+        /** 236236 double quarter circle forward. */
+        QCF2(30, new int[][]{{1, 2}, {6, 9}, {1, 2, 3}, {6, 9}}, new boolean[]{false, false, false, false}),
+        /** 214214 double quarter circle back. */
+        QCB2(30, new int[][]{{3, 2}, {4, 7}, {1, 2, 3}, {4, 7}}, new boolean[]{false, false, false, false});
 
         final int totalTime;
         final int[][] steps;
@@ -48,6 +71,7 @@ public final class InputBuffer {
     private int head;
     private final int[] buttons = new int[Button.values().length];
     private final boolean[] consumed = new boolean[Button.values().length];
+    private final int[] pressLength = new int[Button.values().length];
     private int frame;
 
     public InputBuffer() {
@@ -57,11 +81,20 @@ public final class InputBuffer {
     public void clear() {
         java.util.Arrays.fill(dirHistory, 5);
         java.util.Arrays.fill(buttons, -100);
+        java.util.Arrays.fill(pressLength, 1);
         java.util.Arrays.fill(consumed, true);
     }
 
     /** Feeds one frame of input. */
     public void update(FightInput in, boolean facingRight) {
+        update(in, facingRight, false);
+    }
+
+    /**
+     * @param frozen true during hitstop / super freeze: new presses still register, but nothing ages, so a button
+     *               pressed during the freeze is still fresh when play resumes.
+     */
+    public void update(FightInput in, boolean facingRight, boolean frozen) {
         frame++;
         boolean left = in.left, right = in.right, up = in.up, down = in.down;
         if (left && right) left = right = false; // SOCD: neutral
@@ -73,21 +106,36 @@ public final class InputBuffer {
         dirHistory[head] = 5 + h + v * 3;
         head = (head + 1) % HISTORY;
 
-        boolean[] pressed = {in.light, in.heavy, in.special1, in.special2, in.superMove};
+        boolean[] held = {in.lp, in.mp, in.hp, in.lk, in.mk, in.hk, in.sp};
         for (int i = 0; i < buttons.length; i++) {
-            if (pressed[i]) {
-                buttons[i] = 1;
-                consumed[i] = false;
+            if (held[i]) {
+                if (buttons[i] <= 0) {
+                    buttons[i] = 1;       // fresh press
+                    consumed[i] = false;
+                } else if (!frozen) {
+                    buttons[i]++;
+                }
             } else {
-                buttons[i] = buttons[i] > 0 ? -1 : buttons[i] - 1;
+                if (buttons[i] > 0) {
+                    pressLength[i] = buttons[i];
+                    buttons[i] = -1;
+                } else if (!frozen) {
+                    buttons[i]--;
+                }
             }
         }
+    }
+
+    /** True while the button is physically held. */
+    public boolean held(Button b) {
+        return buttons[b.ordinal()] > 0;
     }
 
     /** Frames since the button was pressed (0 = this frame), or a big number. */
     private int age(Button b) {
         int c = buttons[b.ordinal()];
-        return c == 1 ? 0 : c < 0 ? -c : 1000;
+        if (c > 0) return c - 1;          // held: frames since the press
+        return c < 0 ? -c + pressLength[b.ordinal()] - 1 : 1000;
     }
 
     /** True if the button was pressed within the buffer window and not used yet. */
@@ -97,6 +145,23 @@ public final class InputBuffer {
 
     public boolean pressedThisFrame(Button b) {
         return buttons[b.ordinal()] == 1;
+    }
+
+    /** Frames since the newest press of any button in the group (punches or kicks). */
+    public int freshestAge(boolean kicks) {
+        int best = 1000;
+        for (Button b : Button.values()) {
+            if (b == Button.SP || b.isKick() != kicks || consumed[b.ordinal()]) continue;
+            best = Math.min(best, age(b));
+        }
+        return best;
+    }
+
+    /** True if an up-direction appeared this frame (for wall jumps). */
+    public boolean upPressedThisFrame() {
+        int now = dirHistory[Math.floorMod(head - 1, HISTORY)];
+        int prev = dirHistory[Math.floorMod(head - 2, HISTORY)];
+        return now >= 7 && prev < 7;
     }
 
     public void consume(Button b) {

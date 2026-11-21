@@ -29,6 +29,10 @@ public final class SFConfig {
             .comment("Players who lose a fight are left bruised (Weakness + Slowness for 30 seconds).")
             .define("loserPenalty", true);
 
+    public static final ForgeConfigSpec.BooleanValue BREAKABLE_WALLS = BUILDER
+            .comment("Fighters smashed into leaves, glass, flowers or hay bales break them (respects claim/protection mods).")
+            .define("breakableWalls", true);
+
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 
     private SFConfig() {

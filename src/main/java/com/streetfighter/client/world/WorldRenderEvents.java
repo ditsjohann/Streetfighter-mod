@@ -87,6 +87,25 @@ public final class WorldRenderEvents {
     }
 
     @SubscribeEvent
+    public static void onFov(ViewportEvent.ComputeFov event) {
+        FightSession s = FightSession.current();
+        if (s != null && FightCamera.active && s.fovKick > 0) event.setFOV(event.getFOV() * (1 - s.fovKick));
+    }
+
+    @SubscribeEvent
+    public static void onRenderFx(RenderLevelStageEvent event) {
+        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES) return;
+        FightSession s = FightSession.current();
+        if (s == null) return;
+        Minecraft mc = Minecraft.getInstance();
+        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        PoseStack ps = new PoseStack();
+        s.fx.quads.render(ps, buffers, event.getCamera(), s.fx.auras());
+        s.fx.quads.render(ps, buffers, event.getCamera());
+        buffers.endBatch();
+    }
+
+    @SubscribeEvent
     public static void onRenderLevel(RenderLevelStageEvent event) {
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_ENTITIES) return;
         FightSession s = FightSession.current();
@@ -103,11 +122,14 @@ public final class WorldRenderEvents {
 
         for (Projectile p : engine.projectiles) {
             if (p.delay > 0) continue;
-            Vec3 w = p.bottomAnchored() ? arena.toWorld(p.x, p.y, 0.5) : arena.toWorldFlat(p.x, p.y);
+            float rx = p.prevX + (p.x - p.prevX) * s.alpha(), ry = p.prevY + (p.y - p.prevY) * s.alpha();
+            if (p.exploded || p.spec.visual == com.streetfighter.fight.ProjectileVisual.SHOCKWAVE) continue;
+            Vec3 w = p.bottomAnchored() ? arena.toWorld(rx, ry, 0.5) : arena.toWorldFlat(rx, ry);
             int light = LevelRenderer.getLightColor(mc.level, BlockPos.containing(w.x, w.y + 0.6, w.z));
             switch (p.spec.visual) {
-                case ARROW -> {
+                case ARROW, BIG_ARROW -> {
                     if (s.arrowDummy == null) break;
+                    float arrowScale = p.spec.visual == com.streetfighter.fight.ProjectileVisual.BIG_ARROW ? 3.4f : 1.6f;
                     Vec3 v = arena.axis.scale(p.vx).add(0, p.vy, 0);
                     float yRot = (float) (Mth.atan2(v.x, v.z) * Mth.RAD_TO_DEG);
                     float xRot = (float) (Mth.atan2(v.y, Math.sqrt(v.x * v.x + v.z * v.z)) * Mth.RAD_TO_DEG);
@@ -118,7 +140,7 @@ public final class WorldRenderEvents {
                     s.arrowDummy.xRotO = xRot;
                     ps.pushPose();
                     ps.translate(w.x - cam.x, w.y - cam.y, w.z - cam.z);
-                    ps.scale(1.6f, 1.6f, 1.6f);
+                    ps.scale(arrowScale, arrowScale, arrowScale);
                     dispatcher.render(s.arrowDummy, 0, 0, 0, yRot, 1f, ps, buffers, light);
                     ps.popPose();
                 }
@@ -144,8 +166,12 @@ public final class WorldRenderEvents {
                 default -> {
                     ItemStack stack = switch (p.spec.visual) {
                         case DIRT -> new ItemStack(Items.DIRT);
+                        case COBBLE -> new ItemStack(Items.COBBLESTONE);
                         case EMERALD -> new ItemStack(Items.EMERALD);
                         case BONE -> new ItemStack(Items.BONE);
+                        case TNT -> new ItemStack(Items.TNT);
+                        case SKULL -> new ItemStack(Items.WITHER_SKELETON_SKULL);
+                        case BELL -> new ItemStack(Items.BELL);
                         default -> new ItemStack(Items.SNOWBALL);
                     };
                     float spin = p.age * 14f * (p.vx >= 0 ? 1 : -1);
@@ -153,7 +179,16 @@ public final class WorldRenderEvents {
                     ps.pushPose();
                     ps.translate(w.x - cam.x, w.y - cam.y, w.z - cam.z);
                     ps.mulPose(new Quaternionf().rotateAxis(-spin * Mth.DEG_TO_RAD, (float) f.z, 0, (float) -f.x));
-                    float sc = p.spec.visual == com.streetfighter.fight.ProjectileVisual.DIRT ? 0.75f : 0.8f;
+                    float sc = switch (p.spec.visual) {
+                        case DIRT, COBBLE -> 0.75f;
+                        case TNT -> 0.85f + (p.age % 10 < 5 ? 0.06f : 0f); // pulsing fuse
+                        case BELL -> 1.6f;
+                        case SKULL -> 0.9f;
+                        default -> 0.8f;
+                    };
+                    if (p.spec.visual == com.streetfighter.fight.ProjectileVisual.BELL) {
+                        ps.translate(0, 0.7, 0);
+                    }
                     ps.scale(sc, sc, sc);
                     mc.getItemRenderer().renderStatic(stack, ItemDisplayContext.FIXED, light, OverlayTexture.NO_OVERLAY, ps,
                             buffers, mc.level, p.id);

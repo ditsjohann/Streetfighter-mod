@@ -180,19 +180,35 @@ public final class FightHud {
     }
 
     private void superMeter(GuiGraphics g, Fighter f, int x, int y, int w, int h, boolean rightSide) {
-        boolean full = f.meter >= 100;
-        g.fill(x - 2, y - 2, x + w + 2, y + h + 2, full ? 0xFF8FEBFF : 0xFF3A4A7A);
+        int bars = f.bars();
+        boolean any = bars >= 1;
+        g.fill(x - 2, y - 2, x + w + 2, y + h + 2, any ? 0xFF8FEBFF : 0xFF3A4A7A);
         g.fill(x - 1, y - 1, x + w + 1, y + h + 1, 0xFF000000);
         g.fill(x, y, x + w, y + h, 0xFF0D1430);
-        int fw = (int) (w * Math.min(1f, f.meter / 100f));
-        int c1 = full ? ((int) (s.time * 10) % 2 == 0 ? 0xFF8FEBFF : 0xFFFFFFFF) : 0xFF3F8BFF;
-        int c2 = full ? 0xFF2FB0FF : 0xFF1A4FCF;
-        if (rightSide) g.fillGradient(x + w - fw, y, x + w, y + h, c1, c2);
-        else g.fillGradient(x, y, x + fw, y + h, c1, c2);
-        for (int i = 1; i < 4; i++) g.fill(x + w * i / 4, y, x + w * i / 4 + 1, y + h, 0x60000000);
-        String label = full ? (f.index == 0 ? "SUPER  MAX  [O]" : "SUPER  MAX") : "SUPER";
+        int seg = w / 3;
+        for (int i = 0; i < 3; i++) {
+            float fill = Math.max(0, Math.min(1, (f.meter - i * 100) / 100f));
+            int sx0 = rightSide ? x + w - (i + 1) * seg : x + i * seg;
+            int fw = (int) ((seg - 2) * fill);
+            boolean full = fill >= 1;
+            int c1 = full ? ((int) (s.time * 10 + i) % 2 == 0 ? 0xFF8FEBFF : 0xFFFFFFFF) : 0xFF3F8BFF;
+            int c2 = full ? (i == 2 ? 0xFFFFC21A : 0xFF2FB0FF) : 0xFF1A4FCF;
+            if (rightSide) g.fillGradient(sx0 + seg - 1 - fw, y, sx0 + seg - 1, y + h, c1, c2);
+            else g.fillGradient(sx0 + 1, y, sx0 + 1 + fw, y + h, c1, c2);
+            g.fill(rightSide ? sx0 : sx0 + seg - 1, y, (rightSide ? sx0 : sx0 + seg - 1) + 1, y + h, 0xFF000000);
+        }
+        String lvl = bars > 0 ? String.valueOf(bars) : "";
+        String label = bars >= 3 ? "SUPER  MAX" : "SUPER";
         int lx = rightSide ? x + w - font.width(label) : x;
-        g.drawString(font, label, lx, y - 11, full ? 0xFF8FEBFF : 0xFFB0B8D0, true);
+        g.drawString(font, label, lx, y - 11, any ? 0xFF8FEBFF : 0xFFB0B8D0, true);
+        if (!lvl.isEmpty()) {
+            g.pose().pushPose();
+            int bx = rightSide ? x - 16 : x + w + 6;
+            g.pose().translate(bx, y - 4, 0);
+            g.pose().scale(1.8f, 1.8f, 1f);
+            g.drawString(font, lvl, 0, 0, bars >= 3 ? 0xFFFFC21A : 0xFF8FEBFF, true);
+            g.pose().popPose();
+        }
     }
 
     private void combo(GuiGraphics g, Fighter attacker, boolean rightSide, int w, int h) {
@@ -250,8 +266,8 @@ public final class FightHud {
     }
 
     private void help(GuiGraphics g, int w, int bottom) {
-        String[] lines = wrap("A/D move   W jump   S crouch   hold back = block   J light   K heavy   J+K throw   "
-                + "L / I specials (or ↓↘→ / ↓↙← + J)   O super   ESC pause", w - 30);
+        String[] lines = wrap("WASD move/jump/crouch   hold back = block   U I O punches   J K L kicks   "
+                + "H special (+ direction)   H+O super   U+J throw   I+K parry   O+L drive impact   ESC moves & pause", w - 30);
         int y = bottom - lines.length * 11;
         for (String line : lines) {
             int lw = font.width(line);
@@ -361,17 +377,22 @@ public final class FightHud {
 
     // ------------------------------------------------------------------ panels
 
-    public void pausePanel(GuiGraphics g, int w, int h) {
-        g.fill(0, 0, w, h, 0xA0000010);
-        outlined(g, "PAUSED", w / 2f, h / 2f - 40, 4f, 0xFFFFFFFF, 0xFF000000);
-        g.drawCenteredString(font, "ESC resume      Q forfeit (counts as a loss)", w / 2, h / 2 - 8, 0xFFDDDDDD);
-        int y = h / 2 + 10;
-        for (String line : FightScreen.movesSummary(s.engine.player.moves).split("\n")) {
-            g.drawCenteredString(font, line, w / 2, y, 0xFFB8C8FF);
+    public void pausePanel(GuiGraphics g, int w, int h, int page) {
+        g.fill(0, 0, w, h, 0xC0000010);
+        outlined(g, "PAUSED", w / 2f, 22, 3f, 0xFFFFFFFF, 0xFF000000);
+        g.drawCenteredString(font, "ESC resume    Q forfeit (loss)    TAB " + (page == 0 ? "normals" : "specials & supers"),
+                w / 2, 40, 0xFFDDDDDD);
+        var ms = s.engine.player.moves;
+        java.util.List<String> lines = FightScreen.moveList(ms, page);
+        int y = 56;
+        int x = Math.max(10, w / 2 - 230);
+        g.drawString(font, "\u00a7b" + ms.type().displayName.toUpperCase() + " STYLE \u00a77- " + ms.moveCount() + " moves", x, y, 0xFFFFFFFF, true);
+        y += 14;
+        for (String line : lines) {
+            if (y > h - 14) break;
+            g.drawString(font, line, x, y, 0xFFE0E6FF, false);
             y += 11;
         }
-        g.drawCenteredString(font, "Counter hits (+20%) on startup, PUNISH COUNTERs on recovery. J+K throws, J+K when grabbed techs.",
-                w / 2, y + 6, 0xFF9AA0B0);
     }
 
     public void resultPanel(GuiGraphics g, int w, int h, int frames) {

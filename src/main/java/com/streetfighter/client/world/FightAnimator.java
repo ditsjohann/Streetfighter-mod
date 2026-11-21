@@ -1,6 +1,10 @@
 package com.streetfighter.client.world;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.math.Axis;
+import com.streetfighter.fight.Fighter;
+import com.streetfighter.fight.HitLevel;
+import com.streetfighter.fight.Move;
 import com.streetfighter.mixin.QuadrupedModelAccessor;
 import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.model.HumanoidModel;
@@ -20,41 +24,51 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.streetfighter.client.world.AnimClips.*;
+
 /**
- * Drives the look of fighters in the world: whole-body transforms (lean, knockdowns, squash, scale, hops)
- * through {@code RenderLivingEvent}, and limb poses (punches, kicks, guard, uppercuts...) through the model
- * mixins, which call {@link #applyModelPose(Object)} right before a model is drawn.
+ * Keyframed, blended fighter animation.
+ * <ul>
+ *   <li>Each move plays a clip from {@link AnimClips}: guard -> wind-up (eased in over the startup frames)
+ *       -> strike (snapped in during the last startup frames and held while active) -> follow-through -> guard,
+ *       all timed to the move's real frame data and the sub-frame simulation alpha.</li>
+ *   <li>Every channel is smoothed with frame-rate independent exponential blending, so transitions between
+ *       states never pop.</li>
+ *   <li>Springs add hit recoil and landing squash; a hitstop shudder sells impacts.</li>
+ *   <li>Walk cycles are driven by actual distance travelled (no vanilla walk animation, which jitters when
+ *       driven faster than 20 Hz).</li>
+ * </ul>
+ * Model limbs are posed through mixins on the model's {@code renderToBuffer}; whole-body transforms through
+ * {@code RenderLivingEvent}.
  */
 public final class FightAnimator {
-    public enum Pose {
-        GUARD, WALK, CROUCH, BLOCK, JUMP, PUNCH, KICK, UPPERCUT, SLAM, THROW, SHOOT, LUNGE, GRAB, TAUNT,
-        HIT, KNOCKDOWN, KO, VICTORY
+    public enum Body { HUMANOID, VILLAGER, QUAD, OTHER }
+
+    public static boolean suspended;
+
+    /** Per-frame inputs from the fight session. */
+    public record Ctx(float dt, float time, float alpha, boolean hitstop, double alongAxis, float scale, Vec3 facing,
+                      boolean victoryPose) {
     }
 
-    /** Per-entity animation state, rewritten every frame by the fight session. */
     public static final class State {
-        public Pose pose = Pose.GUARD;
-        public float progress;     // 0..1 through the current move (or state)
-        public boolean striking;   // in active frames
-        public float time;         // seconds, for idle bobbing
-        public Vec3 facing = new Vec3(1, 0, 0); // world-space facing direction (horizontal unit)
-        public float tilt;         // degrees, + leans toward facing
-        public float flip;         // degrees, roll about the body centre (belly-up knockdowns)
-        public float forward;      // blocks along facing
-        public float up;           // blocks
-        public float squash = 1f;
+        public final float[] cur = new float[N];
+        final float[] tgt = new float[N];
+        boolean init;
+        public Body body = Body.OTHER;
+        public Vec3 facing = new Vec3(1, 0, 0);
         public float scale = 1f;
-        public float attackAnim = -1f;
-        public boolean aggressive;
-        public boolean crouch;
         public float bodyHeight = 1.8f;
-
+        public boolean crouch;
+        public boolean aggressive;
+        float recoil, recoilV, squashS, squashV;
+        float walkPhase;
+        double lastAlong = Double.NaN;
+        float time;
+        float shudder;
         private final List<ModelPart> savedParts = new ArrayList<>();
         private final List<PartPose> savedPoses = new ArrayList<>();
     }
-
-    /** Set while fighters are drawn in GUI portraits, so world transforms don't apply there. */
-    public static boolean suspended;
 
     private static final Map<Integer, State> STATES = new HashMap<>();
     private static State current;
@@ -65,12 +79,8 @@ public final class FightAnimator {
     private FightAnimator() {
     }
 
-    public static State state(LivingEntity entity) {
-        return STATES.computeIfAbsent(entity.getId(), k -> new State());
-    }
-
-    public static boolean has(LivingEntity entity) {
-        return STATES.containsKey(entity.getId());
+    public static State state(LivingEntity e) {
+        return STATES.computeIfAbsent(e.getId(), k -> new State());
     }
 
     public static void clear() {
@@ -79,11 +89,345 @@ public final class FightAnimator {
         currentModel = null;
     }
 
+    public static Body bodyOf(LivingEntity e) {
+        var renderer = net.minecraft.client.Minecraft.getInstance().getEntityRenderDispatcher().getRenderer(e);
+        if (renderer instanceof net.minecraft.client.renderer.entity.LivingEntityRenderer<?, ?> ler) {
+            Object m = ler.getModel();
+            if (m instanceof HumanoidModel<?>) return Body.HUMANOID;
+            if (m instanceof VillagerModel<?> || m instanceof net.minecraft.client.model.IllagerModel<?>) return Body.VILLAGER;
+            if (m instanceof QuadrupedModel<?>) return Body.QUAD;
+        }
+        return Body.OTHER;
+    }
+
+    // ------------------------------------------------------------------ events from the fight
+
+    public static void onHit(LivingEntity e, boolean heavy, HitLevel level) {
+        if (e == null) return;
+        State s = STATES.get(e.getId());
+        if (s == null) return;
+        if (level == HitLevel.LOW) s.recoilV += heavy ? 260 : 160;     // knees buckle forward
+        else s.recoilV -= heavy ? 520 : 320;                            // head snaps back
+        s.squashV -= heavy ? 1.6f : 0.9f;
+        s.shudder = heavy ? 1f : 0.6f;
+    }
+
+    public static void onLand(LivingEntity e, boolean heavy) {
+        if (e == null) return;
+        State s = STATES.get(e.getId());
+        if (s != null) s.squashV -= heavy ? 3.2f : 1.8f;
+    }
+
+    public static void onBlock(LivingEntity e) {
+        if (e == null) return;
+        State s = STATES.get(e.getId());
+        if (s != null) s.recoilV -= 140;
+    }
+
+    // ------------------------------------------------------------------ per-frame update
+
+    public static void update(LivingEntity e, Fighter f, Ctx ctx) {
+        State s = state(e);
+        if (!s.init) {
+            s.body = bodyOf(e);
+            float[] g = guard(s.body);
+            System.arraycopy(g, 0, s.cur, 0, N);
+            s.init = true;
+        }
+        s.time = ctx.time();
+        s.scale = ctx.scale();
+        s.facing = ctx.facing();
+        s.bodyHeight = e.getBbHeight();
+        s.crouch = false;
+        s.aggressive = false;
+        float[] t = s.tgt;
+        float[] guard = guard(s.body);
+        System.arraycopy(guard, 0, t, 0, N);
+        // breathing / idle bounce
+        float tm = ctx.time();
+        t[RAX] += Mth.sin(tm * 3.1f) * 0.05f;
+        t[LAX] -= Mth.sin(tm * 3.1f) * 0.05f;
+        t[UP] += (Mth.sin(tm * 5.5f) * 0.5f + 0.5f) * 0.025f;
+        t[HX] += Mth.sin(tm * 2.3f) * 0.03f;
+        float rate = 16f;
+
+        // walk phase from distance actually travelled along the arena (render-interpolated)
+        double along = ctx.alongAxis();
+        if (!Double.isNaN(s.lastAlong)) {
+            double d = along - s.lastAlong;
+            double towardFacing = d * (s.facing.x * 0 + 1); // along is already signed in arena space
+            s.walkPhase += (float) Math.abs(towardFacing) * 5.2f * (f != null && isBackwards(f) ? -1 : 1);
+        }
+        s.lastAlong = along;
+
+        if (f == null) {
+            if (ctx.victoryPose()) victory(s, t, tm);
+        } else {
+            rate = pose(s, f, t, ctx, guard);
+        }
+
+        // springs
+        float dt = Math.min(0.05f, ctx.dt());
+        s.recoilV += (-220f * s.recoil - 16f * s.recoilV) * dt;
+        s.recoil += s.recoilV * dt;
+        s.squashV += (-260f * s.squashS - 18f * s.squashV) * dt;
+        s.squashS += s.squashV * dt;
+        if (s.shudder > 0) s.shudder = Math.max(0, s.shudder - dt * 4);
+
+        // exponential blend toward the target
+        float k = 1f - (float) Math.exp(-rate * dt);
+        float kRoot = 1f - (float) Math.exp(-Math.min(rate, 12f) * dt);
+        for (int i = 0; i < N; i++) {
+            float target = t[i];
+            if (Float.isNaN(target)) continue;
+            float kk = (i == LEAN || i == FLIP) ? kRoot : k;
+            if (i == SPIN) kk = 1f; // spins are already continuous
+            s.cur[i] += (target - s.cur[i]) * kk;
+        }
+    }
+
+    private static boolean isBackwards(Fighter f) {
+        return f.state == Fighter.State.WALK && Math.signum(f.vx) != f.dir();
+    }
+
+    private static float[] guard(Body b) {
+        return b == Body.QUAD ? quadGuard() : humanoidGuard();
+    }
+
+    private static float ease(float x) {
+        x = Mth.clamp(x, 0, 1);
+        return x * x * (3 - 2 * x);
+    }
+
+    private static float easeOut(float x) {
+        x = Mth.clamp(x, 0, 1);
+        return 1 - (1 - x) * (1 - x) * (1 - x);
+    }
+
+    private static void blendInto(float[] t, float[] a, float[] b, float w, float[] guard) {
+        for (int i = 0; i < N; i++) {
+            float va = Float.isNaN(a[i]) ? guard[i] : a[i];
+            float vb = Float.isNaN(b[i]) ? guard[i] : b[i];
+            t[i] = va + (vb - va) * w;
+        }
+    }
+
+    /** Fills the target pose for a fighter. Returns the blend rate. */
+    private static float pose(State s, Fighter f, float[] t, Ctx ctx, float[] guard) {
+        Body body = s.body;
+        boolean quad = body == Body.QUAD;
+        float tm = ctx.time();
+        switch (f.state) {
+            case IDLE, LANDING -> {
+                t[UP] += Mth.sin(tm * 6.5f) * 0.02f;
+                return 14f;
+            }
+            case WALK -> {
+                float ph = s.walkPhase;
+                if (quad) {
+                    t[RAZ] = Mth.sin(ph) * 0.75f;
+                } else {
+                    t[RLX] = Mth.sin(ph) * 0.7f;
+                    t[LLX] = -Mth.sin(ph) * 0.7f;
+                    t[RLZ] = 0;
+                    t[LLZ] = 0;
+                    t[RAX] += Mth.sin(ph) * 0.08f;
+                    t[LAX] -= Mth.sin(ph) * 0.08f;
+                }
+                t[UP] = Math.abs(Mth.sin(ph)) * 0.035f;
+                t[LEAN] = (Math.signum(f.vx) == f.dir() ? 7 : -2);
+                return 18f;
+            }
+            case CROUCH -> {
+                s.crouch = true;
+                if (body != Body.HUMANOID) t[SQUASH] = 0.74f;
+                t[RAX] = -1.05f;
+                t[LAX] = -1.25f;
+                return 18f;
+            }
+            case JUMP -> {
+                float air = 2 * f.stats.jumpVy() / f.stats.gravity();
+                float p = Mth.clamp(f.stateAge / Math.max(1f, air), 0, 1);
+                boolean moving = Math.abs(f.vx) > 1f;
+                if (quad) {
+                    t[RAX] = -0.9f;
+                    t[RLX] = 0.9f;
+                } else if (f.vy > 0) {
+                    t[RLX] = -1.15f; t[LLX] = -0.45f; t[RAX] = -2.0f; t[LAX] = -2.2f; t[LEAN] = 6;
+                } else {
+                    t[RLX] = -0.35f; t[LLX] = 0.2f; t[RAX] = -1.6f; t[LAX] = -1.7f;
+                }
+                if (moving && p > 0.12f && p < 0.85f) {
+                    // SF-style somersault on forward/back jumps
+                    float dirSign = Math.signum(f.vx) == f.dir() ? 1 : -1;
+                    t[FLIP] = dirSign * 360f * ease((p - 0.12f) / 0.73f);
+                    s.cur[FLIP] = t[FLIP];
+                    t[RLX] = -1.6f; t[LLX] = -1.6f; t[RAX] = -0.6f; t[LAX] = -0.6f; // tuck
+                    return 30f;
+                }
+                t[FLIP] = 0;
+                s.cur[FLIP] = 0;
+                return 16f;
+            }
+            case BLOCKSTUN -> {
+                if (quad) {
+                    t[HX] = 0.5f; t[LEAN] = -8; t[SQUASH] = 0.9f;
+                } else {
+                    t[RAX] = -1.8f; t[RAY] = -0.75f; t[RAZ] = 0; t[LAX] = -1.8f; t[LAY] = 0.75f; t[LAZ] = 0;
+                    t[HX] = 0.25f; t[LEAN] = -9;
+                }
+                if (f.input.down) s.crouch = true;
+                return 30f;
+            }
+            case PARRY -> {
+                t[RAX] = -1.65f; t[RAY] = -0.6f; t[LAX] = -1.65f; t[LAY] = 0.6f; t[LEAN] = -5; t[HX] = 0.2f;
+                return 30f;
+            }
+            case HITSTUN -> {
+                boolean low = f.lastHitLevel == HitLevel.LOW;
+                if (f.launched) {
+                    if (quad || body == Body.OTHER) t[FLIP] = -Math.min(200, 40 + f.stateAge * 9f);
+                    else t[LEAN] = -40 - Math.min(50, f.stateAge * 3f);
+                    t[RAX] = -0.4f; t[RAZ] = 1.1f; t[LAX] = -0.4f; t[LAZ] = -1.1f; t[RLX] = 0.4f; t[LLX] = -0.3f;
+                    t[HX] = -0.5f;
+                    return 14f;
+                }
+                if (low && !quad) {
+                    t[LEAN] = 16; t[HX] = 0.45f; t[RAX] = -0.4f; t[LAX] = -0.4f; t[RAY] = 0.3f; t[LAY] = -0.3f;
+                    t[RLX] = 0.3f; t[LLX] = -0.15f;
+                } else {
+                    t[LEAN] = f.lastHitHeavy ? -24 : -15; t[HX] = -0.5f;
+                    t[RAX] = -0.5f; t[RAZ] = 0.9f; t[LAX] = -0.5f; t[LAZ] = -0.9f;
+                }
+                if (f.wasCrouchingWhenHit && f.grounded()) s.crouch = true;
+                if (ctx.hitstop()) t[FWD] = ((int) (tm * 60) % 2 == 0 ? 1 : -1) * 0.035f * Math.max(0.4f, s.shudder);
+                return 26f;
+            }
+            case KNOCKDOWN, KO -> {
+                boolean gettingUp = f.state == Fighter.State.KNOCKDOWN && f.stateTimer < 12;
+                if (quad || body == Body.OTHER) {
+                    t[FLIP] = gettingUp ? 0 : -180;
+                    t[RAX] = Mth.sin(tm * 22f) * 0.6f;
+                    t[RLX] = -t[RAX];
+                } else {
+                    t[LEAN] = gettingUp ? 0 : -90;
+                    t[RAX] = -0.2f; t[RAZ] = 1.3f; t[LAX] = -0.2f; t[LAZ] = -1.3f;
+                    t[RLX] = 0.15f; t[LLX] = -0.25f; t[RLZ] = 0.25f; t[LLZ] = -0.25f; t[HX] = -0.3f; t[BY] = 0;
+                    if (!f.grounded() && f.state == Fighter.State.KO) t[LEAN] = -40 - Math.min(50, f.stateAge * 3f);
+                }
+                return gettingUp ? 12f : 9f;
+            }
+            case WALL_SPLAT -> {
+                if (quad || body == Body.OTHER) {
+                    t[FLIP] = -70; t[RAX] = -1.3f; t[RLX] = 1.3f;
+                } else {
+                    t[LEAN] = -10; t[RAX] = -2.7f; t[RAZ] = 0.7f; t[LAX] = -2.7f; t[LAZ] = -0.7f;
+                    t[RLZ] = 0.35f; t[LLZ] = -0.35f; t[HX] = -0.35f; t[BY] = 0; t[RAY] = 0; t[LAY] = 0;
+                }
+                return 30f;
+            }
+            case CRUMPLE -> {
+                float p = 1f - f.stateTimer / 62f;
+                t[LEAN] = 10 + 40 * p; t[SQUASH] = 1f - 0.35f * p; t[HX] = 0.6f;
+                t[RAX] = -0.2f; t[LAX] = -0.2f; t[RAY] = 0; t[LAY] = 0; t[RAZ] = 0.2f; t[LAZ] = -0.2f;
+                t[RLX] = 0.4f * p; t[LLX] = -0.4f * p;
+                return 6f;
+            }
+            case VICTORY -> {
+                victory(s, t, tm);
+                return 12f;
+            }
+            case ATTACK -> {
+                return attack(s, f, t, ctx, guard);
+            }
+            default -> {
+                return 16f;
+            }
+        }
+    }
+
+    private static void victory(State s, float[] t, float tm) {
+        float pump = Math.abs(Mth.sin(tm * 6f));
+        if (s.body == Body.QUAD) {
+            t[UP] = pump * 0.12f;
+            t[HX] = Mth.sin(tm * 10f) * 0.35f;
+        } else {
+            t[RAX] = -2.75f - 0.35f * pump; t[RAY] = 0; t[RAZ] = -0.1f;
+            t[LAX] = 0.1f; t[LAY] = 0; t[LAZ] = -0.45f;
+            t[HX] = -0.25f; t[RLX] = 0.1f; t[LLX] = -0.1f; t[BY] = 0;
+            t[UP] = pump * 0.1f;
+            t[LEAN] = 0;
+        }
+    }
+
+    private static float attack(State s, Fighter f, float[] t, Ctx ctx, float[] guard) {
+        Move m = f.move;
+        if (m == null) return 16f;
+        AnimClips.Clip c = s.body == Body.QUAD ? AnimClips.quadruped(m.pose) : AnimClips.humanoid(m.pose);
+        if (m.crouching) {
+            s.crouch = true;
+            if (s.body != Body.HUMANOID) guard[SQUASH] = 0.74f;
+        }
+        if (m.pose == com.streetfighter.fight.AnimPose.SHOOT || m.pose == com.streetfighter.fight.AnimPose.SHOOT_UP) {
+            s.aggressive = true;
+        }
+        float fr = Math.max(0, f.curFrame) + ctx.alpha();
+        int S = Math.max(1, m.startup);
+        int activeEnd = f.activeEnd == Integer.MAX_VALUE ? Integer.MAX_VALUE : f.activeEnd;
+        float rate;
+        if (fr < S) {
+            float p = fr / S;
+            blendInto(t, guard, c.windup(), ease(p / 0.8f), guard);
+            if (S >= 3 && fr > S - 2) {
+                float[] tmp = t.clone();
+                blendInto(t, tmp, c.strike(), easeOut((fr - (S - 2)) / 2f), guard);
+            }
+            rate = fr > S - 2 ? 40f : 22f;
+        } else if (fr < activeEnd) {
+            blendInto(t, c.strike(), c.strike(), 0, guard);
+            float a = fr - S;
+            switch (m.pose) {
+                case SPIN_KICK -> t[SPIN] = a * 28f;
+                case RUSH -> {
+                    float w = Mth.sin(a * 0.9f);
+                    if (s.body == Body.QUAD) t[HX] = 0.3f + w * 0.4f;
+                    else {
+                        t[RAX] = -1.6f + w * 0.35f;
+                        t[LAX] = -1.6f - w * 0.35f;
+                        t[BY] = w * 0.5f;
+                    }
+                }
+                default -> {
+                }
+            }
+            rate = 40f;
+        } else {
+            int R = Math.max(1, m.recovery);
+            float r = (fr - activeEnd) / R;
+            float hold = 0.22f;
+            if (r < hold) blendInto(t, c.strike(), c.strike(), 0, guard);
+            else blendInto(t, c.strike(), guard, ease((r - hold) / (1 - hold)), guard);
+            rate = 20f;
+        }
+        if (m.pose == com.streetfighter.fight.AnimPose.BACKFLIP) {
+            float total = Math.max(1, m.startup + m.active + m.recovery);
+            t[FLIP] = 360f * ease(fr / (total * 0.85f));
+            s.cur[FLIP] = t[FLIP];
+        }
+        if (m.pose == com.streetfighter.fight.AnimPose.UPPERCUT && fr >= S && fr < activeEnd) {
+            t[SPIN] = (fr - S) * 18f;
+        }
+        if (m.air && s.body != Body.QUAD) {
+            if (Float.isNaN(c.strike()[RLX]) || t[RLX] > -0.4f) t[RLX] = -0.9f;
+        }
+        return rate;
+    }
+
     // ------------------------------------------------------------------ RenderLivingEvent hooks
 
     public static void pre(LivingEntity entity, EntityModel<?> model, PoseStack ps) {
         State s = STATES.get(entity.getId());
-        if (s == null) return;
+        if (s == null || !s.init) return;
         current = s;
         currentModel = model;
         s.savedParts.clear();
@@ -91,10 +435,8 @@ public final class FightAnimator {
 
         savedAttack = entity.attackAnim;
         savedAttackO = entity.oAttackAnim;
-        if (s.attackAnim >= 0) {
-            entity.attackAnim = s.attackAnim;
-            entity.oAttackAnim = s.attackAnim;
-        }
+        entity.attackAnim = 0;
+        entity.oAttackAnim = 0;
         if (entity instanceof Mob mob) {
             savedAggressive = mob.isAggressive();
             if (savedAggressive != s.aggressive) mob.setAggressive(s.aggressive);
@@ -103,20 +445,23 @@ public final class FightAnimator {
             savedCrouching = h.crouching;
             h.crouching = s.crouch;
         }
-
-        ps.pushPose();
+        float[] c = s.cur;
         Vec3 f = s.facing;
-        ps.translate(f.x * s.forward, s.up - (s.crouch && model instanceof HumanoidModel<?> ? 0.12 : 0), f.z * s.forward);
-        // lean axis = up x facing, so a positive angle tips the head toward the facing direction
+        ps.pushPose();
+        float lean = c[LEAN] + s.recoil;
+        ps.translate(f.x * c[FWD], c[UP] - (s.crouch && model instanceof HumanoidModel<?> ? 0.12 : 0), f.z * c[FWD]);
+        if (c[SPIN] != 0) ps.mulPose(Axis.YP.rotationDegrees(c[SPIN]));
         float ax = (float) f.z, az = (float) -f.x;
-        if (s.tilt != 0) ps.mulPose(new Quaternionf().rotateAxis(s.tilt * Mth.DEG_TO_RAD, ax, 0, az));
-        if (s.flip != 0) {
-            float half = s.bodyHeight * s.scale * s.squash / 2f;
+        if (lean != 0) ps.mulPose(new Quaternionf().rotateAxis(lean * Mth.DEG_TO_RAD, ax, 0, az));
+        if (c[FLIP] != 0) {
+            float half = s.bodyHeight * s.scale * c[SQUASH] / 2f;
             ps.translate(0, half, 0);
-            ps.mulPose(new Quaternionf().rotateAxis(s.flip * Mth.DEG_TO_RAD, ax, 0, az));
+            ps.mulPose(new Quaternionf().rotateAxis(c[FLIP] * Mth.DEG_TO_RAD, ax, 0, az));
             ps.translate(0, -half, 0);
         }
-        ps.scale(s.scale, s.scale * s.squash, s.scale);
+        float squash = Mth.clamp(c[SQUASH] + s.squashS * 0.06f, 0.5f, 1.2f);
+        float bulge = 1f + (1f - squash) * 0.35f; // keep volume: squash wider
+        ps.scale(s.scale * bulge, s.scale * squash, s.scale * bulge);
     }
 
     public static void post(LivingEntity entity, EntityModel<?> model, PoseStack ps) {
@@ -139,9 +484,58 @@ public final class FightAnimator {
     public static void applyModelPose(Object model) {
         State s = current;
         if (s == null || suspended || model != currentModel) return;
-        if (model instanceof HumanoidModel<?> h) humanoid(h, s);
-        else if (model instanceof VillagerModel<?> v) villager(v, s);
-        else if (model instanceof QuadrupedModel<?> q) quadruped(q, s);
+        float[] c = s.cur;
+        float headRecoil = -s.recoil * 0.008f;
+        if (model instanceof HumanoidModel<?> m) {
+            rot(s, m.rightArm, c[RAX], c[RAY], c[RAZ]);
+            rot(s, m.leftArm, c[LAX], c[LAY], c[LAZ]);
+            rot(s, m.rightLeg, c[RLX], 0, c[RLZ]);
+            rot(s, m.leftLeg, c[LLX], 0, c[LLZ]);
+            save(s, m.body);
+            m.body.xRot = c[BX] + (s.crouch ? 0.5f : 0);
+            m.body.yRot = c[BY];
+            save(s, m.head);
+            m.head.xRot = c[HX] + headRecoil + (s.crouch ? 0.15f : 0);
+            m.head.yRot = c[HY];
+            save(s, m.hat);
+            m.hat.copyFrom(m.head);
+            if (m instanceof PlayerModel<?> pm) {
+                save(s, pm.rightSleeve);
+                save(s, pm.leftSleeve);
+                save(s, pm.rightPants);
+                save(s, pm.leftPants);
+                save(s, pm.jacket);
+                pm.rightSleeve.copyFrom(m.rightArm);
+                pm.leftSleeve.copyFrom(m.leftArm);
+                pm.rightPants.copyFrom(m.rightLeg);
+                pm.leftPants.copyFrom(m.leftLeg);
+                pm.jacket.copyFrom(m.body);
+            }
+        } else if (model instanceof VillagerModel<?> v) {
+            ModelPart head = v.getHead();
+            save(s, head);
+            head.xRot = c[HX] + headRecoil;
+            head.yRot = c[HY];
+            ModelPart arms = child(v.root(), "arms");
+            if (arms != null) {
+                save(s, arms);
+                arms.xRot = (c[RAX] + c[LAX]) / 2f * 0.85f + 0.45f;
+            }
+            ModelPart rl = child(v.root(), "right_leg"), ll = child(v.root(), "left_leg");
+            if (rl != null && ll != null) {
+                rot(s, rl, c[RLX], 0, c[RLZ] * 0.5f);
+                rot(s, ll, c[LLX], 0, c[LLZ] * 0.5f);
+            }
+        } else if (model instanceof QuadrupedModel<?> q) {
+            QuadrupedModelAccessor a = (QuadrupedModelAccessor) q;
+            ModelPart head = a.streetfighter$head();
+            save(s, head);
+            head.xRot = c[HX] + headRecoil;
+            rot(s, a.streetfighter$rightFrontLeg(), c[RAX] + c[RAZ], 0, 0);
+            rot(s, a.streetfighter$leftFrontLeg(), c[RAX] - c[RAZ], 0, 0);
+            rot(s, a.streetfighter$rightHindLeg(), c[RLX] - c[RAZ], 0, 0);
+            rot(s, a.streetfighter$leftHindLeg(), c[RLX] + c[RAZ], 0, 0);
+        }
     }
 
     private static void save(State s, ModelPart part) {
@@ -156,190 +550,6 @@ public final class FightAnimator {
         part.xRot = x;
         part.yRot = y;
         part.zRot = z;
-    }
-
-    private static float wave(State s, float speed, float amp) {
-        return Mth.sin(s.time * speed) * amp;
-    }
-
-    private static void humanoid(HumanoidModel<?> m, State s) {
-        float p = s.progress;
-        float bob = wave(s, 7f, 0.06f);
-        boolean legsFree = s.pose == Pose.WALK;
-        // defaults: boxer's guard
-        float raX = -1.25f + bob, raY = -0.35f, raZ = 0.1f;
-        float laX = -1.4f - bob, laY = 0.45f, laZ = -0.1f;
-        float rlX = 0.28f, llX = -0.28f, rlZ = 0.06f, llZ = -0.06f;
-        float bodyY = 0.12f, headX = 0f, headY = 0f;
-
-        switch (s.pose) {
-            case GUARD, WALK, CROUCH -> {
-            }
-            case BLOCK -> {
-                raX = -1.8f; raY = -0.75f; raZ = 0f;
-                laX = -1.8f; laY = 0.75f; laZ = 0f;
-                headX = 0.25f;
-            }
-            case JUMP -> {
-                rlX = -1.0f; llX = -0.35f;
-                raX = -2.1f; laX = -2.3f;
-            }
-            case PUNCH -> {
-                if (!s.striking && p < 0.5f) { raX = -0.8f; raY = 0.35f; bodyY = 0.35f; }
-                else { raX = -1.62f; raY = -0.1f; raZ = 0; bodyY = -0.45f; }
-            }
-            case KICK -> {
-                float k = s.striking ? 1f : Math.min(1f, p * 1.6f);
-                rlX = -1.5f * k; llX = 0.25f;
-                raX = -0.4f; raZ = 0.7f; laX = -0.4f; laZ = -0.7f;
-                bodyY = -0.25f;
-            }
-            case UPPERCUT -> {
-                if (!s.striking && p < 0.35f) { raX = -0.3f; raY = 0.2f; rlX = 0.5f; llX = -0.5f; }
-                else { raX = -3.05f; raY = 0f; raZ = -0.15f; laX = -0.5f; laZ = -0.4f; rlX = -0.7f; llX = 0.35f; headX = -0.4f; }
-            }
-            case SLAM -> {
-                if (!s.striking && p < 0.6f) { raX = -2.9f; laX = -2.7f; raY = 0; laY = 0; headX = -0.3f; }
-                else { raX = -0.45f; laX = -0.6f; raY = -0.2f; laY = 0.2f; headX = 0.35f; }
-            }
-            case THROW -> {
-                if (!s.striking && p < 0.5f) { raX = -2.7f; raZ = 0.35f; bodyY = 0.4f; }
-                else { raX = -1.2f; raZ = 0f; bodyY = -0.35f; }
-            }
-            case SHOOT -> {
-                raX = -1.57f; raY = -0.15f; raZ = 0;
-                laX = -1.57f; laY = 0.45f; laZ = 0;
-                headX = 0f;
-            }
-            case LUNGE -> {
-                raX = -1.55f; raY = -0.15f; laX = -1.45f; laY = 0.15f;
-                rlX = -0.7f; llX = 0.6f; headX = 0.2f;
-            }
-            case GRAB -> {
-                float c = s.striking ? 1f : p;
-                raX = -1.5f; raY = -0.15f - 0.35f * c; laX = -1.5f; laY = 0.15f + 0.35f * c;
-            }
-            case TAUNT -> {
-                float pump = wave(s, 14f, 0.25f);
-                raX = -2.8f + pump; raZ = -0.3f; laX = -2.8f - pump; laZ = 0.3f;
-                headX = -0.35f;
-            }
-            case HIT -> {
-                raX = -0.5f; raZ = 0.9f + bob; laX = -0.5f; laZ = -0.9f - bob;
-                headX = -0.45f; rlX = 0.2f; llX = -0.1f;
-            }
-            case KNOCKDOWN, KO -> {
-                raX = -0.2f; raZ = 1.3f; laX = -0.2f; laZ = -1.3f;
-                rlX = 0.15f; llX = -0.25f; rlZ = 0.25f; llZ = -0.25f; headX = -0.3f; bodyY = 0;
-            }
-            case VICTORY -> {
-                float pump = Math.abs(Mth.sin(s.time * 6f));
-                raX = -2.7f - 0.35f * pump; raY = 0; raZ = -0.1f;
-                laX = 0.1f; laY = 0; laZ = -0.45f;
-                headX = -0.25f; rlX = 0.1f; llX = -0.1f; bodyY = 0;
-            }
-        }
-
-        rot(s, m.rightArm, raX, raY, raZ);
-        rot(s, m.leftArm, laX, laY, laZ);
-        save(s, m.body);
-        m.body.yRot = bodyY;
-        if (s.pose == Pose.KICK || s.pose == Pose.LUNGE) m.body.xRot = s.pose == Pose.LUNGE ? 0.25f : -0.15f;
-        save(s, m.head);
-        m.head.xRot = headX + (s.crouch ? 0.2f : 0);
-        m.head.yRot = headY;
-        if (!legsFree && !s.crouch) {
-            rot(s, m.rightLeg, rlX, 0, rlZ);
-            rot(s, m.leftLeg, llX, 0, llZ);
-        }
-        save(s, m.hat);
-        m.hat.copyFrom(m.head);
-        if (m instanceof PlayerModel<?> pm) {
-            save(s, pm.rightSleeve);
-            save(s, pm.leftSleeve);
-            save(s, pm.rightPants);
-            save(s, pm.leftPants);
-            save(s, pm.jacket);
-            pm.rightSleeve.copyFrom(m.rightArm);
-            pm.leftSleeve.copyFrom(m.leftArm);
-            pm.rightPants.copyFrom(m.rightLeg);
-            pm.leftPants.copyFrom(m.leftLeg);
-            pm.jacket.copyFrom(m.body);
-        }
-    }
-
-    private static void villager(VillagerModel<?> m, State s) {
-        ModelPart root = m.root();
-        ModelPart head = m.getHead();
-        ModelPart arms = child(root, "arms");
-        ModelPart rightLeg = child(root, "right_leg");
-        ModelPart leftLeg = child(root, "left_leg");
-        float p = s.progress;
-        float nod = wave(s, 5f, 0.08f);
-        float headX = nod, armsX = -0.75f, armsY = 3.0f; // arms part rests at y=3, crossed
-        float rl = 0.25f, ll = -0.25f;
-        boolean legsFree = s.pose == Pose.WALK;
-        switch (s.pose) {
-            case PUNCH, LUNGE -> headX = s.striking ? 0.65f : -0.25f; // Nose Bonk
-            case SLAM -> armsX = (!s.striking && p < 0.6f) ? -2.5f : 0.15f; // Emerald Slap
-            case GRAB -> armsX = -1.45f;
-            case THROW -> armsX = (!s.striking && p < 0.5f) ? -2.6f : -1.1f;
-            case TAUNT -> { armsX = -2.9f + wave(s, 14f, 0.2f); headX = -0.45f; }
-            case KICK -> { rl = -1.35f; ll = 0.2f; }
-            case HIT -> { headX = -0.55f; armsX = -0.2f; }
-            case BLOCK -> { armsX = -1.3f; headX = 0.3f; }
-            case JUMP -> { rl = -0.8f; ll = -0.3f; }
-            case KNOCKDOWN, KO -> { armsX = 0f; headX = -0.3f; }
-            case VICTORY -> { headX = Mth.sin(s.time * 12f) * 0.3f; armsX = -2.6f; }
-            case UPPERCUT -> armsX = s.striking ? -2.9f : -0.4f;
-            default -> {
-            }
-        }
-        save(s, head);
-        head.xRot = headX;
-        if (arms != null) {
-            save(s, arms);
-            arms.xRot = armsX;
-            arms.y = armsY;
-        }
-        if (!legsFree && rightLeg != null && leftLeg != null) {
-            rot(s, rightLeg, rl, 0, 0);
-            rot(s, leftLeg, ll, 0, 0);
-        }
-    }
-
-    private static void quadruped(QuadrupedModel<?> m, State s) {
-        QuadrupedModelAccessor a = (QuadrupedModelAccessor) m;
-        ModelPart head = a.streetfighter$head();
-        float p = s.progress;
-        float headX = wave(s, 4f, 0.08f);
-        Float front = null, hind = null;
-        switch (s.pose) {
-            case PUNCH, LUNGE -> headX = s.striking ? 0.6f : -0.3f;           // snout poke / hog charge
-            case SLAM -> {                                                    // hoof stomp / belly flop
-                if (!s.striking && p < 0.6f) { front = -1.1f; headX = -0.4f; }
-                else { front = 0.5f; hind = -0.4f; headX = 0.3f; }
-            }
-            case KICK -> hind = -0.9f;
-            case TAUNT -> headX = -0.7f + wave(s, 12f, 0.15f);
-            case HIT -> headX = -0.5f;
-            case JUMP -> { front = -0.9f; hind = 0.9f; }
-            case KNOCKDOWN, KO -> { front = Mth.sin(s.time * 22f) * 0.6f; hind = -front; }
-            case VICTORY -> headX = Mth.sin(s.time * 10f) * 0.35f;
-            case CROUCH, BLOCK -> headX = 0.45f;
-            default -> {
-            }
-        }
-        save(s, head);
-        head.xRot = headX;
-        if (front != null) {
-            rot(s, a.streetfighter$rightFrontLeg(), front, 0, 0);
-            rot(s, a.streetfighter$leftFrontLeg(), front, 0, 0);
-        }
-        if (hind != null) {
-            rot(s, a.streetfighter$rightHindLeg(), hind, 0, 0);
-            rot(s, a.streetfighter$leftHindLeg(), hind, 0, 0);
-        }
     }
 
     private static ModelPart child(ModelPart root, String name) {

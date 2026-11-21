@@ -34,6 +34,9 @@ public final class SFCommands {
                                 .suggests((ctx, b) -> SharedSuggestionProvider.suggest(new String[]{"normal", "hard"}, b))
                                 .executes(SFCommands::setDifficulty)))
                 .then(Commands.literal("styles").executes(SFCommands::listStyles))
+                .then(Commands.literal("training")
+                        .then(Commands.literal("on").executes(ctx -> training(ctx, true)))
+                        .then(Commands.literal("off").executes(ctx -> training(ctx, false))))
                 .then(Commands.literal("unlock")
                         .requires(src -> src.hasPermission(2))
                         .then(Commands.argument("style", StringArgumentType.word())
@@ -74,6 +77,16 @@ public final class SFCommands {
         }
         sb.append(" | Wins: ").append(PlayerFightData.totalWins(player));
         ctx.getSource().sendSuccess(() -> Component.literal(sb.toString()).withStyle(ChatFormatting.AQUA), false);
+        return 1;
+    }
+
+    private static int training(CommandContext<CommandSourceStack> ctx, boolean on)
+            throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
+        PlayerFightData.setTraining(player, on);
+        ctx.getSource().sendSuccess(() -> Component.literal(on
+                ? "Training mode ON: opponents stand still and refill their health. No rewards or penalties."
+                : "Training mode OFF.").withStyle(ChatFormatting.AQUA), false);
         return 1;
     }
 

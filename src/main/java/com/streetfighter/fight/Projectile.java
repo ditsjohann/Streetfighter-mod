@@ -12,6 +12,10 @@ public final class Projectile {
     public int bounces;
     public boolean landed;
     public int landedTimer;
+    public int hitsDone;
+    public int lastHitAge = -100;
+    public boolean exploded;
+    public float prevX, prevY;
 
     public Projectile(int id, int owner, ProjectileSpec spec) {
         this.id = id;
@@ -21,28 +25,38 @@ public final class Projectile {
 
     /** Golems and pigs stand on the ground (y = feet); everything else is centred on y. */
     public boolean bottomAnchored() {
-        return spec.visual == ProjectileVisual.GOLEM || spec.visual == ProjectileVisual.PIG;
+        return spec.visual == ProjectileVisual.GOLEM || spec.visual == ProjectileVisual.PIG
+                || spec.visual == ProjectileVisual.BELL || spec.visual == ProjectileVisual.SHOCKWAVE;
+    }
+
+    public float width() {
+        return exploded ? 150 : spec.width;
+    }
+
+    public float height() {
+        return exploded ? 150 : spec.height;
     }
 
     public float minX() {
-        return x - spec.width / 2f;
+        return x - width() / 2f;
     }
 
     public float maxX() {
-        return x + spec.width / 2f;
+        return x + width() / 2f;
     }
 
     public float minY() {
-        return bottomAnchored() ? y : y - spec.height / 2f;
+        return bottomAnchored() ? y : y - height() / 2f;
     }
 
     public float maxY() {
-        return bottomAnchored() ? y + spec.height : y + spec.height / 2f;
+        return bottomAnchored() ? y + height() : y + height() / 2f;
     }
 
     public boolean hitboxActive() {
         if (delay > 0 || dead) return false;
         if (spec.visual == ProjectileVisual.GOLEM) return !landed || landedTimer < 5;
+        if (exploded) return landedTimer < 5;
         return true;
     }
 

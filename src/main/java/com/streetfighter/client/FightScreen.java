@@ -26,7 +26,7 @@ public class FightScreen extends Screen {
     private int selected;
 
     // latched presses so very quick taps are never lost between simulation steps
-    private boolean pLight, pHeavy, pSp1, pSp2, pSuper, pJump;
+    private boolean lLP, lMP, lHP, lLK, lMK, lHK, lSP, lJump;
 
     public FightScreen(FightSession session) {
         super(Component.literal("Street Fight"));
@@ -44,19 +44,21 @@ public class FightScreen extends Screen {
         return InputConstants.isKeyDown(Minecraft.getInstance().getWindow().getWindow(), key);
     }
 
-    /** One frame of player input for the simulation (called by the session at 60 Hz). */
+    /** One frame of player input for the simulation (called by the session at 60 Hz). Buttons are held states. */
     public FightInput pollInput() {
         FightInput in = new FightInput();
         in.left = down(GLFW.GLFW_KEY_A) || down(GLFW.GLFW_KEY_LEFT);
         in.right = down(GLFW.GLFW_KEY_D) || down(GLFW.GLFW_KEY_RIGHT);
-        in.up = pJump || down(GLFW.GLFW_KEY_W) || down(GLFW.GLFW_KEY_UP) || down(GLFW.GLFW_KEY_SPACE);
+        in.up = lJump || down(GLFW.GLFW_KEY_W) || down(GLFW.GLFW_KEY_UP) || down(GLFW.GLFW_KEY_SPACE);
         in.down = down(GLFW.GLFW_KEY_S) || down(GLFW.GLFW_KEY_DOWN);
-        in.light = pLight;
-        in.heavy = pHeavy;
-        in.special1 = pSp1;
-        in.special2 = pSp2;
-        in.superMove = pSuper;
-        pLight = pHeavy = pSp1 = pSp2 = pSuper = pJump = false;
+        in.lp = lLP || down(GLFW.GLFW_KEY_U);
+        in.mp = lMP || down(GLFW.GLFW_KEY_I);
+        in.hp = lHP || down(GLFW.GLFW_KEY_O);
+        in.lk = lLK || down(GLFW.GLFW_KEY_J);
+        in.mk = lMK || down(GLFW.GLFW_KEY_K);
+        in.hk = lHK || down(GLFW.GLFW_KEY_L);
+        in.sp = lSP || down(GLFW.GLFW_KEY_H) || down(GLFW.GLFW_KEY_SEMICOLON);
+        lLP = lMP = lHP = lLK = lMK = lHK = lSP = lJump = false;
         return in;
     }
 
@@ -66,7 +68,7 @@ public class FightScreen extends Screen {
         if (session.engine == null) return true;
         if (session.engine.isOver()) {
             if (session.matchEndFrames > 45 && (key == GLFW.GLFW_KEY_SPACE || key == GLFW.GLFW_KEY_ENTER
-                    || key == GLFW.GLFW_KEY_ESCAPE || key == GLFW.GLFW_KEY_J)) {
+                    || key == GLFW.GLFW_KEY_ESCAPE || key == GLFW.GLFW_KEY_U || key == GLFW.GLFW_KEY_J)) {
                 onClose();
             }
             return true;
@@ -80,22 +82,27 @@ public class FightScreen extends Screen {
             if (key == GLFW.GLFW_KEY_Q) {
                 session.sendResult(false);
                 onClose();
+            } else if (key == GLFW.GLFW_KEY_TAB) {
+                movePage = (movePage + 1) % 2;
             }
             return true;
         }
         switch (key) {
-            case GLFW.GLFW_KEY_J, GLFW.GLFW_KEY_Z -> pLight = true;
-            case GLFW.GLFW_KEY_K, GLFW.GLFW_KEY_X -> pHeavy = true;
-            case GLFW.GLFW_KEY_U -> pLight = pHeavy = true; // throw shortcut
-            case GLFW.GLFW_KEY_L, GLFW.GLFW_KEY_C -> pSp1 = true;
-            case GLFW.GLFW_KEY_I, GLFW.GLFW_KEY_V -> pSp2 = true;
-            case GLFW.GLFW_KEY_O, GLFW.GLFW_KEY_B -> pSuper = true;
-            case GLFW.GLFW_KEY_W, GLFW.GLFW_KEY_UP, GLFW.GLFW_KEY_SPACE -> pJump = true;
+            case GLFW.GLFW_KEY_U -> lLP = true;
+            case GLFW.GLFW_KEY_I -> lMP = true;
+            case GLFW.GLFW_KEY_O -> lHP = true;
+            case GLFW.GLFW_KEY_J -> lLK = true;
+            case GLFW.GLFW_KEY_K -> lMK = true;
+            case GLFW.GLFW_KEY_L -> lHK = true;
+            case GLFW.GLFW_KEY_H, GLFW.GLFW_KEY_SEMICOLON -> lSP = true;
+            case GLFW.GLFW_KEY_W, GLFW.GLFW_KEY_UP, GLFW.GLFW_KEY_SPACE -> lJump = true;
             default -> {
             }
         }
         return true;
     }
+
+    int movePage;
 
     private boolean selectKey(int key) {
         int n = session.styles.size();
@@ -108,7 +115,7 @@ public class FightScreen extends Screen {
                 selected = (selected + 1) % n;
                 play(SoundEvents.UI_BUTTON_CLICK.value(), 1.4f);
             }
-            case GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_SPACE, GLFW.GLFW_KEY_J -> confirm();
+            case GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_SPACE, GLFW.GLFW_KEY_U, GLFW.GLFW_KEY_J -> confirm();
             case GLFW.GLFW_KEY_ESCAPE -> {
                 session.cancel(); // backing out before the first punch costs nothing
                 onClose();
@@ -179,7 +186,7 @@ public class FightScreen extends Screen {
             return;
         }
         hud.render(g, width, height);
-        if (session.paused) hud.pausePanel(g, width, height);
+        if (session.paused) hud.pausePanel(g, width, height, movePage);
         if (session.engine != null && session.engine.isOver() && session.matchEndFrames > 30) {
             hud.resultPanel(g, width, height, session.matchEndFrames - 30);
         }
@@ -230,12 +237,76 @@ public class FightScreen extends Screen {
         };
     }
 
-    static String movesSummary(Moveset ms) {
-        return "J " + ms.light().name + "   K " + ms.heavy().name
-                + "   S+J " + ms.crouchLight().name + "   S+K " + ms.crouchHeavy().name + "\n"
-                + "Air J " + ms.airLight().name + "   Air K " + ms.airHeavy().name + "   J+K Throw\n"
-                + "↓↘→+J or L: " + ms.special1().name + "     ↓↙← / →↓↘+J or I: " + ms.special2().name + "\n"
-                + "O (full SUPER meter) or ↓↘→↓↘→+J: " + ms.superMove().name;
+    static String motionText(com.streetfighter.fight.InputBuffer.Motion m) {
+        return switch (m) {
+            case QCF -> "\u2193\u2198\u2192";
+            case QCB -> "\u2193\u2199\u2190";
+            case DP -> "\u2192\u2193\u2198";
+            case HCB -> "\u2192\u2198\u2193\u2199\u2190";
+            case QCF2 -> "\u2193\u2198\u2192\u2193\u2198\u2192";
+            case QCB2 -> "\u2193\u2199\u2190\u2193\u2199\u2190";
+        };
+    }
+
+    static String modernText(int dir) {
+        return switch (dir) {
+            case 6 -> "\u2192+H";
+            case 2 -> "\u2193+H";
+            case 4 -> "\u2190+H";
+            default -> "H";
+        };
+    }
+
+    /** Full move list lines for a style: page 0 = specials/supers/system, page 1 = normals. */
+    static java.util.List<String> moveList(Moveset ms, int page) {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        if (page == 0) {
+            out.add("\u00a7eSPECIALS\u00a7r   (L/M/H by button strength, two buttons = EX for half a bar)");
+            for (Moveset.Special sp : ms.specials) {
+                out.add(motionText(sp.motion()) + " + " + (sp.kick() ? "K" : "P") + "   \u00a77or " + modernText(sp.modernDir())
+                        + "\u00a7r   " + sp.name());
+            }
+            out.add("\u00a76SUPER ARTS");
+            for (Moveset.Super su : ms.supers) {
+                String input = motionText(su.motion()) + " + " + (su.kick() ? "K" : "P");
+                String modern = su.level() == 1 ? "H+O" : "H+L";
+                out.add("Lv" + su.level() + "  " + input + "  \u00a77or " + modern + "\u00a7r   " + su.move().name + "  \u00a77(" + su.level() + " bar" + (su.level() > 1 ? "s" : "") + ")");
+            }
+            out.add("\u00a7bSYSTEM");
+            out.add("U+J  " + ms.forwardThrow.name + "  (\u2190+U+J  " + ms.backThrow.name + ")    U+J when grabbed: tech");
+            out.add("I+K (hold)  Drive Parry      O+L  Drive Impact (armored, crumples)");
+            for (Moveset.CommandNormal cn : ms.commandNormals) {
+                String d = switch (cn.dir()) { case 6 -> "\u2192"; case 4 -> "\u2190"; case 3 -> "\u2198"; case 2 -> "\u2193"; default -> ""; };
+                out.add(d + "+" + keyOf(cn.button()) + "  " + cn.move().name + (cn.move().level == com.streetfighter.fight.HitLevel.HIGH ? " (overhead)" : cn.move().level == com.streetfighter.fight.HitLevel.LOW ? " (low)" : ""));
+            }
+            for (Moveset.TargetCombo tc : ms.targetCombos) {
+                out.add("Target: " + tc.from().name + " > " + keyOf(tc.button()) + "  " + tc.move().name);
+            }
+        } else {
+            out.add("\u00a7eNORMALS\u00a7r   U I O = light/medium/heavy punch    J K L = light/medium/heavy kick");
+            for (var b : new com.streetfighter.fight.InputBuffer.Button[]{com.streetfighter.fight.InputBuffer.Button.LP,
+                    com.streetfighter.fight.InputBuffer.Button.MP, com.streetfighter.fight.InputBuffer.Button.HP,
+                    com.streetfighter.fight.InputBuffer.Button.LK, com.streetfighter.fight.InputBuffer.Button.MK,
+                    com.streetfighter.fight.InputBuffer.Button.HK}) {
+                out.add(keyOf(b) + "  " + ms.stand.get(b).name + "   \u00a77\u2193" + keyOf(b) + "\u00a7r " + ms.crouch.get(b).name
+                        + "   \u00a77air " + keyOf(b) + "\u00a7r " + ms.air.get(b).name);
+            }
+            out.add("\u00a77Lights chain into each other and into heavier normals; most normals cancel into specials,");
+            out.add("\u00a77specials cancel into Super Arts. Jump into a wall and press up to wall-jump.");
+        }
+        return out;
+    }
+
+    static String keyOf(com.streetfighter.fight.InputBuffer.Button b) {
+        return switch (b) {
+            case LP -> "U";
+            case MP -> "I";
+            case HP -> "O";
+            case LK -> "J";
+            case MK -> "K";
+            case HK -> "L";
+            case SP -> "H";
+        };
     }
 
     private void renderSelect(GuiGraphics g, int mouseX, int mouseY) {
@@ -247,12 +318,14 @@ public class FightScreen extends Screen {
         hud.outlined(g, "CHOOSE YOUR FIGHTING STYLE", width / 2f, height * 0.04f + 6, width >= 420 ? 2f : 1.4f, 0xFFFFD21A, 0xFF4A2000);
         g.drawCenteredString(font, "vs " + session.info.enemyName() + "   |   AI: " + session.difficulty.displayName.toUpperCase()
                 + "   |   A/D choose   ENTER fight   ESC back out", width / 2, (int) (height * 0.04f) + 18, 0xFFCCCCCC);
+        g.drawCenteredString(font, "\u00a77Controls: WASD move   U I O punches   J K L kicks   H special   ESC = full move list",
+                width / 2, (int) (height * 0.04f) + 29, 0xFFAAAAAA);
 
         // info panel on the left
-        int px = 10, py = (int) (height * 0.16f);
+        int px = 10, py = Math.max((int) (height * 0.16f), (int) (height * 0.04f) + 42);
         int pw = Math.min(width / 2 - 20, 240);
         String[] blurb = hud.wrap(styleBlurb(sel), pw - 12);
-        int lines = 2 + blurb.length + (open ? 4 : 1);
+        int lines = 2 + blurb.length + (open ? 6 : 1);
         g.fill(px, py, px + pw, py + 14 + lines * 11, 0xA0000010);
         g.fill(px, py, px + 2, py + 14 + lines * 11, open ? 0xFF7FE0FF : 0xFF888888);
         g.drawString(font, sel.displayName.toUpperCase() + " STYLE", px + 8, py + 6, open ? 0xFF7FE0FF : 0xFF999999, true);
@@ -264,9 +337,12 @@ public class FightScreen extends Screen {
                 y += 11;
             }
             Moveset ms = Movesets.get(sel);
-            g.drawString(font, "L  " + ms.special1().name, px + 8, y, 0xFFB8C8FF, false);
-            g.drawString(font, "I  " + ms.special2().name, px + 8, y + 11, 0xFFB8C8FF, false);
-            g.drawString(font, "O  " + ms.superMove().name, px + 8, y + 22, 0xFFFFD21A, false);
+            for (Moveset.Special sp : ms.specials) {
+                g.drawString(font, motionText(sp.motion()) + (sp.kick() ? "K " : "P ") + sp.name(), px + 8, y, 0xFFB8C8FF, false);
+                y += 11;
+            }
+            Moveset.Super top = ms.superOf(3);
+            if (top != null) g.drawString(font, "Lv3 " + top.move().name, px + 8, y, 0xFFFFD21A, false);
         } else {
             g.drawString(font, "LOCKED - defeat a " + sel.displayName + " to learn it.", px + 8, y, 0xFFFF8A6A, false);
         }

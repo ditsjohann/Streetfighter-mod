@@ -1,10 +1,20 @@
 package com.streetfighter.fight;
 
+import com.streetfighter.fight.InputBuffer.Button;
+import com.streetfighter.fight.InputBuffer.Motion;
+import com.streetfighter.fight.Move.Cancel;
+import com.streetfighter.fight.Move.Kind;
+import com.streetfighter.fight.Moveset.Role;
+
 import java.util.EnumMap;
 import java.util.Map;
+import java.util.function.IntFunction;
 
 /**
- * All fighting styles. Frame data is at 60 fps, damage is out of ~1000 HP.
+ * Every fighting style, at Street Fighter scale: 18 normals, command normals, target combos, four specials in
+ * L/M/H/EX versions, three super levels, forward/back throws and a universal Drive Impact.
+ * Frame data is at 60 fps; damage is out of ~1000 HP. Base frame data follows common SF conventions
+ * (e.g. 4f jabs, 8-11f heavies, 24f+ recovery sweeps).
  */
 public final class Movesets {
     private static final Map<FighterType, Moveset> SETS = new EnumMap<>(FighterType.class);
@@ -19,10 +29,6 @@ public final class Movesets {
         SETS.put(FighterType.BRAWLER, brawler());
     }
 
-    /** Universal throw (light + heavy together, close range). Grabs can't be blocked but can be teched. */
-    public static final Move THROW = Move.builder("Throw").frames(5, 3, 26).damage(120).box(5, 62, 20, 120)
-            .level(HitLevel.GRAB).stun(30, 0).push(9).launch(8).knockdown().pose(AnimPose.GRAB).callout("THROW!").build();
-
     private Movesets() {
     }
 
@@ -30,152 +36,436 @@ public final class Movesets {
         return SETS.get(type);
     }
 
-    // ---------------------------------------------------------------- shared normals
+    // =====================================================================================================
+    // shared builders
+    // =====================================================================================================
 
-    private static Move crouchJab(String name) {
-        return Move.builder(name).frames(4, 3, 8).damage(25).box(10, 62, 10, 50).level(HitLevel.LOW)
-                .stun(12, 8).push(3).cancelable().chainable().pose(AnimPose.PUNCH).crouching().build();
+    /** Per-character tuning applied on top of the base normals. */
+    private record Tune(int startupDelta, float reach, float dmg, float heightScale, float xOffset) {
     }
 
-    private static Move sweep(String name) {
-        return Move.builder(name).frames(8, 4, 20).damage(60).box(10, 100, 0, 30).level(HitLevel.LOW)
-                .stun(20, 14).push(6).knockdown().pose(AnimPose.KICK).crouching().build();
+    private static float pick(int s, float l, float m, float h, float ex) {
+        return switch (s) {
+            case 0 -> l;
+            case 1 -> m;
+            case 2 -> h;
+            default -> ex;
+        };
     }
 
-    private static Move airPunch(String name) {
-        return Move.builder(name).frames(5, 8, 4).damage(40).box(5, 60, 40, 100).level(HitLevel.HIGH)
-                .stun(16, 10).push(3).pose(AnimPose.PUNCH).air().build();
+    private static int pick(int s, int l, int m, int h, int ex) {
+        return switch (s) {
+            case 0 -> l;
+            case 1 -> m;
+            case 2 -> h;
+            default -> ex;
+        };
     }
 
-    private static Move airKick(String name) {
-        return Move.builder(name).frames(7, 9, 4).damage(65).box(5, 80, 10, 70).level(HitLevel.HIGH)
-                .stun(19, 12).push(5).pose(AnimPose.KICK).air().build();
+    private static Move[] variants(IntFunction<Move.Builder> f, String name) {
+        Move[] out = new Move[4];
+        for (int s = 0; s < 4; s++) {
+            Move.Builder b = f.apply(s).kind(Kind.SPECIAL).strength(s).cancel(Cancel.SUPER);
+            if (s == 3) b.meter(50).name("EX " + name).callout("EX " + name + "!");
+            else b.name(name).callout(s == 2 ? name + "!" : null);
+            out[s] = b.build();
+        }
+        return out;
     }
 
-    // ---------------------------------------------------------------- STEVE
+    private static Move normal(Tune t, String name, AnimPose pose, int su, int ac, int rec, float dmg,
+                               float x0, float x1, float y0, float y1, int hs, int bs, float push, Cancel c) {
+        float hy = t.heightScale;
+        return Move.builder(name).frames(Math.max(3, su + t.startupDelta), ac, rec).damage(dmg * t.dmg)
+                .box(x0 + t.xOffset, x1 + t.xOffset + t.reach, y0 * hy, y1 * hy).stun(hs, bs).push(push).cancel(c)
+                .pose(pose).build();
+    }
+
+    /** 18 normals from a base table, named per character. Order: stand LP..HK, crouch LP..HK, air LP..HK. */
+    private static void normals(Moveset m, Tune t, String[] n) {
+        m.stand.put(Button.LP, normal(t, n[0], AnimPose.JAB, 4, 2, 7, 30, 8, 60, 74, 112, 13, 9, 3.5f, Cancel.CHAIN));
+        m.stand.put(Button.MP, normal(t, n[1], AnimPose.STRAIGHT, 6, 3, 12, 55, 10, 76, 70, 110, 17, 12, 5, Cancel.SPECIAL));
+        m.stand.put(Button.HP, normal(t, n[2], AnimPose.HOOK, 9, 4, 18, 80, 14, 90, 56, 118, 21, 15, 7, Cancel.SPECIAL));
+        m.stand.put(Button.LK, normal(t, n[3], AnimPose.SHIN_KICK, 5, 3, 9, 30, 10, 66, 40, 82, 13, 9, 3.5f, Cancel.CHAIN));
+        m.stand.put(Button.MK, normal(t, n[4], AnimPose.FRONT_KICK, 8, 3, 14, 55, 14, 92, 40, 96, 17, 12, 6, Cancel.SPECIAL));
+        m.stand.put(Button.HK, normal(t, n[5], AnimPose.ROUNDHOUSE, 11, 4, 20, 85, 18, 104, 62, 122, 21, 15, 8, Cancel.NONE));
+
+        m.crouch.put(Button.LP, crouch(normal(t, n[6], AnimPose.LOW_JAB, 4, 2, 7, 25, 8, 58, 42, 72, 12, 8, 3, Cancel.CHAIN)));
+        m.crouch.put(Button.MP, crouch(normal(t, n[7], AnimPose.BODY_BLOW, 6, 3, 11, 50, 8, 70, 44, 86, 16, 11, 5, Cancel.SPECIAL)));
+        m.crouch.put(Button.HP, crouch(normal(t, n[8], AnimPose.ANTI_AIR, 8, 5, 20, 80, -10, 55, 60, 160, 22, 15, 3, Cancel.SPECIAL)
+                .toBuilder().launch(7).box(-10 + t.xOffset, 55 + t.xOffset + t.reach, 55, 165).build()));
+        m.crouch.put(Button.LK, crouch(normal(t, n[9], AnimPose.LOW_KICK, 5, 2, 9, 22, 10, 70, 0, 30, 12, 8, 3, Cancel.CHAIN)
+                .toBuilder().level(HitLevel.LOW).build()));
+        m.crouch.put(Button.MK, crouch(normal(t, n[10], AnimPose.POKE_KICK, 8, 3, 16, 50, 15, 100, 0, 30, 16, 11, 5, Cancel.SPECIAL)
+                .toBuilder().level(HitLevel.LOW).build()));
+        m.crouch.put(Button.HK, crouch(normal(t, n[11], AnimPose.SWEEP, 9, 4, 24, 85, 15, 110, 0, 25, 22, 15, 6, Cancel.NONE)
+                .toBuilder().level(HitLevel.LOW).knockdown().build()));
+
+        m.air.put(Button.LP, airNormal(normal(t, n[12], AnimPose.AIR_PUNCH, 4, 8, 3, 30, 5, 55, 50, 100, 14, 9, 3, Cancel.NONE)));
+        m.air.put(Button.MP, airNormal(normal(t, n[13], AnimPose.AIR_PUNCH, 6, 6, 3, 55, 5, 65, 40, 95, 17, 11, 4, Cancel.NONE)));
+        m.air.put(Button.HP, airNormal(normal(t, n[14], AnimPose.AIR_SLAM, 8, 6, 3, 80, 5, 75, 15, 90, 20, 13, 5, Cancel.NONE)));
+        m.air.put(Button.LK, airNormal(normal(t, n[15], AnimPose.AIR_KICK, 4, 9, 3, 30, 5, 62, 15, 65, 14, 9, 3, Cancel.NONE)));
+        m.air.put(Button.MK, airNormal(normal(t, n[16], AnimPose.AIR_KICK, 6, 7, 3, 55, 5, 75, 10, 60, 17, 11, 4, Cancel.NONE)));
+        m.air.put(Button.HK, airNormal(normal(t, n[17], AnimPose.FLYING_KICK, 8, 6, 3, 85, 5, 85, 0, 55, 20, 13, 5, Cancel.NONE)));
+    }
+
+    private static Move crouch(Move m) {
+        return m.toBuilder().crouching().build();
+    }
+
+    private static Move airNormal(Move m) {
+        return m.toBuilder().air().level(HitLevel.HIGH).build();
+    }
+
+    private static Move commandNormal(String name, AnimPose pose, int su, int ac, int rec, float dmg, float x0, float x1,
+                                      float y0, float y1, HitLevel level) {
+        return Move.builder(name).kind(Kind.COMMAND_NORMAL).frames(su, ac, rec).damage(dmg).box(x0, x1, y0, y1)
+                .level(level).stun(19, 13).push(6).pose(pose).build();
+    }
+
+    private static void universals(Moveset m, String fwdThrow, String backThrow, float throwDmg) {
+        m.forwardThrow = Move.builder(fwdThrow).kind(Kind.THROW).frames(5, 3, 24).damage(throwDmg).box(5, 64, 20, 120)
+                .level(HitLevel.GRAB).stun(30, 0).push(9).launch(8).knockdown().pose(AnimPose.THROW_FWD)
+                .callout(fwdThrow + "!").build();
+        m.backThrow = Move.builder(backThrow).kind(Kind.THROW).frames(5, 3, 24).damage(throwDmg + 10).box(5, 64, 20, 120)
+                .level(HitLevel.GRAB).stun(30, 0).push(10).launch(8).knockdown().backThrow().wallSplat()
+                .pose(AnimPose.THROW_BACK).callout(backThrow + "!").build();
+        m.driveImpact = Move.builder("Drive Impact").kind(Kind.DRIVE_IMPACT).frames(24, 3, 30).damage(90)
+                .box(10, 95, 30, 120).stun(26, 20).push(12).armor(2, 26).crumple().wallSplat().dash(3f, 10, 24)
+                .pose(AnimPose.DRIVE_IMPACT).callout("DRIVE IMPACT!").build();
+    }
+
+    // =====================================================================================================
+    // STEVE: shoto all-rounder
+    // =====================================================================================================
 
     private static Moveset steve() {
-        Move light = Move.builder("Jab").frames(4, 3, 7).damage(35).box(10, 66, 60, 112)
-                .stun(14, 9).push(4).cancelable().chainable().pose(AnimPose.PUNCH).build();
-        Move heavy = Move.builder("Pickaxe Swing").frames(9, 4, 16).damage(75).box(15, 96, 45, 125)
-                .stun(20, 14).push(8).cancelable().pose(AnimPose.SLAM).build();
-        Move blockToss = Move.builder("Block Toss").frames(12, 2, 24).damage(0).box(0, 0, 0, 0).special()
-                .projectile(ProjectileSpec.builder(ProjectileVisual.DIRT).velocity(8.5f, 7.5f).gravity(0.32f)
-                        .size(34, 34).offset(30, 100).damage(85).stun(20, 14).push(7).spin().lifetime(160).build(), 12)
-                .pose(AnimPose.THROW).callout("Block Toss!").build();
-        Move uppercut = Move.builder("Diamond Uppercut").frames(3, 14, 22).damage(120).box(0, 58, 50, 160)
-                .stun(30, 16).push(3).launch(11).knockdown().special()
-                .leap(13.5f, 2.2f, 3).invuln(0, 8).landingLag(14).pose(AnimPose.UPPERCUT).callout("Diamond Uppercut!").build();
-        Move craftingCombo = Move.builder("Crafting Combo").frames(6, 32, 28).damage(52).box(5, 78, 30, 125)
-                .stun(18, 10).push(1.5f).launch(12).knockdown().superMove().multiHit(6, 6)
-                .dash(6.5f, 6, 26).invuln(0, 10).pose(AnimPose.LUNGE).callout("CRAFTING COMBO!").build();
-        return new Moveset(FighterType.STEVE, HUMANOID, light, heavy,
-                crouchJab("Low Jab"), sweep("Shovel Sweep"), airPunch("Jump Punch"), airKick("Creeper Kick"),
-                blockToss, uppercut, craftingCombo);
+        Moveset m = new Moveset(FighterType.STEVE, HUMANOID);
+        Tune t = new Tune(0, 0, 1f, 1f, 0);
+        normals(m, t, new String[]{"Jab", "Pickaxe Punch", "Haymaker", "Shin Tap", "Boot Kick", "Roundhouse",
+                "Low Jab", "Gut Punch", "Diamond Rise", "Ankle Kick", "Shovel Poke", "Shovel Sweep",
+                "Air Jab", "Air Straight", "Pickaxe Drop", "Air Knee", "Air Kick", "Creeper Kick"});
+
+        m.commandNormals.add(new Moveset.CommandNormal(6, Button.MP,
+                commandNormal("Pickaxe Overhead", AnimPose.OVERHEAD, 18, 3, 16, 60, 10, 80, 70, 140, HitLevel.HIGH)));
+        m.commandNormals.add(new Moveset.CommandNormal(4, Button.HK,
+                commandNormal("Shovel Spin", AnimPose.SPIN_KICK, 10, 10, 18, 40, 0, 85, 40, 110, HitLevel.MID)
+                        .toBuilder().multiHit(2, 6).dash(3f, 8, 18).build()));
+
+        Move craft = Move.builder("Craftsman Combo").kind(Kind.TARGET).frames(8, 3, 18).damage(70).box(12, 90, 56, 118)
+                .stun(21, 15).push(7).cancelable().pose(AnimPose.HOOK).build();
+        Move boot2 = Move.builder("Double Boot").kind(Kind.TARGET).frames(7, 3, 14).damage(45).box(14, 92, 40, 96)
+                .stun(17, 12).push(5).pose(AnimPose.FRONT_KICK).build();
+        Move boot3 = Move.builder("Triple Boot").kind(Kind.TARGET).frames(9, 4, 22).damage(70).box(18, 104, 62, 122)
+                .stun(22, 15).push(8).knockdown().launch(6).pose(AnimPose.ROUNDHOUSE).build();
+        m.targetCombos.add(new Moveset.TargetCombo(m.stand.get(Button.MP), Button.HP, craft));
+        m.targetCombos.add(new Moveset.TargetCombo(m.stand.get(Button.LK), Button.MK, boot2));
+        m.targetCombos.add(new Moveset.TargetCombo(boot2, Button.HK, boot3));
+
+        m.specials.add(new Moveset.Special("Block Toss", Motion.QCF, false, Role.PROJECTILE, 5, variants(s -> Move.builder("")
+                .frames(pick(s, 14, 13, 12, 11), 2, pick(s, 26, 25, 24, 22)).damage(0).box(0, 0, 0, 0)
+                .projectile(ProjectileSpec.builder(s == 3 ? ProjectileVisual.COBBLE : ProjectileVisual.DIRT)
+                        .velocity(pick(s, 6.5f, 8.5f, 10.5f, 9.5f), pick(s, 7f, 7.5f, 6.5f, 7f)).gravity(pick(s, 0.3f, 0.32f, 0.26f, 0.28f))
+                        .size(34, 34).offset(30, 100).damage(pick(s, 75f, 80f, 85f, 55f)).stun(20, 14).push(7).spin()
+                        .multiHit(s == 3 ? 2 : 1, 10).lifetime(170).build(), pick(s, 14, 13, 12, 11))
+                .pose(AnimPose.THROW), "Block Toss")));
+        m.specials.add(new Moveset.Special("Diamond Uppercut", Motion.DP, false, Role.ANTI_AIR, 6, variants(s -> Move.builder("")
+                .frames(3, pick(s, 12, 14, 16, 16), pick(s, 22, 25, 28, 26)).damage(pick(s, 100f, 60f, 45f, 55f))
+                .box(0, 58, 50, 160).stun(28, 16).push(3).launch(11).knockdown()
+                .multiHit(pick(s, 1, 2, 3, 3), 5).leap(pick(s, 11f, 13f, 15f, 15f), 2.2f, 3)
+                .invuln(0, pick(s, 4, 5, 6, 12)).landingLag(14).pose(AnimPose.UPPERCUT), "Diamond Uppercut")));
+        m.specials.add(new Moveset.Special("Pickaxe Whirlwind", Motion.QCB, true, Role.RUSH, 2, variants(s -> Move.builder("")
+                .frames(9, pick(s, 14, 21, 28, 34), 18).damage(40).box(0, 80, 50, 120).stun(18, 10).push(2)
+                .multiHit(pick(s, 2, 3, 4, 5), 7).dash(pick(s, 4f, 5f, 6f, 6.5f), 9, pick(s, 23, 30, 37, 43))
+                .launch(s >= 2 ? 8 : 0).projInvuln(s == 3 ? 0 : -1, s == 3 ? 30 : -1).pose(AnimPose.SPIN_KICK), "Pickaxe Whirlwind")));
+        m.specials.add(new Moveset.Special("Shield Bash", Motion.QCB, false, Role.RUSH, 4, variants(s -> {
+            Move.Builder b = Move.builder("").frames(pick(s, 12, 14, 16, 12), 10, pick(s, 22, 24, 26, 22))
+                    .damage(pick(s, 80f, 90f, 100f, 110f)).box(10, 80, 20, 125).stun(22, 14).push(10).stopOnHit()
+                    .dash(pick(s, 7f, 9f, 11f, 11f), pick(s, 12, 14, 16, 12), pick(s, 22, 24, 26, 22)).pose(AnimPose.LUNGE);
+            if (s >= 2) b.armor(s == 3 ? 2 : 1, pick(s, 0, 0, 26, 22)).wallSplat().knockdown().launch(5);
+            return b;
+        }, "Shield Bash")));
+
+        m.supers.add(new Moveset.Super(1, Motion.QCF2, false, Move.builder("Crafting Combo").superLevel(1)
+                .frames(6, 32, 28).damage(48).box(5, 80, 30, 125).stun(18, 10).push(1.5f).launch(12).knockdown()
+                .multiHit(6, 6).dash(6.5f, 6, 26).invuln(0, 10).pose(AnimPose.RUSH).callout("CRAFTING COMBO!").build()));
+        m.supers.add(new Moveset.Super(2, Motion.QCB2, false, Move.builder("TNT Barrage").superLevel(2)
+                .frames(10, 2, 36).damage(0).box(0, 0, 0, 0).invuln(0, 12)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.TNT).velocity(7.5f, 6f, 8f, 10f).gravity(0.32f)
+                        .size(40, 40).offset(25, 100).damage(95).stun(24, 16).push(8).launch(9).knockdown().explodes()
+                        .count(3, 8).lifetime(150).build(), 10)
+                .pose(AnimPose.THROW).callout("TNT BARRAGE!").build()));
+        m.supers.add(new Moveset.Super(3, Motion.QCF2, true, Move.builder("Netherite Finale").superLevel(3)
+                .frames(8, 72, 34).damage(38).box(5, 85, 20, 130).stun(30, 12).push(0.5f).launch(14).knockdown()
+                .multiHit(10, 7).dash(9f, 8, 16).invuln(0, 14).lockOnHit().wallSplat().pose(AnimPose.RUSH)
+                .callout("NETHERITE FINALE!").build()));
+        universals(m, "Suplex", "Over the Shoulder", 120);
+        return m;
     }
 
-    // ---------------------------------------------------------------- SKELETON (zoner)
+    // =====================================================================================================
+    // SKELETON: zoner
+    // =====================================================================================================
 
     private static Moveset skeleton() {
         FighterStats stats = new FighterStats(900, 3.7f, 3.5f, 15.5f, 4.6f, 0.75f, 40, 128, 84);
-        Move light = Move.builder("Bone Jab").frames(4, 3, 7).damage(30).box(10, 64, 62, 112)
-                .stun(13, 9).push(4).cancelable().chainable().pose(AnimPose.PUNCH).build();
-        Move heavy = Move.builder("Bow Bash").frames(10, 4, 16).damage(70).box(15, 108, 55, 120)
-                .stun(20, 14).push(9).cancelable().pose(AnimPose.SLAM).build();
-        Move arrow = Move.builder("Arrow Shot").frames(11, 2, 18).damage(0).box(0, 0, 0, 0).special()
-                .projectile(ProjectileSpec.builder(ProjectileVisual.ARROW).velocity(13f, 0f).size(40, 14)
-                        .offset(35, 92).damage(62).stun(18, 12).push(6).lifetime(120).build(), 11)
-                .pose(AnimPose.SHOOT).build();
-        Move volley = Move.builder("Triple Volley").frames(14, 2, 26).damage(0).box(0, 0, 0, 0).special()
-                .projectile(ProjectileSpec.builder(ProjectileVisual.ARROW).velocity(10.5f, 0f, 3.6f, 7.2f)
+        Moveset m = new Moveset(FighterType.SKELETON, stats);
+        Tune t = new Tune(-1, 10, 0.92f, 1f, 0);
+        normals(m, t, new String[]{"Bone Jab", "Rib Strike", "Bow Bash", "Shin Rattle", "Femur Kick", "Skull Spinner",
+                "Low Rattle", "Rib Poke", "Bow Lift", "Toe Tap", "Femur Poke", "Femur Sweep",
+                "Air Jab", "Air Rib", "Bow Spike", "Air Knee", "Air Femur", "Skull Dive"});
+        m.commandNormals.add(new Moveset.CommandNormal(6, Button.HP,
+                commandNormal("Bow Cleave", AnimPose.OVERHEAD, 19, 3, 17, 65, 10, 95, 70, 145, HitLevel.HIGH)));
+        m.commandNormals.add(new Moveset.CommandNormal(3, Button.HK,
+                commandNormal("Shin Splitter", AnimPose.POKE_KICK, 10, 3, 18, 55, 15, 125, 0, 28, HitLevel.LOW)
+                        .toBuilder().crouching().build()));
+
+        Move rattle = Move.builder("Rattle Combo").kind(Kind.TARGET).frames(5, 3, 12).damage(45).box(10, 80, 70, 110)
+                .stun(16, 11).push(4).pose(AnimPose.STRAIGHT).build();
+        Move barrage = Move.builder("Bone Barrage").kind(Kind.TARGET).frames(8, 4, 18).damage(70).box(14, 100, 56, 118)
+                .stun(21, 15).push(7).cancelable().pose(AnimPose.HOOK).build();
+        m.targetCombos.add(new Moveset.TargetCombo(m.stand.get(Button.LP), Button.MP, rattle));
+        m.targetCombos.add(new Moveset.TargetCombo(rattle, Button.HP, barrage));
+
+        m.specials.add(new Moveset.Special("Arrow Shot", Motion.QCF, false, Role.PROJECTILE, 5, variants(s -> Move.builder("")
+                .frames(pick(s, 12, 11, 10, 10), 2, pick(s, 20, 18, 18, 18)).damage(0).box(0, 0, 0, 0)
+                .projectile(ProjectileSpec.builder(s == 3 ? ProjectileVisual.BIG_ARROW : ProjectileVisual.ARROW)
+                        .velocity(pick(s, 9f, 12f, 15f, 14f), 0f).size(s == 3 ? 56 : 40, s == 3 ? 20 : 14).offset(35, 92)
+                        .damage(pick(s, 58f, 62f, 66f, 50f)).stun(18, 12).push(6).multiHit(s == 3 ? 2 : 1, 6)
+                        .lifetime(130).build(), pick(s, 12, 11, 10, 10))
+                .pose(AnimPose.SHOOT), "Arrow Shot")));
+        m.specials.add(new Moveset.Special("Triple Volley", Motion.QCB, false, Role.ANTI_AIR, 6, variants(s -> Move.builder("")
+                .frames(13, 2, 26).damage(0).box(0, 0, 0, 0)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.ARROW)
+                        .velocity(10.5f, s == 0 ? new float[]{0, 3, 6} : s == 1 ? new float[]{2, 5, 8}
+                                : s == 2 ? new float[]{4, 7.5f, 11} : new float[]{0, 2.5f, 5, 7.5f, 10})
                         .gravity(0.08f).size(36, 14).offset(35, 96).damage(42).stun(16, 10).push(5)
-                        .count(3, 0).lifetime(110).build(), 14)
-                .pose(AnimPose.SHOOT).callout("Triple Volley!").build();
-        Move rain = Move.builder("Arrow Rain").frames(14, 2, 40).damage(0).box(0, 0, 0, 0).superMove()
+                        .count(s == 3 ? 5 : 3, 0).lifetime(110).build(), 13)
+                .pose(AnimPose.SHOOT_UP), "Triple Volley")));
+        m.specials.add(new Moveset.Special("Bone Rattle", Motion.QCF, true, Role.LOW, 2, variants(s -> Move.builder("")
+                .frames(10, 14, pick(s, 18, 20, 22, 18)).damage(pick(s, 55f, 62f, 70f, 75f)).box(15, 85, 0, 35)
+                .level(HitLevel.LOW).stun(20, 14).push(6).stopOnHit().dash(pick(s, 6f, 8f, 10f, 10f), 10, 24)
+                .crouching().pose(AnimPose.SLIDE).projInvuln(s == 3 ? 6 : -1, s == 3 ? 24 : -1)
+                .knockdown(), "Bone Rattle")));
+        m.specials.add(new Moveset.Special("Rattle Step", Motion.QCB, true, Role.EVADE, 4, variants(s -> {
+            Move.Builder b = Move.builder("").frames(4, 1, pick(s, 20, 24, 28, 26)).damage(0).box(0, 0, 0, 0)
+                    .leap(pick(s, 8f, 10f, 11f, 11f), -pick(s, 4f, 5.5f, 7f, 7f), 2).invuln(0, pick(s, 10, 12, 14, 18))
+                    .pose(AnimPose.BACKFLIP);
+            if (s == 3) b.projectile(ProjectileSpec.builder(ProjectileVisual.ARROW).velocity(13f, -2f).size(40, 14)
+                    .offset(35, 100).damage(60).stun(18, 12).push(6).lifetime(120).build(), 16);
+            return b;
+        }, "Rattle Step")));
+
+        m.supers.add(new Moveset.Super(1, Motion.QCF2, false, Move.builder("Arrow Rain").superLevel(1)
+                .frames(14, 2, 40).damage(0).box(0, 0, 0, 0).invuln(0, 14)
                 .projectile(ProjectileSpec.builder(ProjectileVisual.ARROW).velocity(0f, -15f).size(18, 40)
-                        .damage(48).stun(18, 12).push(3).count(7, 6).fromSky(170, 520).lifetime(90).build(), 14)
-                .invuln(0, 14).pose(AnimPose.SHOOT).callout("ARROW RAIN!").build();
-        return new Moveset(FighterType.SKELETON, stats, light, heavy,
-                crouchJab("Shin Rattle"), sweep("Femur Sweep"), airPunch("Rib Punch"), airKick("Skull Dive"),
-                arrow, volley, rain);
+                        .damage(46).stun(18, 12).push(3).count(7, 6).fromSky(170, 520).lifetime(90).build(), 14)
+                .pose(AnimPose.SHOOT_UP).callout("ARROW RAIN!").build()));
+        m.supers.add(new Moveset.Super(2, Motion.QCB2, false, Move.builder("Sniper Shot").superLevel(2)
+                .frames(16, 2, 36).damage(0).box(0, 0, 0, 0).invuln(0, 16)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.BIG_ARROW).velocity(22f, 0f).size(70, 24).offset(40, 92)
+                        .damage(230).stun(30, 20).push(12).launch(9).knockdown().durable().wallSplat().lifetime(80).build(), 16)
+                .pose(AnimPose.SHOOT).callout("SNIPER SHOT!").build()));
+        m.supers.add(new Moveset.Super(3, Motion.QCF2, true, Move.builder("Wither Storm").superLevel(3)
+                .frames(16, 2, 50).damage(0).box(0, 0, 0, 0).invuln(0, 20)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.SKULL).velocity(0f, -12f).size(40, 40)
+                        .damage(48).stun(24, 14).push(3).launch(4).count(10, 5).fromSky(150, 560).explodes()
+                        .lifetime(100).build(), 16)
+                .pose(AnimPose.SUMMON).callout("WITHER STORM!").build()));
+        universals(m, "Bone Toss", "Grave Throw", 110);
+        return m;
     }
 
-    // ---------------------------------------------------------------- VILLAGER (grappler / trickster)
+    // =====================================================================================================
+    // VILLAGER: grappler
+    // =====================================================================================================
 
     private static Moveset villager() {
         FighterStats stats = new FighterStats(1050, 2.9f, 2.6f, 14f, 3.8f, 0.75f, 46, 128, 86);
-        Move light = Move.builder("Nose Bonk").frames(5, 3, 8).damage(36).box(10, 64, 85, 125)
-                .stun(14, 9).push(4).cancelable().chainable().pose(AnimPose.LUNGE).build();
-        Move heavy = Move.builder("Emerald Slap").frames(9, 4, 17).damage(78).box(15, 92, 50, 118)
-                .stun(21, 14).push(9).cancelable().pose(AnimPose.SLAM).build();
-        Move trade = Move.builder("Trade Offer").frames(6, 3, 32).damage(145).box(5, 70, 20, 120)
-                .level(HitLevel.GRAB).stun(30, 0).push(10).launch(9).knockdown().special()
-                .pose(AnimPose.GRAB).callout("Hmm? DEAL!").build();
-        Move emerald = Move.builder("Emerald Toss").frames(12, 2, 22).damage(0).box(0, 0, 0, 0).special()
-                .projectile(ProjectileSpec.builder(ProjectileVisual.EMERALD).velocity(6.8f, 7f).gravity(0.38f)
-                        .bounce(0.72f).size(28, 28).offset(30, 95).damage(58).stun(18, 12).push(6).spin()
-                        .lifetime(150).build(), 12)
-                .pose(AnimPose.THROW).build();
-        Move golem = Move.builder("Iron Golem Assist").frames(10, 2, 40).damage(0).box(0, 0, 0, 0).superMove()
+        Moveset m = new Moveset(FighterType.VILLAGER, stats);
+        Tune t = new Tune(0, 0, 1.05f, 1f, 0);
+        normals(m, t, new String[]{"Nose Bonk", "Robe Slap", "Emerald Slap", "Hmm Kick", "Shin Swat", "Robe Spin",
+                "Low Bonk", "Gut Slap", "Hmm Rise", "Shin Tap", "Robe Poke", "Robe Sweep",
+                "Air Bonk", "Air Slap", "Flying Nose", "Air Toe", "Air Kick", "Robe Drop"});
+        m.commandNormals.add(new Moveset.CommandNormal(6, Button.HP,
+                commandNormal("Nose Smash", AnimPose.HEADBUTT, 13, 4, 18, 75, 10, 85, 85, 130, HitLevel.MID)
+                        .toBuilder().dash(4f, 6, 14).cancelable().build()));
+        m.commandNormals.add(new Moveset.CommandNormal(4, Button.HK,
+                commandNormal("Robe Whip", AnimPose.SPIN_KICK, 11, 9, 18, 42, 0, 88, 30, 100, HitLevel.MID)
+                        .toBuilder().multiHit(2, 6).build()));
+
+        Move haggle = Move.builder("Haggle Slap").kind(Kind.TARGET).frames(8, 3, 18).damage(72).box(12, 90, 56, 118)
+                .stun(21, 15).push(7).cancelable().pose(AnimPose.PALM).build();
+        Move shins = Move.builder("Shin Barter").kind(Kind.TARGET).frames(7, 3, 15).damage(50).box(14, 90, 0, 35)
+                .level(HitLevel.LOW).stun(17, 12).push(5).cancelable().crouching().pose(AnimPose.LOW_KICK).build();
+        m.targetCombos.add(new Moveset.TargetCombo(m.stand.get(Button.MP), Button.HP, haggle));
+        m.targetCombos.add(new Moveset.TargetCombo(m.stand.get(Button.LK), Button.MK, shins));
+
+        m.specials.add(new Moveset.Special("Emerald Toss", Motion.QCF, false, Role.PROJECTILE, 5, variants(s -> Move.builder("")
+                .frames(12, 2, pick(s, 24, 22, 22, 20)).damage(0).box(0, 0, 0, 0)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.EMERALD).velocity(pick(s, 5.5f, 6.8f, 8.5f, 7.5f), 7f)
+                        .gravity(0.38f).bounce(0.72f).size(28, 28).offset(30, 95).damage(pick(s, 55f, 58f, 62f, 50f))
+                        .stun(18, 12).push(6).spin().count(s == 3 ? 2 : 1, 10).lifetime(150).build(), 12)
+                .pose(AnimPose.THROW), "Emerald Toss")));
+        m.specials.add(new Moveset.Special("Bell Ringer", Motion.DP, false, Role.ANTI_AIR, 6, variants(s -> Move.builder("")
+                .frames(4, pick(s, 12, 14, 16, 16), pick(s, 22, 26, 30, 26)).damage(pick(s, 95f, 60f, 55f, 58f))
+                .box(0, 60, 70, 165).stun(28, 16).push(3).launch(11).knockdown().multiHit(pick(s, 1, 2, 2, 3), 6)
+                .leap(pick(s, 11f, 13.5f, 15f, 15f), 2f, 4).invuln(0, pick(s, 3, 5, 7, 12)).landingLag(14)
+                .pose(AnimPose.HEADBUTT), "Bell Ringer")));
+        m.specials.add(new Moveset.Special("Price Hike", Motion.QCB, true, Role.OVERHEAD, 2, variants(s -> {
+            Move.Builder b = Move.builder("").frames(14, 1, 20).damage(pick(s, 85f, 92f, 100f, 105f)).box(-20, 85, -10, 70)
+                    .level(HitLevel.HIGH).stun(24, 16).push(7).launch(5).knockdown().untilLanding()
+                    .leap(9f, pick(s, 3f, 4.5f, 6f, 6f), 4).pose(AnimPose.STOMP);
+            if (s == 3) b.groundBounce();
+            return b;
+        }, "Price Hike")));
+        m.specials.add(new Moveset.Special("Trade Offer", Motion.HCB, false, Role.GRAB, 4, variants(s -> Move.builder("")
+                .frames(pick(s, 6, 7, 8, 5), 3, 32).damage(pick(s, 130f, 145f, 160f, 200f))
+                .box(5, pick(s, 70, 80, 90, 85), 20, 120).level(HitLevel.GRAB).stun(30, 0).push(10).launch(9).knockdown()
+                .invuln(s == 3 ? 0 : -1, s == 3 ? 6 : -1).pose(AnimPose.GRAB).callout(s == 3 ? "EX Trade Offer!" : "Hmm? DEAL!"),
+                "Trade Offer")));
+
+        m.supers.add(new Moveset.Super(1, Motion.QCF2, false, Move.builder("Iron Golem Assist").superLevel(1)
+                .frames(10, 2, 40).damage(0).box(0, 0, 0, 0).invuln(0, 12)
                 .projectile(ProjectileSpec.builder(ProjectileVisual.GOLEM).velocity(0f, -13f).size(120, 190)
-                        .damage(260).stun(40, 24).push(10).launch(10).knockdown().count(1, 0).fromSky(0, 480)
+                        .damage(250).stun(40, 24).push(10).launch(10).knockdown().count(1, 0).fromSky(0, 480)
                         .durable().lifetime(80).build(), 10)
-                .invuln(0, 12).pose(AnimPose.TAUNT).callout("IRON GOLEM ASSIST!").build();
-        return new Moveset(FighterType.VILLAGER, stats, light, heavy,
-                crouchJab("Robe Poke"), sweep("Robe Sweep"), airPunch("Flying Nose"), airKick("Robe Drop"),
-                trade, emerald, golem);
+                .pose(AnimPose.SUMMON).callout("IRON GOLEM ASSIST!").build()));
+        m.supers.add(new Moveset.Super(2, Motion.QCB2, false, Move.builder("Raid Alarm").superLevel(2)
+                .frames(12, 2, 34).damage(0).box(0, 0, 0, 0).invuln(0, 14)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.BELL).velocity(9f, 0f).size(70, 80).offset(30, 0)
+                        .damage(70).stun(20, 14).push(4).launch(6).knockdown().multiHit(4, 7).durable().lifetime(90).build(), 12)
+                .pose(AnimPose.TAUNT).callout("RAID ALARM!").build()));
+        m.supers.add(new Moveset.Super(3, Motion.QCF2, true, Move.builder("Hero of the Village").superLevel(3)
+                .frames(6, 70, 34).damage(45).box(5, 85, 20, 125).level(HitLevel.GRAB).stun(30, 0).push(0.5f).launch(13)
+                .knockdown().multiHit(8, 8).invuln(0, 8).lockOnHit().wallSplat().pose(AnimPose.GRAB)
+                .callout("HERO OF THE VILLAGE!").build()));
+        universals(m, "Bad Deal", "Return Policy", 125);
+        return m;
     }
 
-    // ---------------------------------------------------------------- PIG (rushdown tank)
+    // =====================================================================================================
+    // PIG: rushdown tank
+    // =====================================================================================================
 
     private static Moveset pig() {
         FighterStats stats = new FighterStats(1100, 3.1f, 2.5f, 13f, 4.4f, 0.8f, 104, 84, 62);
-        Move light = Move.builder("Snout Poke").frames(5, 3, 9).damage(30).box(34, 92, 20, 72)
-                .stun(13, 9).push(4).cancelable().chainable().pose(AnimPose.LUNGE).build();
-        Move heavy = Move.builder("Hoof Stomp").frames(11, 4, 20).damage(64).box(30, 100, 0, 40)
-                .level(HitLevel.LOW).stun(20, 14).push(7).cancelable().pose(AnimPose.SLAM).build();
-        Move cLight = Move.builder("Truffle Dig").frames(4, 3, 8).damage(26).box(30, 88, 0, 35)
-                .level(HitLevel.LOW).stun(12, 8).push(3).cancelable().chainable().pose(AnimPose.LUNGE).crouching().build();
-        Move slide = Move.builder("Mud Slide").frames(8, 12, 18).damage(65).box(30, 98, 0, 35)
-                .level(HitLevel.LOW).stun(20, 14).push(6).knockdown().dash(6f, 8, 20).pose(AnimPose.LUNGE)
-                .crouching().build();
-        Move charge = Move.builder("Hog Charge").frames(12, 24, 28).damage(90).box(30, 94, 10, 78)
-                .stun(24, 16).push(14).launch(6).knockdown().special().stopOnHit().dash(10.5f, 10, 34)
-                .pose(AnimPose.LUNGE).callout("Hog Charge!").build();
-        Move flop = Move.builder("Belly Flop").frames(14, 1, 24).damage(95).box(-26, 98, -10, 70)
-                .level(HitLevel.HIGH).stun(24, 16).push(8).launch(5).knockdown().special().untilLanding()
-                .leap(14.5f, 4.5f, 4).pose(AnimPose.SLAM).callout("Belly Flop!").build();
-        Move stampede = Move.builder("Stampede").frames(10, 2, 40).damage(0).box(0, 0, 0, 0).superMove()
-                .projectile(ProjectileSpec.builder(ProjectileVisual.PIG).velocity(11.5f, 0f).size(90, 80)
-                        .offset(-220, 0).damage(95).stun(22, 14).push(8).launch(7).knockdown()
-                        .count(3, 16).durable().lifetime(160).build(), 10)
-                .invuln(0, 12).pose(AnimPose.TAUNT).callout("STAMPEDE!").build();
-        Move airLight = Move.builder("Air Oink").frames(5, 8, 4).damage(38).box(30, 88, 15, 75)
-                .level(HitLevel.HIGH).stun(15, 10).push(3).pose(AnimPose.LUNGE).air().build();
-        Move airHeavy = Move.builder("Ham Drop").frames(7, 9, 4).damage(68).box(0, 96, -10, 50)
-                .level(HitLevel.HIGH).stun(19, 12).push(5).pose(AnimPose.SLAM).air().build();
-        return new Moveset(FighterType.PIG, stats, light, heavy, cLight, slide, airLight, airHeavy,
-                charge, flop, stampede);
+        Moveset m = new Moveset(FighterType.PIG, stats);
+        Tune t = new Tune(1, -4, 1.0f, 0.66f, 30);
+        normals(m, t, new String[]{"Snout Poke", "Snout Jab", "Ham Slam", "Hoof Tap", "Hoof Kick", "Rump Bump",
+                "Truffle Dig", "Low Snout", "Snout Lift", "Hoof Poke", "Mud Poke", "Mud Swipe",
+                "Air Oink", "Air Snout", "Ham Drop", "Air Hoof", "Air Kick", "Belly Drop"});
+        m.commandNormals.add(new Moveset.CommandNormal(6, Button.MK,
+                commandNormal("Hoof Overhead", AnimPose.STOMP, 17, 3, 16, 62, 30, 96, 10, 90, HitLevel.HIGH)));
+        m.commandNormals.add(new Moveset.CommandNormal(3, Button.HK,
+                commandNormal("Truffle Sweep", AnimPose.SWEEP, 10, 4, 24, 80, 30, 112, 0, 28, HitLevel.LOW)
+                        .toBuilder().knockdown().crouching().build()));
+
+        Move oink = Move.builder("Oink Rush").kind(Kind.TARGET).frames(5, 3, 12).damage(48).box(34, 96, 20, 72)
+                .stun(17, 12).push(4).cancelable().pose(AnimPose.HEADBUTT).build();
+        Move hammer = Move.builder("Ham Hammer").kind(Kind.TARGET).frames(9, 4, 20).damage(78).box(30, 100, 10, 80)
+                .stun(22, 15).push(8).cancelable().pose(AnimPose.STOMP).build();
+        m.targetCombos.add(new Moveset.TargetCombo(m.stand.get(Button.LP), Button.MP, oink));
+        m.targetCombos.add(new Moveset.TargetCombo(m.stand.get(Button.MP), Button.HP, hammer));
+
+        m.specials.add(new Moveset.Special("Hog Charge", Motion.QCF, false, Role.RUSH, 5, variants(s -> {
+            Move.Builder b = Move.builder("").frames(pick(s, 14, 12, 10, 10), 24, pick(s, 26, 28, 30, 24))
+                    .damage(pick(s, 80f, 88f, 95f, 105f)).box(30, 96, 10, 78).stun(24, 16).push(14).launch(6).knockdown()
+                    .stopOnHit().dash(pick(s, 8f, 10.5f, 13f, 13f), pick(s, 14, 12, 10, 10), pick(s, 38, 36, 34, 34))
+                    .pose(AnimPose.CHARGE);
+            if (s == 3) b.armor(1, 30).wallSplat();
+            return b;
+        }, "Hog Charge")));
+        m.specials.add(new Moveset.Special("Snout Uppercut", Motion.DP, false, Role.ANTI_AIR, 6, variants(s -> Move.builder("")
+                .frames(4, pick(s, 12, 14, 16, 16), pick(s, 22, 26, 30, 26)).damage(pick(s, 95f, 105f, 115f, 125f))
+                .box(20, 85, 30, 150).stun(28, 16).push(3).launch(11).knockdown()
+                .leap(pick(s, 10f, 12f, 14f, 14f), 2.5f, 4).invuln(0, pick(s, 3, 5, 6, 12)).landingLag(14)
+                .pose(AnimPose.ANTI_AIR), "Snout Uppercut")));
+        m.specials.add(new Moveset.Special("Mud Slide", Motion.QCF, true, Role.LOW, 2, variants(s -> {
+            Move.Builder b = Move.builder("").frames(8, 14, pick(s, 18, 20, 22, 18)).damage(pick(s, 60f, 66f, 72f, 80f))
+                    .box(30, 100, 0, 35).level(HitLevel.LOW).stun(20, 14).push(6).knockdown()
+                    .dash(pick(s, 6f, 8f, 10f, 10f), 8, 22).crouching().pose(AnimPose.SLIDE);
+            if (s == 3) b.wallSplat();
+            return b;
+        }, "Mud Slide")));
+        m.specials.add(new Moveset.Special("Belly Flop", Motion.QCB, true, Role.OVERHEAD, 4, variants(s -> {
+            Move.Builder b = Move.builder("").frames(14, 1, 22).damage(pick(s, 88f, 95f, 102f, 110f)).box(-26, 98, -10, 70)
+                    .level(HitLevel.HIGH).stun(24, 16).push(8).launch(5).knockdown().untilLanding()
+                    .leap(pick(s, 12f, 14.5f, 16f, 15f), pick(s, 3f, 4.5f, 6f, 5f), 4).pose(AnimPose.BELLY_FLOP);
+            if (s == 3) b.groundBounce().armor(1, 14);
+            return b;
+        }, "Belly Flop")));
+
+        m.supers.add(new Moveset.Super(1, Motion.QCF2, false, Move.builder("Stampede").superLevel(1)
+                .frames(10, 2, 40).damage(0).box(0, 0, 0, 0).invuln(0, 12)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.PIG).velocity(11.5f, 0f).size(90, 80).offset(-220, 0)
+                        .damage(90).stun(22, 14).push(8).launch(7).knockdown().count(3, 16).durable().lifetime(160).build(), 10)
+                .pose(AnimPose.SUMMON).callout("STAMPEDE!").build()));
+        m.supers.add(new Moveset.Super(2, Motion.QCB2, false, Move.builder("Carrot Frenzy").superLevel(2)
+                .frames(7, 60, 30).damage(34).box(30, 100, 10, 85).stun(28, 12).push(0.5f).launch(12).knockdown()
+                .multiHit(8, 7).dash(8f, 7, 15).invuln(0, 10).lockOnHit().pose(AnimPose.RUSH).callout("CARROT FRENZY!").build()));
+        m.supers.add(new Moveset.Super(3, Motion.QCF2, true, Move.builder("Pigstep Apocalypse").superLevel(3)
+                .frames(18, 1, 34).damage(150).box(-60, 160, -10, 90).stun(40, 20).push(10).launch(13).knockdown()
+                .groundBounce().untilLanding().leap(20f, 3f, 6).invuln(0, 30)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.PIG).velocity(12f, 0f).size(90, 80).offset(-260, 0)
+                        .damage(80).stun(22, 14).push(8).launch(7).knockdown().count(5, 10).durable().lifetime(170).build(), 18)
+                .pose(AnimPose.BELLY_FLOP).callout("PIGSTEP APOCALYPSE!").build()));
+        universals(m, "Mud Toss", "Pig Pile", 125);
+        return m;
     }
 
-    // ---------------------------------------------------------------- BRAWLER (every other mob)
+    // =====================================================================================================
+    // BRAWLER: every other mob
+    // =====================================================================================================
 
     private static Moveset brawler() {
-        Move light = Move.builder("Swipe").frames(5, 3, 9).damage(35).box(10, 66, 50, 110)
-                .stun(14, 9).push(4).cancelable().chainable().pose(AnimPose.PUNCH).build();
-        Move heavy = Move.builder("Smash").frames(10, 4, 18).damage(80).box(15, 96, 30, 120)
-                .stun(20, 14).push(8).cancelable().pose(AnimPose.SLAM).build();
-        Move lunge = Move.builder("Lunge").frames(10, 12, 18).damage(85).box(15, 80, 20, 110)
-                .stun(22, 14).push(10).knockdown().launch(5).special().stopOnHit().dash(9f, 10, 22)
-                .pose(AnimPose.LUNGE).build();
-        Move leap = Move.builder("Leap Smash").frames(12, 1, 18).damage(90).box(-10, 85, -10, 80)
-                .level(HitLevel.HIGH).stun(22, 14).push(7).launch(4).knockdown().special().untilLanding()
-                .leap(14f, 4.5f, 4).pose(AnimPose.SLAM).build();
-        Move frenzy = Move.builder("Frenzy").frames(8, 28, 26).damage(55).box(5, 80, 20, 120)
-                .stun(18, 10).push(1.5f).launch(10).knockdown().superMove().multiHit(5, 6)
-                .dash(6f, 8, 30).invuln(0, 10).pose(AnimPose.LUNGE).callout("FRENZY!").build();
-        return new Moveset(FighterType.BRAWLER, HUMANOID, light, heavy,
-                crouchJab("Low Swipe"), sweep("Trip"), airPunch("Pounce"), airKick("Dive"),
-                lunge, leap, frenzy);
+        Moveset m = new Moveset(FighterType.BRAWLER, HUMANOID);
+        Tune t = new Tune(1, 0, 1f, 1f, 0);
+        normals(m, t, new String[]{"Swipe", "Claw", "Smash", "Stomp", "Kick", "Wild Kick",
+                "Low Swipe", "Gut Claw", "Rising Smash", "Low Stomp", "Trip Poke", "Trip",
+                "Air Swipe", "Air Claw", "Pounce", "Air Stomp", "Air Kick", "Dive"});
+        m.commandNormals.add(new Moveset.CommandNormal(6, Button.HP,
+                commandNormal("Skull Bash", AnimPose.OVERHEAD, 18, 3, 17, 62, 10, 85, 70, 140, HitLevel.HIGH)));
+        m.commandNormals.add(new Moveset.CommandNormal(3, Button.HK,
+                commandNormal("Tail Trip", AnimPose.SWEEP, 10, 4, 24, 75, 15, 115, 0, 26, HitLevel.LOW)
+                        .toBuilder().knockdown().crouching().build()));
+        Move maul = Move.builder("Maul").kind(Kind.TARGET).frames(8, 3, 18).damage(70).box(12, 90, 56, 118)
+                .stun(21, 15).push(7).cancelable().pose(AnimPose.HOOK).build();
+        m.targetCombos.add(new Moveset.TargetCombo(m.stand.get(Button.MP), Button.HP, maul));
+
+        m.specials.add(new Moveset.Special("Lunge", Motion.QCF, false, Role.RUSH, 5, variants(s -> Move.builder("")
+                .frames(pick(s, 12, 10, 9, 9), 12, pick(s, 18, 20, 22, 18)).damage(pick(s, 75f, 85f, 95f, 105f))
+                .box(15, 80, 20, 110).stun(22, 14).push(10).knockdown().launch(5).stopOnHit()
+                .dash(pick(s, 7f, 9f, 11f, 11f), 10, 22).armor(s == 3 ? 1 : 0, 20).pose(AnimPose.LUNGE), "Lunge")));
+        m.specials.add(new Moveset.Special("Rising Claw", Motion.DP, false, Role.ANTI_AIR, 6, variants(s -> Move.builder("")
+                .frames(4, 14, pick(s, 22, 26, 30, 26)).damage(pick(s, 90f, 100f, 110f, 120f)).box(0, 60, 50, 160)
+                .stun(28, 16).push(3).launch(11).knockdown().leap(pick(s, 11f, 13f, 15f, 15f), 2f, 4)
+                .invuln(0, pick(s, 3, 5, 6, 12)).landingLag(14).pose(AnimPose.UPPERCUT), "Rising Claw")));
+        m.specials.add(new Moveset.Special("Pounce", Motion.QCF, true, Role.LOW, 2, variants(s -> Move.builder("")
+                .frames(10, 12, 20).damage(pick(s, 60f, 68f, 76f, 84f)).box(15, 90, 0, 40).level(HitLevel.LOW)
+                .stun(20, 14).push(6).knockdown().dash(pick(s, 6f, 8f, 10f, 10f), 10, 22).crouching()
+                .pose(AnimPose.SLIDE), "Pounce")));
+        m.specials.add(new Moveset.Special("Leap Smash", Motion.QCB, true, Role.OVERHEAD, 4, variants(s -> {
+            Move.Builder b = Move.builder("").frames(12, 1, 18).damage(pick(s, 82f, 90f, 98f, 105f)).box(-10, 85, -10, 80)
+                    .level(HitLevel.HIGH).stun(22, 14).push(7).launch(4).knockdown().untilLanding()
+                    .leap(14f, pick(s, 3f, 4.5f, 6f, 6f), 4).pose(AnimPose.SLAM);
+            if (s == 3) b.groundBounce();
+            return b;
+        }, "Leap Smash")));
+
+        m.supers.add(new Moveset.Super(1, Motion.QCF2, false, Move.builder("Frenzy").superLevel(1)
+                .frames(8, 28, 26).damage(50).box(5, 80, 20, 120).stun(18, 10).push(1.5f).launch(10).knockdown()
+                .multiHit(5, 6).dash(6f, 8, 30).invuln(0, 10).pose(AnimPose.RUSH).callout("FRENZY!").build()));
+        m.supers.add(new Moveset.Super(2, Motion.QCB2, false, Move.builder("Bone Storm").superLevel(2)
+                .frames(12, 2, 34).damage(0).box(0, 0, 0, 0).invuln(0, 14)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.BONE).velocity(11f, 0f, 3f, 6f).gravity(0.12f)
+                        .size(30, 24).offset(30, 90).damage(70).stun(20, 14).push(6).knockdown().count(3, 6).lifetime(120).build(), 12)
+                .pose(AnimPose.THROW).callout("BONE STORM!").build()));
+        m.supers.add(new Moveset.Super(3, Motion.QCF2, true, Move.builder("Rampage").superLevel(3)
+                .frames(8, 66, 32).damage(40).box(5, 85, 20, 125).stun(30, 12).push(0.5f).launch(13).knockdown()
+                .multiHit(9, 7).dash(9f, 8, 16).invuln(0, 12).lockOnHit().wallSplat().pose(AnimPose.RUSH)
+                .callout("RAMPAGE!").build()));
+        universals(m, "Toss", "Back Toss", 115);
+        return m;
     }
 }

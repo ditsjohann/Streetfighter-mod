@@ -33,45 +33,71 @@ the world**, on the actual terrain. Beat a mob and you learn its fighting style.
   Ops can change it later with `/streetfighter difficulty normal|hard`.
 - **Learn styles by winning.** Defeat a Skeleton, Pig or plain Villager and its style becomes selectable.
 
-## Fighters
+## Fighting system
 
-| Fighter | Style | Specials (L / I) | Super (O) |
-|---|---|---|---|
-| **Steve** (you) | Block Brawler: all-rounder | Block Toss (arcing dirt block), Diamond Uppercut (invincible anti-air) | Crafting Combo (6-hit rush ending in a TNT blast) |
-| **Skeleton** | Bone Archer: zoner, fast but fragile | Arrow Shot, Triple Volley (anti-air spread) | Arrow Rain (arrows fall from the sky) |
-| **Villager** (no profession / nitwit) | Hmm-Fu Master: grappler | Trade Offer (unblockable command grab), Emerald Toss (bouncing) | Iron Golem Assist (a golem drops onto the opponent) |
-| **Pig** | Pork Tank: rushdown tank | Hog Charge, Belly Flop (overhead) | Stampede (three pigs charge across the screen) |
-| **Any other mob** | Wild Mob: brawler, scaled from the mob's health and attack | Lunge, Leap Smash | Frenzy |
+Every style has a Street Fighter–sized kit (~44 moves each):
 
-Each mob has its own AI personality. The Skeleton keeps away and zones you with arrows. The Villager walks in and grabs you when you block too much.
-The Pig charges and mixes low stomps with overhead flops. On **Hard** the AI reacts faster, blocks correctly,
-anti-airs, punishes your whiffs and cancels its normals into specials for combos.
+- **18 normals:** light, medium and heavy punch and kick, standing, crouching and jumping.
+- **Command normals:** 2 per style, including overheads and long-range lows.
+- **Target combos:** button sequences such as MP → HP.
+- **4 specials:** each in **L / M / H** strength (by button), plus an **EX** version (two buttons, half a bar of meter).
+- **3 Super Arts:** Lv1 (1 bar), Lv2 (2 bars) and Lv3 cinematic Critical Arts (3 bars). The super meter holds 3 bars.
+- **Universal moves:** forward throw, back throw (switches sides, wall-splats), **Drive Parry** (perfect parry if timed), and
+  **Drive Impact** (an armored strike that crumples or wall-splats).
+- **Combo rules:**
+  - Lights chain into each other and into heavier normals.
+  - Most normals cancel into specials, and specials cancel into Super Arts.
+  - SF4 damage scaling applies.
+  - Counter hits and punish counters do bonus damage.
+  - Reversals, juggles, throw techs, and "FIRST ATTACK" are tracked.
+- **Input:** a 6-frame buffer that keeps working through hitstop. Motions are lenient: 236, 214, 623, 63214, 236236 and 214214.
 
-## Controls (in a fight)
+| Style | Specials (motion + P/K) | Super Arts |
+|---|---|---|
+| **Steve** | Block Toss 236P, Diamond Uppercut 623P, Pickaxe Whirlwind 214K, Shield Bash 214P | Crafting Combo, TNT Barrage, Netherite Finale |
+| **Skeleton** | Arrow Shot 236P, Triple Volley 214P, Bone Rattle 236K (low), Rattle Step 214K (evasive backflip) | Arrow Rain, Sniper Shot, Wither Storm |
+| **Villager** | Emerald Toss 236P, Bell Ringer 623P, Price Hike 214K (overhead), Trade Offer 63214P (command grab) | Iron Golem Assist, Raid Alarm, Hero of the Village |
+| **Pig** | Hog Charge 236P, Snout Uppercut 623P, Mud Slide 236K (low), Belly Flop 214K (overhead) | Stampede, Carrot Frenzy, Pigstep Apocalypse |
+| **Any other mob** | Lunge, Rising Claw, Pounce, Leap Smash | Frenzy, Bone Storm, Rampage |
 
-| Key | Action |
-|---|---|
-| A / D (or arrows) | Walk. Hold away from the opponent to block |
-| W / Space | Jump |
-| S | Crouch. Crouch and hold back to block low attacks |
-| J | Light attack (S+J low poke, jump+J air attack) |
-| K | Heavy attack (S+K sweep, jump+K air attack) |
-| J + K together (or U) | Throw. Press J+K right as you're grabbed to tech it |
-| L or ↓↘→ + J/K | Special 1 |
-| I or ↓↙← / →↓↘ + J/K | Special 2 |
-| O or ↓↘→↓↘→ + J/K | Super (needs a full SUPER meter) |
-| Esc | Pause (Q while paused forfeits) |
+The pause menu (ESC) shows the full move list for your style.
 
-Rules: overheads (jump-ins, Belly Flop) must be blocked standing, and lows (sweeps, Hoof Stomp) must be blocked crouching.
-Grabs can't be blocked. Specials do a little chip damage through blocks.
+## Environment combat
 
-**Win:** hostile mobs are K.O.'d for good and drop their loot. Passive mobs are spared. You get XP, and you learn the mob's style if it has one.
-**Lose:** you're bruised (Weakness and Slowness for 30 seconds). Backing out on the character-select screen costs nothing.
+The arena is the real terrain, and the blocks matter:
+- **Walls** come from cliffs, trees and buildings:
+  - Knock someone into a wall at speed and they bounce off it.
+  - Wall-splat moves (back throws, Drive Impact, heavy Shield Bash, some supers) pin them to the wall for a juggle.
+  - You can **wall-jump** by jumping into a wall and pressing up again.
+- **Cactus and berry-bush walls** deal spike damage on impact.
+- **Leaves, glass, flowers and hay bales** break when a fighter is smashed through them. The blocks are really destroyed on
+  the server. This respects protection/claim mods and can be turned off with `breakableWalls`.
+- **Floors:**
+  - **ice** is slippery (momentum)
+  - **soul sand, mud, honey and cobwebs** are slow
+  - **shallow water** slows you down and splashes
+  - **magma, fire and campfires** burn while you stand there, and a knockdown onto them burns more
+  - **berry bushes and dripstone** stab
+
+## Animation
+
+Fighters are animated with keyframed clips:
+- **Clips:** about 40 per body type, covering humanoids, villagers and four-legged mobs.
+- **Timing:** each clip has a wind-up, a strike and a follow-through, timed to the move's actual startup, active and recovery frames.
+- **Blending:** every joint is smoothly blended.
+- **Springs:** hit recoil and landing squash.
+- **Impacts:** a hitstop shudder.
+- **Movement:** a walk cycle driven by real distance moved, somersault jumps, wall-splat and crumple poses, and belly-up
+  knockdowns for four-legged mobs.
+
+Positions are interpolated between simulation steps, so motion stays smooth at any frame rate.
+Strikes leave additive swoosh trails. Hits throw spark bursts and shockwave rings, and super-ready fighters glow.
 
 ## Commands
 
 - `/streetfighter difficulty [normal|hard]`: show or set (op) the AI difficulty
 - `/streetfighter styles`: list your learned styles and wins
+- `/streetfighter training on|off`: training mode (the dummy stands still and refills its health, your meter is full, no rewards or penalties)
 - `/streetfighter unlock <skeleton|villager|pig|all>`: op/testing
 - `/streetfighter resetstyles`: op/testing
 

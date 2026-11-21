@@ -1,5 +1,5 @@
 package com.streetfighter.fight;
 
 public enum ProjectileVisual {
-    ARROW, DIRT, EMERALD, GOLEM, PIG, BONE, SHOCKWAVE
+    ARROW, BIG_ARROW, DIRT, COBBLE, EMERALD, TNT, SKULL, GOLEM, PIG, BONE, SHOCKWAVE, BELL
 }

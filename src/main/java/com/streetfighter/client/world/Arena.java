@@ -14,7 +14,7 @@ import java.util.Map;
  * The line runs from the player to the mob; walls are placed where the terrain gets too steep, so
  * fighters get pinned in the corner by real cliffs, trees and houses.
  */
-public final class Arena {
+public final class Arena implements com.streetfighter.fight.FightEnvironment {
     public static final float UNITS_PER_BLOCK = 66f;
     private static final double SAMPLE = 0.25;
     private static final double MAX_HALF = 11.0;
@@ -28,6 +28,10 @@ public final class Arena {
     private final double refY;
     private final double[] profile; // floor height every SAMPLE blocks from -MAX_HALF..MAX_HALF
     private final Map<Long, Double> columnCache = new HashMap<>();
+    private final Floor[] floors;
+    private final Hazard[] hazards;
+    private final Wall leftWall, rightWall;
+    private final int leftIndex, rightIndex;
 
     private Arena(Level level, Vec3 origin, Vec3 axis, float centerX, double refY) {
         this.level = level;
@@ -42,13 +46,131 @@ public final class Arena {
             double t = -MAX_HALF + i * SAMPLE;
             profile[i] = surface(origin.x + axis.x * t, origin.z + axis.z * t);
         }
-        // walk outwards from the centre until the floor jumps (cliff/wall) or drops away (pit/water)
+        // walk outwards from the centre until the floor jumps (cliff/wall) or drops away (pit/lava)
         int mid = n / 2;
         int left = mid, right = mid;
         while (left > 0 && passable(profile[left], profile[left - 1])) left--;
         while (right < n - 1 && passable(profile[right], profile[right + 1])) right++;
+        this.leftIndex = left;
+        this.rightIndex = right;
         this.minX = centerX + (float) ((-MAX_HALF + left * SAMPLE) * UNITS_PER_BLOCK);
         this.maxX = centerX + (float) ((-MAX_HALF + right * SAMPLE) * UNITS_PER_BLOCK);
+
+        floors = new Floor[n];
+        hazards = new Hazard[n];
+        for (int i = 0; i < n; i++) {
+            double t = -MAX_HALF + i * SAMPLE;
+            classify(i, origin.x + axis.x * t, origin.z + axis.z * t, Double.isNaN(profile[i]) ? refY : profile[i]);
+        }
+        leftWall = left == 0 ? Wall.NONE : wallAt(left - 1, profile[left]);
+        rightWall = right == n - 1 ? Wall.NONE : wallAt(right + 1, profile[right]);
+    }
+
+    // ------------------------------------------------------------------ environment (FightEnvironment)
+
+    private int indexOf(float ax) {
+        double t = (ax - centerX) / UNITS_PER_BLOCK;
+        int i = (int) Math.round((t + MAX_HALF) / SAMPLE);
+        return Math.max(0, Math.min(profile.length - 1, i));
+    }
+
+    @Override
+    public Floor floor(float x) {
+        return floors[indexOf(x)];
+    }
+
+    @Override
+    public Hazard hazard(float x) {
+        return hazards[indexOf(x)];
+    }
+
+    @Override
+    public Wall wall(boolean right) {
+        return right ? rightWall : leftWall;
+    }
+
+    private void classify(int i, double x, double z, double surfaceY) {
+        BlockPos groundPos = BlockPos.containing(x, surfaceY - 0.05, z);
+        BlockPos feetPos = BlockPos.containing(x, surfaceY + 0.05, z);
+        BlockState ground = level.getBlockState(groundPos);
+        BlockState feet = level.getBlockState(feetPos);
+        net.minecraft.world.level.block.Block gb = ground.getBlock(), fb = feet.getBlock();
+        Floor floor = Floor.NORMAL;
+        Hazard hazard = Hazard.NONE;
+        if (feet.getFluidState().is(net.minecraft.tags.FluidTags.WATER)) floor = Floor.WATER;
+        else if (gb.getFriction() > 0.9f) floor = Floor.ICE;
+        else if (fb == net.minecraft.world.level.block.Blocks.SNOW || gb == net.minecraft.world.level.block.Blocks.SNOW_BLOCK
+                || gb == net.minecraft.world.level.block.Blocks.POWDER_SNOW) floor = Floor.SNOW;
+        else if (gb.getSpeedFactor() < 0.9f || gb == net.minecraft.world.level.block.Blocks.MUD
+                || fb == net.minecraft.world.level.block.Blocks.COBWEB) floor = Floor.SLOW;
+
+        if (gb == net.minecraft.world.level.block.Blocks.MAGMA_BLOCK
+                || feet.is(net.minecraft.tags.BlockTags.FIRE)
+                || (feet.is(net.minecraft.tags.BlockTags.CAMPFIRES) && net.minecraft.world.level.block.CampfireBlock.isLitCampfire(feet))
+                || (ground.is(net.minecraft.tags.BlockTags.CAMPFIRES) && net.minecraft.world.level.block.CampfireBlock.isLitCampfire(ground))) {
+            hazard = Hazard.FIRE;
+        } else if (fb == net.minecraft.world.level.block.Blocks.SWEET_BERRY_BUSH
+                || fb == net.minecraft.world.level.block.Blocks.POINTED_DRIPSTONE
+                || fb == net.minecraft.world.level.block.Blocks.CACTUS) {
+            hazard = Hazard.SPIKES;
+            if (fb == net.minecraft.world.level.block.Blocks.SWEET_BERRY_BUSH) floor = Floor.SLOW;
+        }
+        floors[i] = floor;
+        hazards[i] = hazard;
+    }
+
+    /** What stops the fighters at sample {@code i}: spikes (cactus/berries), breakable (leaves/glass) or solid. */
+    private Wall wallAt(int i, double floorY) {
+        if (Double.isNaN(floorY)) floorY = refY;
+        double t = -MAX_HALF + i * SAMPLE;
+        double x = origin.x + axis.x * t, z = origin.z + axis.z * t;
+        boolean breakable = false, solid = false;
+        for (int dy = 0; dy <= 2; dy++) {
+            BlockPos pos = BlockPos.containing(x, floorY + 0.5 + dy, z);
+            BlockState st = level.getBlockState(pos);
+            if (st.is(net.minecraft.world.level.block.Blocks.CACTUS) || st.is(net.minecraft.world.level.block.Blocks.SWEET_BERRY_BUSH)) {
+                return Wall.SPIKES;
+            }
+            if (isBreakable(st)) breakable = true;
+            if (!st.getCollisionShape(level, pos).isEmpty()) solid = true;
+        }
+        if (breakable) return Wall.BREAKABLE;
+        // something at body height = a wall; nothing there = the floor dropped away (pit, cliff, deep water)
+        return solid ? Wall.SOLID : Wall.NONE;
+    }
+
+    public static boolean isBreakable(BlockState st) {
+        return com.streetfighter.server.BlockRules.isBreakable(st);
+    }
+
+    /** World positions of the breakable blocks in the wall on one side, around the given height above the floor. */
+    public java.util.List<BlockPos> breakableWallBlocks(boolean right, float heightUnits) {
+        java.util.List<BlockPos> out = new java.util.ArrayList<>();
+        int i = right ? rightIndex + 1 : leftIndex - 1;
+        if (i < 0 || i >= profile.length) return out;
+        double floorY = Double.isNaN(profile[right ? rightIndex : leftIndex]) ? refY : profile[right ? rightIndex : leftIndex];
+        double t = -MAX_HALF + i * SAMPLE;
+        double x = origin.x + axis.x * t, z = origin.z + axis.z * t;
+        double h = heightUnits / UNITS_PER_BLOCK;
+        for (double dy = Math.max(0.2, h - 0.6); dy <= h + 1.4; dy += 1.0) {
+            BlockPos pos = BlockPos.containing(x, floorY + dy, z);
+            if (isBreakable(level.getBlockState(pos)) && !out.contains(pos)) out.add(pos);
+        }
+        return out;
+    }
+
+    /** World centre of the wall on one side at a height (for wall-impact effects). */
+    public Vec3 wallPoint(boolean right, float heightUnits) {
+        float ax = right ? maxX : minX;
+        Vec3 w = toWorldFlat(ax, heightUnits);
+        return w.add(axis.scale(right ? 0.4 : -0.4));
+    }
+
+    public BlockState wallState(boolean right, float heightUnits) {
+        Vec3 p = wallPoint(right, heightUnits);
+        BlockState st = level.getBlockState(BlockPos.containing(p));
+        if (st.isAir()) st = level.getBlockState(BlockPos.containing(p.add(axis.scale(right ? 0.5 : -0.5))));
+        return st;
     }
 
     private boolean passable(double from, double to) {
@@ -132,7 +254,17 @@ public final class Arena {
         for (int y = top; y >= bottom; y--) {
             BlockPos pos = new BlockPos(bx, y, bz);
             BlockState state = level.getBlockState(pos);
-            if (!state.getFluidState().isEmpty() && state.getCollisionShape(level, pos).isEmpty()) return Double.NaN;
+            if (!state.getFluidState().isEmpty() && state.getCollisionShape(level, pos).isEmpty()) {
+                if (state.getFluidState().is(net.minecraft.tags.FluidTags.LAVA)) return Double.NaN;
+                // shallow water (one block deep) is a wet floor; deeper water is a drop
+                BlockPos below = pos.below();
+                BlockState bs = level.getBlockState(below);
+                if (bs.getFluidState().isEmpty() && !bs.getCollisionShape(level, below).isEmpty()) {
+                    return below.getY() + bs.getCollisionShape(level, below).max(net.minecraft.core.Direction.Axis.Y);
+                }
+                if (y < refY - 1) return Double.NaN;
+                continue;
+            }
             VoxelShape shape = state.getCollisionShape(level, pos);
             if (shape.isEmpty()) continue;
             double h = y + shape.max(net.minecraft.core.Direction.Axis.Y);

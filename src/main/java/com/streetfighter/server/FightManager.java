@@ -35,7 +35,7 @@ public final class FightManager {
     private static final long TIMEOUT_TICKS = 20L * 60 * 15;
 
     private record Session(UUID playerId, ServerLevel level, int mobId, UUID mobUuid, FighterType type,
-                           String mobName, boolean hostile, boolean prevNoAi, long startTick) {
+                           String mobName, boolean hostile, boolean prevNoAi, long startTick, boolean training) {
     }
 
     private static final Map<UUID, Session> SESSIONS = new HashMap<>();
@@ -95,11 +95,11 @@ public final class FightManager {
         String name = mob.getDisplayName().getString();
         boolean hostile = mob instanceof Enemy;
         SESSIONS.put(player.getUUID(), new Session(player.getUUID(), level, mob.getId(), mob.getUUID(), type, name,
-                hostile, prevNoAi, level.getGameTime()));
+                hostile, prevNoAi, level.getGameTime(), PlayerFightData.training(player)));
 
         level.playSound(null, mob.blockPosition(), SoundEvents.RAID_HORN.value(), SoundSource.PLAYERS, 0.6f, 1.6f);
         ModNetwork.sendToPlayer(player, new OpenFightPacket(mob.getId(), type.id, name, hpScale, dmgScale,
-                difficulty.id, PlayerFightData.unlockedStyles(player)));
+                difficulty.id, PlayerFightData.unlockedStyles(player), PlayerFightData.training(player)));
     }
 
     public static void finishFight(ServerPlayer player, FightResultPacket result) {
@@ -113,6 +113,10 @@ public final class FightManager {
         }
         player.fallDistance = 0;
 
+        if (s.training) {
+            player.displayClientMessage(Component.literal("Training session over.").withStyle(ChatFormatting.GRAY), true);
+            return;
+        }
         if (result.cancelled()) {
             player.displayClientMessage(Component.literal("You backed out of the fight.").withStyle(ChatFormatting.GRAY), true);
             return;
@@ -180,6 +184,23 @@ public final class FightManager {
         mob.setYHeadRot(yaw);
         mob.setYBodyRot(yaw);
         mob.setDeltaMovement(Vec3.ZERO);
+    }
+
+    /** A fighter was smashed into a soft wall: break those blocks for real (validated). */
+    public static void breakWall(ServerPlayer player, java.util.List<net.minecraft.core.BlockPos> positions) {
+        if (!SFConfig.BREAKABLE_WALLS.get() || !SESSIONS.containsKey(player.getUUID())) return;
+        ServerLevel level = player.serverLevel();
+        int broken = 0;
+        for (net.minecraft.core.BlockPos pos : positions) {
+            if (broken >= 4) break;
+            if (pos.distToCenterSqr(player.position()) > 24 * 24 || !level.isLoaded(pos)) continue;
+            net.minecraft.world.level.block.state.BlockState state = level.getBlockState(pos);
+            if (!BlockRules.isBreakable(state)) continue;
+            var event = new net.minecraftforge.event.level.BlockEvent.BreakEvent(level, pos, state, player);
+            if (net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event)) continue; // protected
+            level.destroyBlock(pos, true, player);
+            broken++;
+        }
     }
 
     /** Ends a fight without a result (player left, mob vanished...). */

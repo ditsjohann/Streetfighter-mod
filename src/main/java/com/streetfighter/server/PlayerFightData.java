@@ -63,6 +63,14 @@ public final class PlayerFightData {
         return n;
     }
 
+    public static boolean training(Player player) {
+        return root(player).getBoolean("training");
+    }
+
+    public static void setTraining(Player player, boolean on) {
+        root(player).putBoolean("training", on);
+    }
+
     public static void copy(Player from, Player to) {
         CompoundTag src = from.getPersistentData();
         if (src.contains(KEY, Tag.TAG_COMPOUND)) to.getPersistentData().put(KEY, src.getCompound(KEY).copy());

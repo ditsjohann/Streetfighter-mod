@@ -3,7 +3,8 @@ package com.streetfighter.fight;
 /** Runtime state of one fighter in a match. */
 public final class Fighter {
     public enum State {
-        IDLE, WALK, CROUCH, JUMP, ATTACK, HITSTUN, BLOCKSTUN, KNOCKDOWN, LANDING, KO, VICTORY
+        IDLE, WALK, CROUCH, JUMP, ATTACK, HITSTUN, BLOCKSTUN, KNOCKDOWN, LANDING, KO, VICTORY,
+        PARRY, CRUMPLE, WALL_SPLAT
     }
 
     public final int index;
@@ -41,6 +42,22 @@ public final class Fighter {
     public int roundsWon;
     public int displayHpDelay;
     public boolean wasCrouchingWhenHit;
+
+    // --- new mechanics
+    public static final float MAX_METER = 300;
+    public int armorLeft;
+    public boolean reversal;
+    public int actionableAge;
+    public boolean stunnedBefore;
+    public HitLevel lastHitLevel = HitLevel.MID;
+    public boolean lastHitHeavy;
+    public boolean groundBouncePending;
+    public boolean wallSplatPending;
+    public boolean wallJumpUsed;
+    public int hazardTimer;
+    public int parryRecovery;
+    /** Frame counter for sub-step render interpolation. */
+    public float prevX, prevY;
 
     public final FightInput input = new FightInput();
 
@@ -96,6 +113,10 @@ public final class Fighter {
         return state == State.IDLE || state == State.WALK || state == State.CROUCH;
     }
 
+    public int bars() {
+        return (int) (meter / 100f);
+    }
+
     public boolean canBlock() {
         return grounded() && (actionable() || state == State.BLOCKSTUN);
     }
@@ -103,6 +124,7 @@ public final class Fighter {
     public boolean invulnerable() {
         if (invuln > 0) return true;
         if (state == State.KNOCKDOWN || state == State.KO || state == State.VICTORY) return true;
+        if (state == State.PARRY) return false;
         if (state == State.ATTACK && move != null && curFrame >= move.invulnStart && curFrame < move.invulnEnd) {
             return true;
         }

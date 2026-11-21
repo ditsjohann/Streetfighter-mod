@@ -48,6 +48,17 @@ No code was copied. Everything below was re-implemented in Java for Minecraft.
   K.O. screen can name the winner (the same flow as fight-engine's simulate.cpp).
 - Super cut-in band with the attacker's portrait, plus letterboxing during intros, supers and K.O.s.
 
+### Round 3 additions
+- **Inputs keep buffering during hitstop and super freeze, and presses don't age while frozen**, as in SF. Before this
+  fix, cancels pressed during a hit freeze were silently dropped.
+- Classic 6-button layout (LP/MP/HP/LK/MK/HK) plus an SF6 "Modern"-style special button (SP + direction).
+- L/M/H/EX special variants, 3-level Super Arts on a 3-bar meter, and target combos.
+- Drive Parry (perfect parry on the first 3 frames), Drive Impact with 2-hit armor, crumple, and SF6-style wall splat,
+  including Drive Impact splatting even when blocked in the corner.
+- Stricter double-motion parsing: a held ↓↙ diagonal can no longer satisfy two separate steps of ↓↙←↓↙←.
+- Rendering: the 60 Hz simulation is interpolated (prev → current by accumulator alpha) every frame. Animation is
+  keyframed with exponential (frame-rate independent) blending and spring layers.
+
 ## Not adopted (yet)
 - Rollback netcode (GGPO-style), which several engines plan for. In Minecraft the simulation runs on the challenger's
   client, so it isn't needed for 1-player fights.

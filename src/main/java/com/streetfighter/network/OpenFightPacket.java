@@ -10,7 +10,7 @@ import java.util.List;
 
 /** Server -> client: the challenge was accepted, open the fight screen. */
 public record OpenFightPacket(int entityId, String enemyType, String enemyName, float hpScale, float damageScale,
-                              String difficulty, List<String> unlockedStyles) {
+                              String difficulty, List<String> unlockedStyles, boolean training) {
     public static void encode(OpenFightPacket msg, FriendlyByteBuf buf) {
         buf.writeVarInt(msg.entityId);
         buf.writeUtf(msg.enemyType, 32);
@@ -20,6 +20,7 @@ public record OpenFightPacket(int entityId, String enemyType, String enemyName, 
         buf.writeUtf(msg.difficulty, 32);
         buf.writeVarInt(msg.unlockedStyles.size());
         for (String s : msg.unlockedStyles) buf.writeUtf(s, 32);
+        buf.writeBoolean(msg.training);
     }
 
     public static OpenFightPacket decode(FriendlyByteBuf buf) {
@@ -32,7 +33,8 @@ public record OpenFightPacket(int entityId, String enemyType, String enemyName, 
         int n = Math.min(buf.readVarInt(), 64);
         List<String> styles = new ArrayList<>();
         for (int i = 0; i < n; i++) styles.add(buf.readUtf(32));
-        return new OpenFightPacket(id, type, name, hp, dmg, diff, styles);
+        boolean training = buf.readBoolean();
+        return new OpenFightPacket(id, type, name, hp, dmg, diff, styles, training);
     }
 
     public static void handle(OpenFightPacket msg, CustomPayloadEvent.Context ctx) {

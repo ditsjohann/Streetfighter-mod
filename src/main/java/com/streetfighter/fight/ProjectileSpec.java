@@ -20,6 +20,13 @@ public final class ProjectileSpec {
     /** Durable projectiles destroy normal ones and keep going after a hit. */
     public final boolean durable;
     public final boolean spin;
+    /** Multi-hit projectiles (EX fireballs): number of hits and frames between them. */
+    public final int hits, hitInterval;
+    /** Explodes on contact or landing into a big short-lived hitbox. */
+    public final boolean explodes;
+    public final boolean wallSplat;
+    /** Hits on both sides (bell shockwaves). */
+    public final boolean bothSides;
 
     private ProjectileSpec(Builder b) {
         visual = b.visual;
@@ -46,6 +53,15 @@ public final class ProjectileSpec {
         skyHeight = b.skyHeight;
         durable = b.durable;
         spin = b.spin;
+        hits = b.hits;
+        hitInterval = b.hitInterval;
+        explodes = b.explodes;
+        wallSplat = b.wallSplat;
+        bothSides = b.bothSides;
+    }
+
+    public Builder toBuilder() {
+        return new Builder(this);
     }
 
     public float vy(int index) {
@@ -58,7 +74,6 @@ public final class ProjectileSpec {
     }
 
     public static final class Builder {
-        private final ProjectileVisual visual;
         private float vx = 8;
         private float[] vyList = {0};
         private float gravity = 0;
@@ -77,9 +92,47 @@ public final class ProjectileSpec {
         private float skySpread, skyHeight = 420;
         private boolean durable;
         private boolean spin;
+        private int hits = 1, hitInterval = 8;
+        private boolean explodes, wallSplat, bothSides;
+        private ProjectileVisual visual;
 
         private Builder(ProjectileVisual visual) {
             this.visual = visual;
+        }
+
+        private Builder(ProjectileSpec s) {
+            visual = s.visual; vx = s.vx; vyList = s.vyList; gravity = s.gravity; width = s.width; height = s.height;
+            offX = s.offX; offY = s.offY; damage = s.damage; hitstun = s.hitstun; blockstun = s.blockstun;
+            push = s.push; launch = s.launch; knockdown = s.knockdown; level = s.level; lifetime = s.lifetime;
+            bounce = s.bounce; count = s.count; delayStep = s.delayStep; fromSky = s.fromSky; skySpread = s.skySpread;
+            skyHeight = s.skyHeight; durable = s.durable; spin = s.spin; hits = s.hits; hitInterval = s.hitInterval;
+            explodes = s.explodes; wallSplat = s.wallSplat; bothSides = s.bothSides;
+        }
+
+        public Builder visual(ProjectileVisual v) {
+            this.visual = v;
+            return this;
+        }
+
+        public Builder multiHit(int hits, int interval) {
+            this.hits = hits;
+            this.hitInterval = interval;
+            return this;
+        }
+
+        public Builder explodes() {
+            this.explodes = true;
+            return this;
+        }
+
+        public Builder wallSplat() {
+            this.wallSplat = true;
+            return this;
+        }
+
+        public Builder bothSides() {
+            this.bothSides = true;
+            return this;
         }
 
         public Builder velocity(float vx, float... vy) {

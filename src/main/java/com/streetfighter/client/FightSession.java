@@ -5,7 +5,6 @@ import com.streetfighter.client.world.FightAnimator;
 import com.streetfighter.client.world.FightCamera;
 import com.streetfighter.client.world.WorldFx;
 import com.streetfighter.fight.AIDifficulty;
-import com.streetfighter.fight.AnimPose;
 import com.streetfighter.fight.FightEngine;
 import com.streetfighter.fight.FightInput;
 import com.streetfighter.fight.Fighter;
@@ -61,6 +60,8 @@ public final class FightSession {
     public int matchEndFrames;
     public float time;
     public float playerRenderScale = 1f, enemyRenderScale = 1f;
+    /** Brief FOV punch-in on big impacts (fraction of FOV). */
+    public float fovKick;
 
     // dummies used to draw projectiles/assists with real models
     public LivingEntity golemDummy, pigDummy;
@@ -209,8 +210,10 @@ public final class FightSession {
         Fighter player = new Fighter(0, playerName, FighterType.STEVE, pm, playerStats, 1f, 1f);
         Fighter enemy = new Fighter(1, info.enemyName(), enemyType, Movesets.get(enemyType), enemyStats(),
                 info.hpScale(), info.damageScale());
-        engine = new FightEngine(player, enemy, FighterAI.create(enemyType, difficulty), difficulty, minX(), maxX(),
-                startSeparation);
+        FighterAI ai = FighterAI.create(enemyType, difficulty);
+        ai.passive = info.training();
+        engine = new FightEngine(player, enemy, ai, difficulty, minX(), maxX(), startSeparation, arena);
+        engine.training = info.training();
         stage = Stage.FIGHT;
         lastNanos = System.nanoTime();
         accumulator = 0;
@@ -221,20 +224,35 @@ public final class FightSession {
         pendingInput = in;
     }
 
+    /** Sub-step interpolation factor between the last two simulation frames (0..1). */
+    public float alpha() {
+        return stage == Stage.FIGHT && !paused && engine != null && engine.hitstop <= 0 && engine.freeze <= 0
+                ? (float) Math.min(1.0, accumulator / STEP) : 1f;
+    }
+
+    public float renderX(Fighter f) {
+        float a = alpha();
+        return f.prevX + (f.x - f.prevX) * a;
+    }
+
+    public float renderY(Fighter f) {
+        float a = alpha();
+        return f.prevY + (f.y - f.prevY) * a;
+    }
+
     /** Called once per rendered frame, before the world is drawn. */
     public void frame() {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
-        if (player == null || mc.level == null || enemyEntity.isRemoved() && stage != Stage.OUTRO) {
-            if (player == null || mc.level == null) {
-                cleanup();
-                return;
-            }
+        if (player == null || mc.level == null) {
+            cleanup();
+            return;
         }
         long now = System.nanoTime();
         float dt = (float) Math.min(0.1, (now - lastNanos) / 1e9);
         lastNanos = now;
         time += dt;
+        lastDt = dt;
 
         if (stage == Stage.FIGHT && !paused) {
             accumulator += dt;
@@ -249,28 +267,27 @@ public final class FightSession {
                 engine.events.clear();
                 fx.stepTrails();
                 hud.step();
-                animateWalk(player, engine.player);
-                animateWalk(enemyEntity, engine.enemy);
                 if (pigDummy != null) pigDummy.walkAnimation.update(1.3f, 0.5f);
                 if (engine.isOver()) {
                     if (!resultSent) sendResult(engine.playerWon());
                     matchEndFrames++;
                 }
             }
+            if (steps == 6) accumulator = 0; // we fell far behind (lag spike): don't try to catch up
         } else if (stage == Stage.SELECT) {
             hud.step();
         }
 
         if (stage != Stage.OUTRO) {
-            placeAll(player);
+            placeAll(player, dt);
             if (++syncTimer >= 6) {
                 syncTimer = 0;
                 syncMob();
             }
-        } else {
-            updateAnimator(player, null, true);
-            updateAnimator(enemyEntity, null, false);
         }
+        animate(player, enemyEntity, dt);
+        fovKick = Math.max(0, fovKick - dt * 0.4f);
+        fx.frame(dt);
         updateCamera(dt, player);
         float targetBox = stage == Stage.SELECT || stage == Stage.OUTRO
                 || (engine != null && (engine.freeze > 0 || engine.phase == FightEngine.Phase.KO
@@ -280,40 +297,32 @@ public final class FightSession {
         if (stage == Stage.OUTRO && camera.finishedLeaving()) cleanup();
     }
 
+    private float lastDt = 1 / 60f;
+
     /** Called at the start of every client tick so the player's position packet carries the fight position. */
     public void tickPre() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || stage == Stage.OUTRO) return;
-        placeAll(mc.player);
+        placeAll(mc.player, 0);
         mc.player.setDeltaMovement(Vec3.ZERO);
         mc.player.fallDistance = 0;
     }
 
-    private void animateWalk(LivingEntity e, Fighter f) {
-        if (e == null) return;
-        float speed = 0f;
-        if (f.state == State.WALK) speed = Math.min(1f, Math.abs(f.vx) / Math.max(1f, f.stats.walkSpeed()));
-        if (f.state == State.ATTACK && f.move != null && f.move.moveVx > 0 && f.grounded() && Math.abs(f.vx) > 1f) speed = 1.4f;
-        e.walkAnimation.update(speed, 0.4f);
-    }
+    private final java.util.Map<Integer, Float> displayYaw = new java.util.HashMap<>();
 
-    private void placeAll(LocalPlayer player) {
+    private void placeAll(LocalPlayer player, float dt) {
         if (engine == null) {
             boolean faceRight = selectPlayerX < selectEnemyX;
-            place(player, selectPlayerX, 0, faceRight, 0.3);
-            place(enemyEntity, selectEnemyX, 0, !faceRight, enemyEntity.getBbWidth() / 2.0);
-            updateAnimator(player, null, true);
-            updateAnimator(enemyEntity, null, false);
+            place(player, selectPlayerX, 0, faceRight, 0.3, dt);
+            place(enemyEntity, selectEnemyX, 0, !faceRight, enemyEntity.getBbWidth() / 2.0, dt);
         } else {
-            place(player, engine.player.x, engine.player.y, engine.player.facingRight, 0.3);
-            place(enemyEntity, engine.enemy.x, engine.enemy.y, engine.enemy.facingRight,
-                    Math.min(0.6, enemyEntity.getBbWidth() * enemyRenderScale / 2.0));
-            updateAnimator(player, engine.player, true);
-            updateAnimator(enemyEntity, engine.enemy, false);
+            place(player, renderX(engine.player), renderY(engine.player), engine.player.facingRight, 0.3, dt);
+            place(enemyEntity, renderX(engine.enemy), renderY(engine.enemy), engine.enemy.facingRight,
+                    Math.min(0.6, enemyEntity.getBbWidth() * enemyRenderScale / 2.0), dt);
         }
     }
 
-    private void place(LivingEntity e, float ax, float ay, boolean faceRight, double halfWidth) {
+    private void place(LivingEntity e, float ax, float ay, boolean faceRight, double halfWidth, float dt) {
         if (e == null || e.isRemoved()) return;
         Vec3 w = arena.toWorld(ax, ay, halfWidth);
         e.setPos(w.x, w.y, w.z);
@@ -323,7 +332,17 @@ public final class FightSession {
         Vec3 face = arena.axis.scale(faceRight ? 1 : -1);
         Vec3 toCam = arena.normal.scale(camera.side());
         Vec3 look = face.scale(Math.cos(Math.toRadians(25))).add(toCam.scale(Math.sin(Math.toRadians(25)))).normalize();
-        float yaw = (float) (Mth.atan2(look.z, look.x) * Mth.RAD_TO_DEG) - 90f;
+        float target = (float) (Mth.atan2(look.z, look.x) * Mth.RAD_TO_DEG) - 90f;
+        // turn around smoothly instead of snapping 180 degrees when sides switch
+        Float prev = displayYaw.get(e.getId());
+        float yaw = target;
+        if (prev != null && dt > 0) {
+            float diff = Mth.wrapDegrees(target - prev);
+            yaw = prev + diff * (1f - (float) Math.exp(-22f * dt));
+        } else if (prev != null) {
+            yaw = prev;
+        }
+        displayYaw.put(e.getId(), yaw);
         e.setYRot(yaw);
         e.yRotO = yaw;
         e.yBodyRot = e.yBodyRotO = yaw;
@@ -331,159 +350,30 @@ public final class FightSession {
         e.setXRot(0);
         e.xRotO = 0;
         e.setDeltaMovement(Vec3.ZERO);
-        FightAnimator.state(e).facing = face;
+        e.walkAnimation.setSpeed(0); // our own walk cycle drives the legs
     }
 
     public Vec3 worldOf(Fighter f) {
-        return arena.toWorld(f.x, f.y, 0.3);
+        return arena.toWorld(renderX(f), renderY(f), 0.3);
     }
 
-    // ------------------------------------------------------------------ animation mapping
-
-    private void updateAnimator(LivingEntity e, Fighter f, boolean isPlayer) {
-        if (e == null) return;
-        FightAnimator.State s = FightAnimator.state(e);
-        s.time = time + (isPlayer ? 0 : 1.3f);
-        s.bodyHeight = e.getBbHeight();
-        s.scale = isPlayer ? playerRenderScale : enemyRenderScale;
-        s.tilt = 0;
-        s.flip = 0;
-        s.forward = 0;
-        s.up = 0;
-        s.squash = 1f;
-        s.attackAnim = -1f;
-        s.aggressive = false;
-        s.crouch = false;
-        s.striking = false;
-        s.progress = 0;
-        boolean upright = FighterRenderer.isUpright(e);
-        if (f == null) {
-            if (stage == Stage.OUTRO && engine != null) {
-                Fighter last = isPlayer ? engine.player : engine.enemy;
-                boolean won = engine.isOver() && engine.matchWinner == last.index;
-                s.pose = won ? FightAnimator.Pose.VICTORY : FightAnimator.Pose.GUARD;
-                if (won) s.up = Math.abs(Mth.sin(time * 6f)) * 0.15f;
-            } else {
-                s.pose = FightAnimator.Pose.GUARD;
-            }
-            return;
-        }
-        float crouchRatio = f.stats.crouchHeight() / f.stats.hurtHeight();
-        switch (f.state) {
-            case IDLE -> s.pose = FightAnimator.Pose.GUARD;
-            case WALK -> s.pose = FightAnimator.Pose.WALK;
-            case CROUCH -> {
-                s.pose = FightAnimator.Pose.CROUCH;
-                s.crouch = true;
-                if (!upright || !(e instanceof net.minecraft.world.entity.player.Player)) s.squash = Math.max(0.72f, crouchRatio);
-            }
-            case JUMP -> {
-                s.pose = FightAnimator.Pose.JUMP;
-                s.tilt = f.vy > 0 ? 8 : -6;
-            }
-            case LANDING -> {
-                s.pose = FightAnimator.Pose.GUARD;
-                s.squash = 0.88f;
-            }
-            case BLOCKSTUN -> {
-                s.pose = FightAnimator.Pose.BLOCK;
-                s.tilt = -8;
-                if (f.input.down) {
-                    s.crouch = true;
-                    s.squash = 0.85f;
-                }
-            }
-            case HITSTUN -> {
-                s.pose = FightAnimator.Pose.HIT;
-                if (f.launched && !upright) s.flip = -Math.min(180, 30 + f.stateAge * 8f);
-                else s.tilt = f.launched ? -30 - Math.min(45, f.stateAge * 3) : -18 + (f.stateAge % 4 < 2 ? 3 : 0);
-                if (f.wasCrouchingWhenHit && f.grounded()) s.squash = 0.8f;
-            }
-            case KNOCKDOWN -> {
-                s.pose = FightAnimator.Pose.KNOCKDOWN;
-                float t = f.stateTimer < 12 ? f.stateTimer / 12f : Math.min(1f, f.stateAge / 5f);
-                if (upright) s.tilt = -90 * t;
-                else s.flip = -180 * t;
-            }
-            case KO -> {
-                s.pose = FightAnimator.Pose.KO;
-                if (upright) s.tilt = f.grounded() ? -90 : -40 - Math.min(50, f.stateAge * 3);
-                else s.flip = f.grounded() ? -180 : -Math.min(180, f.stateAge * 12f);
-            }
-            case VICTORY -> {
-                s.pose = FightAnimator.Pose.VICTORY;
-                s.up = Math.abs(Mth.sin(time * 6f)) * 0.15f;
-            }
-            case ATTACK -> attackPose(f, s, crouchRatio, upright);
-        }
-        if (f.state == State.IDLE && engine.phase == FightEngine.Phase.ROUND_END && engine.roundWinner == f.index) {
-            s.pose = FightAnimator.Pose.VICTORY;
-        }
-        // flicker while invulnerable after getting up
-        if (f.invuln > 0 && (f.invuln / 3) % 2 == 0) s.squash *= 0.98f;
-    }
-
-    private void attackPose(Fighter f, FightAnimator.State s, float crouchRatio, boolean upright) {
-        Move m = f.move;
-        if (m == null) return;
-        int fr = Math.max(0, f.curFrame);
-        boolean startup = fr < m.startup;
-        boolean active = !startup && fr < f.activeEnd;
-        s.striking = active;
-        s.progress = Math.min(1f, fr / (float) Math.max(1, m.startup + Math.min(m.active, 10)));
-        s.attackAnim = s.progress;
-        if (m.crouching) {
-            s.crouch = true;
-            if (!upright) s.squash = Math.max(0.72f, crouchRatio);
-        }
-        AnimPose pose = m.pose;
-        switch (pose) {
-            case PUNCH -> {
-                s.pose = m.crouching ? FightAnimator.Pose.PUNCH : FightAnimator.Pose.PUNCH;
-                s.tilt = startup ? -4 : active ? 12 : 4;
-                s.forward = active ? 0.12f : 0;
-            }
-            case KICK -> {
-                s.pose = FightAnimator.Pose.KICK;
-                s.tilt = startup ? 4 : active ? -16 : -6;
-                s.forward = active ? 0.1f : 0;
-            }
-            case LUNGE -> {
-                s.pose = FightAnimator.Pose.LUNGE;
-                s.tilt = startup ? -6 : active ? 22 : 6;
-                s.forward = active ? 0.15f : 0;
-            }
-            case UPPERCUT -> {
-                s.pose = FightAnimator.Pose.UPPERCUT;
-                s.squash = startup ? 0.85f : 1f;
-                s.tilt = startup ? 10 : active ? -10 : -4;
-            }
-            case THROW -> {
-                s.pose = FightAnimator.Pose.THROW;
-                s.tilt = startup ? -14 : 14;
-            }
-            case SHOOT -> {
-                s.pose = FightAnimator.Pose.SHOOT;
-                s.aggressive = true;
-                s.tilt = startup ? -4 : 2;
-            }
-            case SPIN, SLAM -> {
-                s.pose = FightAnimator.Pose.SLAM;
-                s.tilt = startup ? -14 : active ? 24 : 8;
-            }
-            case GRAB -> {
-                s.pose = FightAnimator.Pose.GRAB;
-                s.tilt = startup ? -4 : 16;
-                s.forward = active ? 0.18f : 0;
-            }
-            case TAUNT -> {
-                s.pose = FightAnimator.Pose.TAUNT;
-                s.up = Math.abs(Mth.sin(fr * 0.4f)) * 0.18f;
-            }
-        }
-        if (m.air) {
-            s.tilt += 8;
-            if (pose == AnimPose.KICK || pose == AnimPose.SLAM) s.pose = FightAnimator.Pose.KICK;
+    private void animate(LocalPlayer player, LivingEntity enemy, float dt) {
+        boolean outro = stage == Stage.OUTRO;
+        Fighter pf = engine != null && !outro ? engine.player : null;
+        Fighter ef = engine != null && !outro ? engine.enemy : null;
+        boolean pWin = outro && engine != null && engine.isOver() && engine.matchWinner == 0;
+        boolean eWin = outro && engine != null && engine.isOver() && engine.matchWinner == 1;
+        float a = alpha();
+        boolean hs = engine != null && engine.hitstop > 0;
+        float px = engine != null ? renderX(engine.player) : selectPlayerX;
+        float ex = engine != null ? renderX(engine.enemy) : selectEnemyX;
+        boolean pRight = engine != null ? engine.player.facingRight : selectPlayerX < selectEnemyX;
+        boolean eRight = engine != null ? engine.enemy.facingRight : !pRight;
+        FightAnimator.update(player, pf, new FightAnimator.Ctx(dt, time, a, hs, px / Arena.UNITS_PER_BLOCK,
+                playerRenderScale, arena.axis.scale(pRight ? 1 : -1), pWin));
+        if (enemy != null && !enemy.isRemoved()) {
+            FightAnimator.update(enemy, ef, new FightAnimator.Ctx(dt, time + 1.3f, a, hs, ex / Arena.UNITS_PER_BLOCK,
+                    enemyRenderScale, arena.axis.scale(eRight ? 1 : -1), eWin));
         }
     }
 
@@ -496,10 +386,10 @@ public final class FightSession {
             ex = selectEnemyX;
             py = ey = 0;
         } else {
-            px = engine.player.x;
-            ex = engine.enemy.x;
-            py = engine.player.y;
-            ey = engine.enemy.y;
+            px = renderX(engine.player);
+            ex = renderX(engine.enemy);
+            py = renderY(engine.player);
+            ey = renderY(engine.enemy);
         }
         Vec3 pw = arena.toWorld(px, py, 0.3), ew = arena.toWorld(ex, ey, 0.3);
         Vec3 focus = pw.add(ew).scale(0.5).add(0, 1.05, 0);
@@ -516,6 +406,12 @@ public final class FightSession {
                 focus = focus.lerp(uw, 0.75);
                 dist *= 0.5;
                 roll = (user.index == 0 ? -1 : 1) * 4f;
+            } else if (lockedCinematic() != null) {
+                Fighter user = lockedCinematic();
+                Vec3 uw = worldOf(user).add(0, 0.9, 0);
+                focus = focus.lerp(uw, 0.4);
+                dist *= 0.62;
+                roll = (float) Math.sin(time * 1.3) * 3f;
             } else if (engine.phase == FightEngine.Phase.KO && engine.phaseTimer < 100) {
                 Fighter loser = engine.player.hp <= 0 ? engine.player : engine.enemy;
                 focus = focus.lerp(worldOf(loser).add(0, 0.6, 0), 0.5);
@@ -527,6 +423,15 @@ public final class FightSession {
         }
         float shake = engine == null || paused ? 0 : engine.shake;
         camera.update(focus, dist, shake, roll, dt, player);
+    }
+
+    /** The fighter currently performing a cinematic (lock-on-hit) super that has connected, or null. */
+    public Fighter lockedCinematic() {
+        if (engine == null) return null;
+        for (Fighter f : new Fighter[]{engine.player, engine.enemy}) {
+            if (f.state == State.ATTACK && f.move != null && f.move.lockOnHit && f.moveConnected) return f;
+        }
+        return null;
     }
 
     // ------------------------------------------------------------------ server sync & results
