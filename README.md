@@ -57,6 +57,9 @@ the world**, on the actual terrain. Beat a mob and you learn its fighting style.
   | Iron Ore | **2 raw iron per ore in the vein** + 4–8 extra, cobblestone, iron ingots, maybe a raw iron block |
   | Stone Pickaxe | an enchanted stone pickaxe (Efficiency + Unbreaking) plus a plain one, cobblestone, sticks |
   | Zombie | a pile of rotten flesh, iron ingots, carrots, potatoes, a rare zombie head |
+  | Cow | 8–12 beef, 6–10 leather, a bucket of milk |
+  | Donkey | leather, chests, apples, golden carrots, maybe a saddle |
+  | Creeper | 8–14 gunpowder, TNT, a rare music disc or creeper head |
   | Any other mob | its own loot rolled 2–4 extra times |
 
   - **Bonuses:** ×1.5 on Hard AI and ×1.25 for a perfect win, plus XP orbs.
@@ -79,7 +82,7 @@ the world**, on the actual terrain. Beat a mob and you learn its fighting style.
   - **Exempt:** creative mode.
   - **Config:** turn it off with `stonePickaxeChallenge`.
 - **Learn styles by winning.** Defeat a Skeleton, Pig, plain Villager, Chicken, Cleric villager (the Alchemist), Goat, Oak Tree, Iron Ore,
-  Stone Pickaxe or Zombie and its style becomes selectable.
+  Stone Pickaxe, Zombie, Cow, Donkey or Creeper and its style becomes selectable.
 
 ## Fighting system
 
@@ -112,6 +115,9 @@ Every style has a Street Fighter–sized kit (~44 moves each):
 | **Iron Ore** | Ore Chunk 236P, Stalagmite 623P (a stone spike bursts from the ground), Boulder Roll 236K (armored), Smelter Grab 63214P (command grab) | Cave-In, Minecart Rush, Molten Core |
 | **Stone Pickaxe** | Rubble Toss 236P, Uppick 623P, Spin Mine 236K, Drill Dive 214K (overhead); 4-hit "mining" target combo | Strip Mine, Cave Collapse, Diamond Strike |
 | **Zombie** | Flesh Toss 236P, Grave Rise 623P, Lunge Bite 236K, Grave Grab 63214P (command grab); bites inflict HUNGER | The Horde, Baby Zombie Blitz, Apocalypse Feast |
+| **Cow** | Milk Splash 236P, Moo-percut 623P, Cattle Charge 236K (armored), Milk Break 214K (cleanses your debuffs + regen); Back Buck 4HK wall-splats | Cattle Drive, Milk Flood, Mooonshot |
+| **Donkey** | Chest Toss 236P, Hee-Haw! 623P (sonic bray burst), Pack Mule Charge 236K, Rummage 214K (pulls a random fight item from its saddlebag); Donkey Kick 4HK | Caravan, Treasure Rain, Kick of the Century |
+| **Creeper** | Gunpowder Toss 236P, Rocket Jump 623P, Creep Up 236K (silent low dash), Short Fuse 214P (huge blast); explosions also hurt the creeper | Chain Reaction, Creeper Swarm, Charged Creeper |
 | **Goat** | Ram Charge 236P (wall-splats on H/EX, armored EX), Horn Toss 623P, Screaming Bleat 214P (low shockwave that slows), Goat Leap 214K (overhead) | Avalanche, Herd Charge, Peak Breaker |
 | **Any other mob** | Lunge, Rising Claw, Pounce, Leap Smash | Frenzy, Bone Storm, Rampage |
 
@@ -137,6 +143,12 @@ The pause menu (ESC) shows the full move list for your style.
 
 - **Zombie: Undead Brawler.** Bites, flesh tosses and grabs inflict **HUNGER**, which drains your super meter.
   Zombies, husks, drowned and zombie villagers all fight in this style.
+
+- **Cow: Mad Cow.** Milk Break drinks milk like vanilla, clearing Poison, Slowness and Hunger, then regenerates.
+- **Donkey: Stubborn Mule.** Rummage pulls a random fight item (the same ones the funny villager throws) out of its
+  saddlebag. Its Donkey Kick is the strongest wall-splat back-kick in the game.
+- **Creeper: Walking Bomb.** A glass cannon: its explosions are huge but **also hurt the creeper**. An enemy
+  creeper really swells and flashes white while its fuse burns.
 
 **Status effects** show as coloured tags above the super meter (e.g. `POISON 4s`) and as swirling potion particles around
 the fighter:
@@ -202,7 +214,7 @@ Strikes leave additive swoosh trails. Hits throw spark bursts and shockwave ring
 - `/streetfighter difficulty [normal|hard]`: show or set (op) the AI difficulty
 - `/streetfighter styles`: list your learned styles and wins
 - `/streetfighter training on|off`: training mode (the dummy stands still and refills its health, your meter is full, no rewards or penalties)
-- `/streetfighter unlock <skeleton|villager|pig|chicken|alchemist|goat|oak|iron_ore|stone_pickaxe|zombie|all>`: op/testing
+- `/streetfighter unlock <skeleton|villager|pig|chicken|alchemist|goat|oak|iron_ore|stone_pickaxe|zombie|cow|donkey|creeper|all>`: op/testing
 - `/streetfighter resetstyles`: op/testing
 
 Settings are in `config/streetfighter-common.toml`: peaceful mobs, challenge range, hold time, whether defeated mobs die
@@ -213,7 +225,7 @@ Settings are in `config/streetfighter-common.toml`: peaceful mobs, challenge ran
 Requires Java 21.
 
 ```bash
-./gradlew build        # mod jar -> build/libs/streetfighter-0.6.0.jar
+./gradlew build        # mod jar -> build/libs/streetfighter-0.7.0.jar
 ./gradlew runClient    # launch a dev client with the mod
 ```
 

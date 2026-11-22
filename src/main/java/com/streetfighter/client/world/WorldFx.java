@@ -151,6 +151,11 @@ public final class WorldFx {
         }
     }
 
+    private void shakeHud() {
+        session.fovKick = Math.max(session.fovKick, 0.05f);
+        session.hud.flash = Math.max(session.hud.flash, 4);
+    }
+
     private static Prop propByName(String name) {
         if (name == null) return null;
         try {
@@ -319,6 +324,11 @@ public final class WorldFx {
                         sound(SoundEvents.ZOMBIE_ATTACK_WOODEN_DOOR, p, 0.5f, 1.4f);
                         sound(SoundEvents.GENERIC_EAT, p, 0.8f, 0.8f);
                     }
+                    if (at == FighterType.DONKEY && attacker.move.pose == AnimPose.THROW_BACK && ev.heavy()) {
+                        sound(SoundEvents.DONKEY_ANGRY, p, 1.2f, 1.2f);
+                        hud.flash = Math.max(hud.flash, 3);
+                    }
+                    if (at == FighterType.COW && ev.heavy()) sound(SoundEvents.COW_HURT, p, 0.8f, 0.7f);
                     if (at == FighterType.OAK) {
                         burst(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.OAK_LEAVES.defaultBlockState()), p, 10, 0.3, 0.4);
                         if (ev.heavy()) sound(SoundEvents.WOOD_BREAK, p, 1f, 0.7f);
@@ -432,6 +442,12 @@ public final class WorldFx {
                     }
                     case POTION -> sound(SoundEvents.SPLASH_POTION_THROW, p, 1f, 0.9f);
                     case APPLE -> sound(SoundEvents.SNOWBALL_THROW, p, 1f, 0.7f);
+                    case MILK -> sound(SoundEvents.COW_MILK, p, 1.2f, 1f);
+                    case CHEST -> sound(SoundEvents.DONKEY_CHEST, p, 1.2f, 1f);
+                    case GUNPOWDER -> sound(SoundEvents.CREEPER_PRIMED, p, 0.8f, 1.4f);
+                    case COW -> sound(SoundEvents.COW_AMBIENT, p, 1.3f, 0.8f);
+                    case DONKEY -> sound(SoundEvents.DONKEY_ANGRY, p, 1.3f, 1f);
+                    case CREEPER -> sound(SoundEvents.CREEPER_PRIMED, p, 1.3f, 0.8f);
                     case RAW_IRON -> sound(SoundEvents.STONE_HIT, p, 1.2f, 0.7f);
                     case ROTTEN_FLESH -> {
                         sound(SoundEvents.SNOWBALL_THROW, p, 1f, 0.6f);
@@ -480,6 +496,25 @@ public final class WorldFx {
             }
             case EXPLOSION -> {
                 Vec3 p = at(ev.x(), ev.y());
+                if (ev.visual() == ProjectileVisual.BLAST) {
+                    // creeper blasts: punchy but readable (no lingering vanilla smoke wall)
+                    burst(ParticleTypes.EXPLOSION, p, 5, 0.7, 0.0);
+                    burst(ParticleTypes.FLAME, p, 14, 0.6, 0.4);
+                    quads.ring(front(p), 0.5f, 5f, 0.35f, C_FIRE);
+                    quads.glow(front(p), 4f, 0.3f, C_FIRE);
+                    sound(SoundEvents.GENERIC_EXPLODE.value(), p, 1f, 1.1f);
+                    shakeHud();
+                    break;
+                }
+                if (ev.visual() == ProjectileVisual.BLAST && f != null && f.moves.type() == FighterType.DONKEY) {
+                    // HEE-HAW: a sonic bray, not a bomb
+                    quads.ring(front(p), 0.4f, 4.5f, 0.35f, 0xF0E6C8);
+                    quads.ring(front(p), 0.2f, 3f, 0.25f, 0xFFFFFF);
+                    sound(SoundEvents.DONKEY_ANGRY, p, 2f, 0.8f);
+                    sound(SoundEvents.DONKEY_AMBIENT, p, 1.5f, 0.7f);
+                    session.fovKick = Math.max(session.fovKick, 0.04f);
+                    break;
+                }
                 if (ev.visual() == ProjectileVisual.BOTTLE) {
                     sound(SoundEvents.GLASS_BREAK, p, 1.2f, 1f);
                     burst(new ItemParticleOption(ParticleTypes.ITEM, new ItemStack(Items.HONEY_BOTTLE)), p, 14, 0.4, 0.5);
@@ -695,6 +730,22 @@ public final class WorldFx {
                 burst(ParticleTypes.REVERSE_PORTAL, to, 20, 0.3, 0.6);
                 sound(SoundEvents.ENDERMAN_TELEPORT, to, 1f, 1.1f);
                 quads.glow(front(to), 2.2f, 0.3f, 0xB04FFF);
+            }
+            case SELF_DAMAGE -> {
+                if (f == null) break;
+                Vec3 p = at(f.x, f.y + 70);
+                burst(ParticleTypes.DAMAGE_INDICATOR, p, 3, 0.3, 0.3);
+                burst(ParticleTypes.LARGE_SMOKE, p, 8, 0.4, 0.4);
+                sound(SoundEvents.CREEPER_HURT, p, 1f, 1f);
+            }
+            case CLEANSE -> {
+                if (f == null) break;
+                Vec3 p = at(f.x, f.y + 70);
+                burst(new ItemParticleOption(ParticleTypes.ITEM, new ItemStack(Items.MILK_BUCKET)), p, 10, 0.3, 0.5);
+                burst(new DustParticleOptions(new Vector3f(1f, 1f, 1f), 1.2f), p, 20, 0.5, 0.6);
+                sound(SoundEvents.GENERIC_DRINK, p, 1f, 1f);
+                sound(SoundEvents.COW_MILK, p, 0.8f, 1.2f);
+                if ("CLEANSED".equals(ev.text())) hud.callout("CLEANSED!", f.index, 0xFFFFFFFF);
             }
             case WHIFF -> {
             }
@@ -964,6 +1015,9 @@ public final class WorldFx {
             case IRON_ORE -> SoundEvents.IRON_GOLEM_HURT;
             case STONE_PICKAXE -> SoundEvents.STONE_HIT;
             case ZOMBIE -> SoundEvents.ZOMBIE_AMBIENT;
+            case COW -> SoundEvents.COW_AMBIENT;
+            case DONKEY -> SoundEvents.DONKEY_ANGRY;
+            case CREEPER -> SoundEvents.CREEPER_PRIMED;
             default -> SoundEvents.PLAYER_ATTACK_SWEEP;
         };
     }

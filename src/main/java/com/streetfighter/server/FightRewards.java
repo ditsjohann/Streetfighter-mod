@@ -115,6 +115,24 @@ public final class FightRewards {
                 bag.add(Items.COBBLESTONE, 6, 12);
                 bag.add(Items.STICK, 4, 8);
             }
+            case COW -> {
+                bag.add(Items.BEEF, 8, 12);
+                bag.add(Items.LEATHER, 6, 10);
+                bag.add(Items.MILK_BUCKET, 1, 1);
+            }
+            case DONKEY -> {
+                bag.add(Items.LEATHER, 6, 10);
+                bag.add(Items.CHEST, 1, 2);
+                bag.add(Items.APPLE, 2, 4);
+                bag.add(Items.GOLDEN_CARROT, 1, 3);
+                bag.chance(Items.SADDLE, 0.3f);
+            }
+            case CREEPER -> {
+                bag.add(Items.GUNPOWDER, 8, 14);
+                bag.add(Items.TNT, 1, 3);
+                bag.chance(Items.MUSIC_DISC_CAT, 0.05f);
+                bag.chance(Items.CREEPER_HEAD, 0.03f);
+            }
             case ZOMBIE -> {
                 bag.add(Items.ROTTEN_FLESH, 10, 16);
                 bag.add(Items.IRON_INGOT, 1, 3);

@@ -6,5 +6,7 @@ public enum ProjectileVisual {
     APPLE, ROOTS,
     RAW_IRON, SPIKE, MINECART, ROTTEN_FLESH, ZOMBIE, BABY_ZOMBIE,
     // props thrown in by the villager
-    ANVIL, SLIME, WEB, COBWEB, TRIDENT, PEARL, CHAIR, BOTTLE
+    ANVIL, SLIME, WEB, COBWEB, TRIDENT, PEARL, CHAIR, BOTTLE,
+    // cow / donkey / creeper
+    MILK, COW, DONKEY, CHEST, GUNPOWDER, CREEPER, BLAST
 }

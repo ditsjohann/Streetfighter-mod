@@ -103,7 +103,8 @@ public final class FightAnimator {
             Object m = ler.getModel();
             if (m instanceof HumanoidModel<?>) return Body.HUMANOID;
             if (m instanceof VillagerModel<?> || m instanceof net.minecraft.client.model.IllagerModel<?>) return Body.VILLAGER;
-            if (m instanceof QuadrupedModel<?>) return Body.QUAD;
+            if (m instanceof QuadrupedModel<?> || m instanceof net.minecraft.client.model.HorseModel<?>
+                    || m instanceof net.minecraft.client.model.CreeperModel<?>) return Body.QUAD;
             if (m instanceof net.minecraft.client.model.ChickenModel<?>) return Body.BIRD;
         }
         return Body.OTHER;
@@ -633,6 +634,24 @@ public final class FightAnimator {
             rot(s, a.streetfighter$leftLeg(), c[LLX], 0, 0);
             rot(s, a.streetfighter$rightWing(), 0, 0, c[RAZ]);
             rot(s, a.streetfighter$leftWing(), 0, 0, -c[RAZ]);
+        } else if (model instanceof net.minecraft.client.model.HorseModel<?> hm) {
+            com.streetfighter.mixin.HorseModelAccessor a = (com.streetfighter.mixin.HorseModelAccessor) hm;
+            ModelPart head = a.streetfighter$headParts();
+            save(s, head);
+            head.xRot = 0.52f + c[HX] + headRecoil;
+            rot(s, a.streetfighter$rightFrontLeg(), c[RAX] + c[RAZ], 0, 0);
+            rot(s, a.streetfighter$leftFrontLeg(), c[RAX] - c[RAZ], 0, 0);
+            rot(s, a.streetfighter$rightHindLeg(), c[RLX] - c[RAZ], 0, 0);
+            rot(s, a.streetfighter$leftHindLeg(), c[RLX] + c[RAZ], 0, 0);
+        } else if (model instanceof net.minecraft.client.model.CreeperModel<?> cm) {
+            com.streetfighter.mixin.CreeperModelAccessor a = (com.streetfighter.mixin.CreeperModelAccessor) cm;
+            ModelPart head = a.streetfighter$head();
+            save(s, head);
+            head.xRot = c[HX] + headRecoil;
+            rot(s, a.streetfighter$rightFrontLeg(), c[RAX] + c[RAZ], 0, 0);
+            rot(s, a.streetfighter$leftFrontLeg(), c[RAX] - c[RAZ], 0, 0);
+            rot(s, a.streetfighter$rightHindLeg(), c[RLX] - c[RAZ], 0, 0);
+            rot(s, a.streetfighter$leftHindLeg(), c[RLX] + c[RAZ], 0, 0);
         } else if (model instanceof QuadrupedModel<?> q) {
             QuadrupedModelAccessor a = (QuadrupedModelAccessor) q;
             ModelPart head = a.streetfighter$head();

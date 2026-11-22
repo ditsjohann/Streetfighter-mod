@@ -33,6 +33,9 @@ public final class Movesets {
         SETS.put(FighterType.IRON_ORE, ironOre());
         SETS.put(FighterType.STONE_PICKAXE, stonePickaxe());
         SETS.put(FighterType.ZOMBIE, zombie());
+        SETS.put(FighterType.COW, cow());
+        SETS.put(FighterType.DONKEY, donkey());
+        SETS.put(FighterType.CREEPER, creeper());
         SETS.put(FighterType.BRAWLER, brawler());
     }
 
@@ -936,6 +939,220 @@ public final class Movesets {
                 .knockdown().multiHit(8, 8).invuln(0, 8).lockOnHit().wallSplat().hitEffect(StatusEffect.HUNGER, 600)
                 .selfEffect(480, StatusEffect.REGEN).pose(AnimPose.GRAB).callout("APOCALYPSE FEAST!").build()));
         universals(m, "Corpse Toss", "Grave Dig", 125);
+        return m;
+    }
+
+    // =====================================================================================================
+    // COW: mad cow. Tanky bruiser; milk cleanses its debuffs; stampedes and milk floods
+    // =====================================================================================================
+
+    private static Moveset cow() {
+        FighterStats stats = new FighterStats(1060, 2.6f, 2.3f, 13f, 3.8f, 0.8f, 104, 92, 66);
+        Moveset m = new Moveset(FighterType.COW, stats);
+        Tune t = new Tune(1, -2, 1.05f, 0.7f, 30);
+        normals(m, t, new String[]{"Snout Bop", "Moo Jab", "Horn Hook", "Hoof Tap", "Hoof Kick", "Buck Spin",
+                "Grass Graze", "Low Moo", "Horn Lift", "Hoof Poke", "Cud Poke", "Pasture Sweep",
+                "Air Moo", "Air Horn", "Cowpat Drop", "Air Hoof", "Air Buck", "Belly Drop"});
+        m.commandNormals.add(new Moveset.CommandNormal(6, Button.HP,
+                commandNormal("Horn Slam", AnimPose.STOMP, 18, 3, 18, 70, 30, 105, 10, 95, HitLevel.HIGH)));
+        m.commandNormals.add(new Moveset.CommandNormal(4, Button.HK,
+                commandNormal("Back Buck", AnimPose.THROW_BACK, 13, 4, 22, 84, 30, 120, 10, 80, HitLevel.MID)
+                        .toBuilder().push(15).launch(5).knockdown().wallSplat().build()));
+
+        Move udder = Move.builder("Udder Fury").kind(Kind.TARGET).frames(8, 4, 18).damage(74).box(30, 108, 15, 85)
+                .stun(22, 15).push(8).cancelable().pose(AnimPose.HEADBUTT).build();
+        Move hoofbeat = Move.builder("Hoofbeat").kind(Kind.TARGET).frames(7, 8, 16).damage(32).box(30, 100, 0, 55)
+                .stun(17, 12).push(4).multiHit(2, 5).cancelable().pose(AnimPose.FRONT_KICK).build();
+        m.targetCombos.add(new Moveset.TargetCombo(m.stand.get(Button.MP), Button.HP, udder));
+        m.targetCombos.add(new Moveset.TargetCombo(m.stand.get(Button.LK), Button.MK, hoofbeat));
+
+        m.specials.add(new Moveset.Special("Milk Splash", Motion.QCF, false, Role.PROJECTILE, 5, variants(s -> Move.builder("")
+                .frames(pick(s, 16, 15, 14, 14), 2, pick(s, 28, 27, 26, 25)).damage(0).box(0, 0, 0, 0)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.MILK)
+                        .velocity(pick(s, 6.5f, 8f, 9.5f, 9f), pick(s, 5f, 4f, 3f, 4f)).gravity(0.24f).size(34, 34).offset(45, 80)
+                        .damage(pick(s, 44f, 48f, 52f, 40f)).stun(18, 12).push(6).spin()
+                        .count(s == 3 ? 2 : 1, 9).lifetime(160).build(), pick(s, 14, 13, 12, 12))
+                .pose(AnimPose.SHOOT), "Milk Splash")));
+        m.specials.add(new Moveset.Special("Moo-percut", Motion.DP, false, Role.ANTI_AIR, 6, variants(s -> Move.builder("")
+                .frames(5, pick(s, 12, 14, 16, 16), pick(s, 24, 27, 30, 26)).damage(pick(s, 96f, 106f, 116f, 126f))
+                .box(25, 95, 20, 150).stun(28, 16).push(3).launch(12).knockdown()
+                .leap(pick(s, 9f, 11f, 13f, 13f), 2f, 5).invuln(0, pick(s, 4, 5, 7, 12)).landingLag(15)
+                .pose(AnimPose.ANTI_AIR).callout(s >= 2 ? "MOOOO!" : null), "Moo-percut")));
+        m.specials.add(new Moveset.Special("Cattle Charge", Motion.QCF, true, Role.RUSH, 2, variants(s -> {
+            Move.Builder b = Move.builder("").frames(pick(s, 15, 13, 11, 11), 24, pick(s, 26, 28, 30, 24))
+                    .damage(pick(s, 80f, 88f, 96f, 106f)).box(30, 105, 10, 85).stun(24, 16).push(14).launch(6).knockdown()
+                    .stopOnHit().dash(pick(s, 8f, 10f, 12f, 12f), pick(s, 15, 13, 11, 11), pick(s, 39, 37, 35, 35))
+                    .pose(AnimPose.CHARGE);
+            if (s >= 2) b.armor(s == 3 ? 2 : 1, 30);
+            return b;
+        }, "Cattle Charge")));
+        m.specials.add(new Moveset.Special("Milk Break", Motion.QCB, true, Role.BUFF, 4, variants(s -> Move.builder("")
+                .frames(26, 1, 22).damage(0).box(0, 0, 0, 0).cleanse()
+                .selfEffect(pick(s, 120, 150, 180, 240), s == 3 ? new StatusEffect[]{StatusEffect.REGEN, StatusEffect.STRENGTH}
+                        : new StatusEffect[]{StatusEffect.REGEN})
+                .pose(AnimPose.DRINK).callout(s == 3 ? "EX Milk Break!" : "*slurp*"), "Milk Break")));
+
+        m.supers.add(new Moveset.Super(1, Motion.QCF2, false, Move.builder("Cattle Drive").superLevel(1)
+                .frames(10, 2, 40).damage(0).box(0, 0, 0, 0).invuln(0, 12)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.COW).velocity(11f, 0f).size(100, 90).offset(-220, 0)
+                        .damage(72).stun(26, 14).push(5).launch(6).count(3, 7).durable().lifetime(160).build(), 10)
+                .pose(AnimPose.SUMMON).callout("CATTLE DRIVE!").build()));
+        m.supers.add(new Moveset.Super(2, Motion.QCB2, false, Move.builder("Milk Flood").superLevel(2)
+                .frames(12, 2, 38).damage(0).box(0, 0, 0, 0).invuln(0, 14)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.MILK).velocity(0f, -13f).size(38, 38)
+                        .damage(46).stun(22, 12).push(3).launch(3).effect(StatusEffect.SLOW, 120).count(9, 5)
+                        .fromSky(120, 540).spin().lifetime(100).build(), 12)
+                .pose(AnimPose.SCREAM).callout("MILK FLOOD!").build()));
+        m.supers.add(new Moveset.Super(3, Motion.QCF2, true, Move.builder("Mooonshot").superLevel(3)
+                .frames(8, 66, 36).damage(40).box(30, 110, 10, 95).stun(32, 12).push(0.5f).launch(22).knockdown()
+                .multiHit(9, 7).dash(9f, 8, 16).invuln(0, 14).lockOnHit().pose(AnimPose.CHARGE)
+                .callout("MOOONSHOT!").build()));
+        universals(m, "Horn Toss", "Barn Slam", 125);
+        return m;
+    }
+
+    // =====================================================================================================
+    // DONKEY: stubborn mule. Legendary back-kicks, bray bursts, and a saddlebag full of fight items
+    // =====================================================================================================
+
+    private static Moveset donkey() {
+        FighterStats stats = new FighterStats(1050, 3.3f, 2.8f, 15f, 4.6f, 0.8f, 96, 100, 70);
+        Moveset m = new Moveset(FighterType.DONKEY, stats);
+        Tune t = new Tune(1, 0, 1.0f, 0.75f, 30);
+        normals(m, t, new String[]{"Muzzle Jab", "Bray Bite", "Neck Whip", "Hoof Tap", "Hoof Kick", "Mule Spin",
+                "Low Muzzle", "Hay Butt", "Neck Rise", "Hoof Poke", "Trot Poke", "Stubborn Sweep",
+                "Air Muzzle", "Air Bite", "Saddle Drop", "Air Hoof", "Air Buck", "Pack Drop"});
+        m.commandNormals.add(new Moveset.CommandNormal(4, Button.HK,
+                commandNormal("Donkey Kick", AnimPose.THROW_BACK, 14, 4, 24, 95, 30, 135, 10, 85, HitLevel.MID)
+                        .toBuilder().push(18).launch(6).knockdown().wallSplat().callout("DONKEY KICK!").build()));
+        m.commandNormals.add(new Moveset.CommandNormal(6, Button.HP,
+                commandNormal("Ear Slap", AnimPose.STOMP, 17, 3, 17, 64, 30, 100, 20, 105, HitLevel.HIGH)));
+
+        Move biteWhip = Move.builder("Bite & Whip").kind(Kind.TARGET).frames(8, 4, 18).damage(72).box(30, 110, 25, 100)
+                .stun(22, 15).push(8).cancelable().pose(AnimPose.HEADBUTT).build();
+        Move kick3 = Move.builder("Buck Buck Buck").kind(Kind.TARGET).frames(8, 12, 20).damage(30).box(30, 115, 0, 70)
+                .stun(18, 12).push(3).multiHit(3, 5).knockdown().launch(5).pose(AnimPose.THROW_BACK).build();
+        m.targetCombos.add(new Moveset.TargetCombo(m.stand.get(Button.MP), Button.HP, biteWhip));
+        m.targetCombos.add(new Moveset.TargetCombo(m.stand.get(Button.MK), Button.HK, kick3));
+
+        m.specials.add(new Moveset.Special("Chest Toss", Motion.QCF, false, Role.PROJECTILE, 5, variants(s -> Move.builder("")
+                .frames(pick(s, 15, 14, 13, 13), 2, pick(s, 25, 24, 23, 22)).damage(0).box(0, 0, 0, 0)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.CHEST)
+                        .velocity(pick(s, 6f, 7.5f, 9f, 8.5f), pick(s, 6f, 5f, 4f, 5f)).gravity(0.26f).size(40, 40).offset(40, 100)
+                        .damage(pick(s, 64f, 70f, 76f, 60f)).stun(21, 14).push(7).spin().explodes().blast(110)
+                        .count(s == 3 ? 2 : 1, 9).lifetime(170).build(), pick(s, 15, 14, 13, 13))
+                .pose(AnimPose.SHOOT), "Chest Toss")));
+        m.specials.add(new Moveset.Special("Hee-Haw!", Motion.DP, false, Role.ANTI_AIR, 6, variants(s -> Move.builder("")
+                .frames(pick(s, 7, 8, 9, 6), 2, pick(s, 24, 27, 30, 24)).damage(0).box(0, 0, 0, 0)
+                .invuln(0, pick(s, 8, 9, 11, 14))
+                .projectile(ProjectileSpec.builder(ProjectileVisual.BLAST).velocity(0f, 0f).size(30, 30).offset(10, 120)
+                        .damage(pick(s, 85f, 95f, 105f, 115f)).stun(26, 16).push(8).launch(11).knockdown()
+                        .explodes().blast(pick(s, 170f, 190f, 210f, 230f)).lifetime(1).build(), pick(s, 7, 8, 9, 6))
+                .pose(AnimPose.SCREAM).callout(s >= 2 ? "HEE-HAW!" : null), "Hee-Haw!")));
+        m.specials.add(new Moveset.Special("Pack Mule Charge", Motion.QCF, true, Role.RUSH, 2, variants(s -> {
+            Move.Builder b = Move.builder("").frames(pick(s, 14, 12, 10, 10), 22, pick(s, 24, 26, 28, 22))
+                    .damage(pick(s, 78f, 86f, 94f, 104f)).box(30, 110, 10, 90).stun(24, 16).push(13).launch(6).knockdown()
+                    .stopOnHit().dash(pick(s, 9f, 11f, 13f, 13f), pick(s, 14, 12, 10, 10), pick(s, 36, 34, 32, 32))
+                    .pose(AnimPose.CHARGE);
+            if (s == 3) b.armor(1, 28).wallSplat();
+            return b;
+        }, "Pack Mule Charge")));
+        m.specials.add(new Moveset.Special("Rummage", Motion.QCB, true, Role.BUFF, 4, variants(s -> {
+            Move.Builder b = Move.builder("").frames(pick(s, 26, 22, 18, 16), 1, 16).damage(0).box(0, 0, 0, 0).grantProp()
+                    .pose(AnimPose.SHOOT_UP).callout("*rummage rummage*");
+            if (s == 3) b.selfEffect(300, StatusEffect.SPEED);
+            return b;
+        }, "Rummage")));
+
+        m.supers.add(new Moveset.Super(1, Motion.QCF2, false, Move.builder("Caravan").superLevel(1)
+                .frames(10, 2, 40).damage(0).box(0, 0, 0, 0).invuln(0, 12)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.DONKEY).velocity(12f, 0f).size(100, 100).offset(-220, 0)
+                        .damage(70).stun(26, 14).push(5).launch(6).count(3, 7).durable().lifetime(160).build(), 10)
+                .pose(AnimPose.SUMMON).callout("CARAVAN!").build()));
+        m.supers.add(new Moveset.Super(2, Motion.QCB2, false, Move.builder("Treasure Rain").superLevel(2)
+                .frames(12, 2, 38).damage(0).box(0, 0, 0, 0).invuln(0, 14)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.CHEST).velocity(0f, -13f).size(42, 42)
+                        .damage(50).stun(22, 12).push(3).launch(4).count(7, 6).fromSky(120, 560).explodes().blast(100)
+                        .spin().lifetime(100).build(), 12)
+                .pose(AnimPose.SCREAM).callout("TREASURE RAIN!").build()));
+        m.supers.add(new Moveset.Super(3, Motion.QCF2, true, Move.builder("Kick of the Century").superLevel(3)
+                .frames(8, 66, 36).damage(44).box(30, 125, 0, 95).stun(30, 12).push(0.5f).launch(14).knockdown()
+                .multiHit(9, 7).dash(8f, 8, 16).invuln(0, 14).lockOnHit().wallSplat().pose(AnimPose.THROW_BACK)
+                .callout("KICK OF THE CENTURY!").build()));
+        universals(m, "Saddle Toss", "Stubborn Flip", 120);
+        return m;
+    }
+
+    // =====================================================================================================
+    // CREEPER: walking bomb. Glass cannon whose explosions hurt itself too
+    // =====================================================================================================
+
+    private static Moveset creeper() {
+        FighterStats stats = new FighterStats(870, 3.3f, 3.0f, 14f, 4.2f, 0.78f, 50, 112, 80);
+        Moveset m = new Moveset(FighterType.CREEPER, stats);
+        Tune t = new Tune(0, -4, 1.0f, 0.85f, 4);
+        normals(m, t, new String[]{"Head Bonk", "Leaf Jab", "Creep Hook", "Toe Tap", "Creep Kick", "Sizzle Spin",
+                "Low Bonk", "Gut Bonk", "Pop Up", "Root Poke", "Creep Poke", "Sneak Sweep",
+                "Air Bonk", "Air Head", "Kaboom Drop", "Air Toe", "Air Kick", "Creeper Dive"});
+        m.commandNormals.add(new Moveset.CommandNormal(6, Button.HP,
+                commandNormal("Spark Headbutt", AnimPose.HEADBUTT, 17, 3, 18, 66, 10, 85, 60, 130, HitLevel.HIGH)));
+        m.commandNormals.add(new Moveset.CommandNormal(3, Button.HK,
+                commandNormal("Sneak Trip", AnimPose.SWEEP, 10, 4, 22, 70, 15, 110, 0, 26, HitLevel.LOW)
+                        .toBuilder().knockdown().crouching().build()));
+
+        Move fizzle = Move.builder("Fizzle Combo").kind(Kind.TARGET).frames(8, 3, 18).damage(70).box(10, 88, 50, 115)
+                .stun(21, 15).push(7).cancelable().pose(AnimPose.HEADBUTT).build();
+        m.targetCombos.add(new Moveset.TargetCombo(m.stand.get(Button.MP), Button.HP, fizzle));
+
+        m.specials.add(new Moveset.Special("Gunpowder Toss", Motion.QCF, false, Role.PROJECTILE, 5, variants(s -> Move.builder("")
+                .frames(pick(s, 13, 12, 11, 11), 2, pick(s, 23, 22, 21, 20)).damage(0).box(0, 0, 0, 0)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.GUNPOWDER)
+                        .velocity(pick(s, 6.5f, 8f, 9.5f, 9f), pick(s, 6f, 5f, 4f, 5f)).gravity(0.28f).size(28, 28).offset(25, 90)
+                        .damage(pick(s, 62f, 68f, 74f, 56f)).stun(22, 14).push(7).launch(5).explodes().blast(110)
+                        .spin().count(s == 3 ? 2 : 1, 10).lifetime(150).build(), pick(s, 13, 12, 11, 11))
+                .pose(AnimPose.SHOOT), "Gunpowder Toss")));
+        m.specials.add(new Moveset.Special("Rocket Jump", Motion.DP, false, Role.ANTI_AIR, 6, variants(s -> Move.builder("")
+                .frames(4, 2, pick(s, 30, 32, 34, 30)).damage(0).box(0, 0, 0, 0).invuln(0, pick(s, 6, 8, 10, 16))
+                .leap(pick(s, 14f, 16f, 18f, 18f), 2.5f, 4).selfDamage(pick(s, 15f, 18f, 22f, 15f)).landingLag(14)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.BLAST).velocity(0f, 0f).size(30, 30).offset(15, 60)
+                        .damage(pick(s, 90f, 100f, 110f, 125f)).stun(28, 16).push(5).launch(12).knockdown().explodes()
+                        .blast(pick(s, 150f, 170f, 190f, 210f)).lifetime(1).build(), 4)
+                .pose(AnimPose.ANTI_AIR), "Rocket Jump")));
+        m.specials.add(new Moveset.Special("Creep Up", Motion.QCF, true, Role.RUSH, 2, variants(s -> Move.builder("")
+                .frames(pick(s, 9, 8, 7, 7), 14, pick(s, 18, 20, 22, 16)).damage(pick(s, 66f, 72f, 78f, 86f))
+                .box(10, 80, 20, 100).stun(22, 14).push(8).stopOnHit().knockdown().launch(4)
+                .dash(pick(s, 8f, 10f, 12f, 12f), pick(s, 9, 8, 7, 7), pick(s, 23, 22, 21, 21)).crouching()
+                .projInvuln(0, s == 3 ? 23 : 12).pose(AnimPose.LUNGE), "Creep Up")));
+        m.specials.add(new Moveset.Special("Short Fuse", Motion.QCB, false, Role.OVERHEAD, 4, variants(s -> {
+            Move.Builder b = Move.builder("").frames(pick(s, 22, 26, 30, 22), 2, pick(s, 24, 26, 28, 24)).damage(0)
+                    .box(0, 0, 0, 0).selfDamage(pick(s, 35f, 45f, 55f, 40f))
+                    .projectile(ProjectileSpec.builder(ProjectileVisual.BLAST).velocity(0f, 0f).size(30, 30).offset(55, 60)
+                            .damage(pick(s, 125f, 145f, 165f, 190f)).stun(30, 20).push(12).launch(10).knockdown().explodes()
+                            .blast(pick(s, 150f, 170f, 190f, 210f)).lifetime(1).build(), pick(s, 22, 26, 30, 22))
+                    .pose(AnimPose.TAUNT).callout("Ssssss...");
+            if (s == 3) b.armor(2, 22);
+            return b;
+        }, "Short Fuse")));
+
+        m.supers.add(new Moveset.Super(1, Motion.QCF2, false, Move.builder("Chain Reaction").superLevel(1)
+                .frames(12, 2, 40).damage(0).box(0, 0, 0, 0).invuln(0, 12)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.TNT).velocity(7f, 6f, 7f, 8f, 9f).gravity(0.3f)
+                        .size(40, 40).offset(25, 90).damage(58).stun(24, 16).push(6).launch(8).explodes().count(4, 8)
+                        .lifetime(150).build(), 12)
+                .pose(AnimPose.SUMMON).callout("CHAIN REACTION!").build()));
+        m.supers.add(new Moveset.Super(2, Motion.QCB2, false, Move.builder("Creeper Swarm").superLevel(2)
+                .frames(10, 2, 38).damage(0).box(0, 0, 0, 0).invuln(0, 12)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.CREEPER).velocity(7.5f, 0f).size(50, 110).offset(-200, 0)
+                        .damage(66).stun(28, 14).push(5).launch(7).explodes().blast(160).count(3, 12)
+                        .lifetime(170).build(), 10)
+                .pose(AnimPose.SCREAM).callout("CREEPER SWARM!").build()));
+        m.supers.add(new Moveset.Super(3, Motion.QCF2, true, Move.builder("Charged Creeper").superLevel(3)
+                .frames(34, 2, 40).damage(0).box(0, 0, 0, 0).invuln(0, 40).selfDamage(80)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.BLAST).velocity(0f, 0f).size(30, 30).offset(40, 60)
+                        .damage(300).stun(40, 24).push(14).launch(14).knockdown().wallSplat().explodes().blast(330)
+                        .lifetime(1).build(), 34)
+                .pose(AnimPose.SUMMON).callout("CHARGED CREEPER!").build()));
+        universals(m, "Fuse Toss", "Back Blast", 110);
         return m;
     }
 

@@ -78,6 +78,9 @@ public class FighterAI {
             case IRON_ORE -> new IronOreAI(difficulty);
             case STONE_PICKAXE -> new StonePickaxeAI(difficulty);
             case ZOMBIE -> new ZombieAI(difficulty);
+            case COW -> new CowAI(difficulty);
+            case DONKEY -> new DonkeyAI(difficulty);
+            case CREEPER -> new CreeperAI(difficulty);
             default -> new BrawlerAI(difficulty);
         };
     }
@@ -223,7 +226,9 @@ public class FighterAI {
             }
         }
         int buff = ms.specialIndex(Role.BUFF);
-        if (buff >= 0 && dist > 220 && !buffed(self) && chance(0.3f)) {
+        boolean propBuff = buff >= 0 && ms.special(buff).variant(1).grantProp;
+        boolean wantBuff = propBuff ? self.heldProp == null : !buffed(self);
+        if (buff >= 0 && dist > 220 && wantBuff && chance(0.3f)) {
             pressSpecial(self, buff, self.meter >= 150 && chance(0.3f) ? 3 : rng.nextInt(3));
             return;
         }

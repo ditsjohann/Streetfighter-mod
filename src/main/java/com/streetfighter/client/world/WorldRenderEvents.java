@@ -124,7 +124,8 @@ public final class WorldRenderEvents {
             if (p.delay > 0) continue;
             float rx = p.prevX + (p.x - p.prevX) * s.alpha(), ry = p.prevY + (p.y - p.prevY) * s.alpha();
             if (p.exploded || p.spec.visual == com.streetfighter.fight.ProjectileVisual.SHOCKWAVE
-                    || p.spec.visual == com.streetfighter.fight.ProjectileVisual.CLOUD) continue;
+                    || p.spec.visual == com.streetfighter.fight.ProjectileVisual.CLOUD
+                    || p.spec.visual == com.streetfighter.fight.ProjectileVisual.BLAST) continue;
             Vec3 w = p.bottomAnchored() ? arena.toWorld(rx, ry, 0.5) : arena.toWorldFlat(rx, ry);
             int light = LevelRenderer.getLightColor(mc.level, BlockPos.containing(w.x, w.y + 0.6, w.z));
             switch (p.spec.visual) {
@@ -145,13 +146,16 @@ public final class WorldRenderEvents {
                     dispatcher.render(s.arrowDummy, 0, 0, 0, yRot, 1f, ps, buffers, light);
                     ps.popPose();
                 }
-                case GOLEM, PIG, GOAT, CHICKEN, ZOMBIE, BABY_ZOMBIE -> {
+                case GOLEM, PIG, GOAT, CHICKEN, ZOMBIE, BABY_ZOMBIE, COW, DONKEY, CREEPER -> {
                     LivingEntity dummy = switch (p.spec.visual) {
                         case GOLEM -> s.golemDummy;
                         case GOAT -> s.goatDummy;
                         case CHICKEN -> s.chickenDummy;
                         case ZOMBIE -> s.zombieDummy;
                         case BABY_ZOMBIE -> s.babyZombieDummy;
+                        case COW -> s.cowDummy;
+                        case DONKEY -> s.donkeyDummy;
+                        case CREEPER -> s.creeperDummy;
                         default -> s.pigDummy;
                     };
                     if (dummy == null) break;
@@ -202,6 +206,9 @@ public final class WorldRenderEvents {
                         case TRIDENT -> new ItemStack(Items.TRIDENT);
                         case PEARL -> new ItemStack(Items.ENDER_PEARL);
                         case BOTTLE -> new ItemStack(Items.HONEY_BOTTLE);
+                        case MILK -> new ItemStack(Items.MILK_BUCKET);
+                        case CHEST -> new ItemStack(Items.CHEST);
+                        case GUNPOWDER -> new ItemStack(Items.GUNPOWDER);
                         case POTION -> net.minecraft.world.item.alchemy.PotionContents.createItemStack(Items.SPLASH_POTION,
                                 WorldFx.potionFor(p.spec.effect));
                         default -> new ItemStack(Items.SNOWBALL);

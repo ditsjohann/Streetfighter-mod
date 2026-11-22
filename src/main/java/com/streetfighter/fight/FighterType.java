@@ -22,6 +22,9 @@ public enum FighterType {
     IRON_ORE("iron_ore", "Iron Ore", "Raw Power", true),
     STONE_PICKAXE("stone_pickaxe", "Stone Pickaxe", "Tool of War", true),
     ZOMBIE("zombie", "Zombie", "Undead Brawler", true),
+    COW("cow", "Cow", "Mad Cow", true),
+    DONKEY("donkey", "Donkey", "Stubborn Mule", true),
+    CREEPER("creeper", "Creeper", "Walking Bomb", true),
     BRAWLER("brawler", "Brawler", "Wild Mob", false);
 
     public final String id;
@@ -60,6 +63,9 @@ public enum FighterType {
                 && !(entity instanceof net.minecraft.world.entity.monster.ZombifiedPiglin)) return ZOMBIE;
         if (entity.getType() == EntityType.PIG) return PIG;
         if (entity.getType() == EntityType.CHICKEN) return CHICKEN;
+        if (entity.getType() == EntityType.COW || entity.getType() == EntityType.MOOSHROOM) return COW;
+        if (entity.getType() == EntityType.DONKEY || entity.getType() == EntityType.MULE) return DONKEY;
+        if (entity.getType() == EntityType.CREEPER) return CREEPER;
         if (entity.getType() == EntityType.GOAT) return GOAT;
         if (entity instanceof Villager villager) {
             VillagerProfession profession = villager.getVillagerData().getProfession();

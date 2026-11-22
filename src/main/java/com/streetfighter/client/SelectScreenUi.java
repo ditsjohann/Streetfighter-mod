@@ -39,8 +39,9 @@ final class SelectScreenUi {
     private static final FighterType[] GRID = {
             FighterType.STEVE, FighterType.PIG, FighterType.SKELETON, FighterType.VILLAGER, FighterType.ALCHEMIST,
             FighterType.CHICKEN, FighterType.GOAT,
-            FighterType.OAK, FighterType.IRON_ORE, FighterType.STONE_PICKAXE, null, FighterType.ZOMBIE, null, null,
-            null, null, null, null, null, null, null};
+            FighterType.OAK, FighterType.IRON_ORE, FighterType.STONE_PICKAXE, null, FighterType.ZOMBIE, FighterType.COW,
+            FighterType.DONKEY,
+            FighterType.CREEPER, null, null, null, null, null, null};
     private static final int RANDOM_CELL = 10; // centre of the bottom row
     private static final float SELECT_SECONDS = 30f;
 
@@ -89,6 +90,9 @@ final class SelectScreenUi {
             case IRON_ORE -> new Profile("JUGGERNAUT", "DEEP CAVES", 5, 1, 5, 2, 0xD8AF93);
             case STONE_PICKAXE -> new Profile("RUSHDOWN", "CRAFTING TABLE", 3, 4, 2, 2, 0xA0A0A0);
             case ZOMBIE -> new Profile("UNDEAD GRAPPLER", "THE NIGHT", 4, 2, 4, 1, 0x5DAA46);
+            case COW -> new Profile("BRUISER", "THE PASTURE", 4, 2, 4, 2, 0xB98A5E);
+            case DONKEY -> new Profile("ITEM TRICKSTER", "THE STABLES", 3, 3, 3, 3, 0xC2A27A);
+            case CREEPER -> new Profile("GLASS CANNON", "DARK FORESTS", 5, 3, 1, 2, 0x4CC24C);
             case BRAWLER -> new Profile("WILD MOB", "THE WILD", 3, 3, 3, 2, 0xFF6A4A);
         };
     }
@@ -112,6 +116,9 @@ final class SelectScreenUi {
                 case CHICKEN -> EntityType.CHICKEN;
                 case GOAT -> EntityType.GOAT;
                 case ZOMBIE -> EntityType.ZOMBIE;
+                case COW -> EntityType.COW;
+                case DONKEY -> EntityType.DONKEY;
+                case CREEPER -> EntityType.CREEPER;
                 default -> EntityType.ZOMBIE;
             };
             var e = type.create(mc.level);
@@ -119,6 +126,7 @@ final class SelectScreenUi {
                 v.setVillagerData(v.getVillagerData().setProfession(
                         k == FighterType.ALCHEMIST ? VillagerProfession.CLERIC : VillagerProfession.NONE));
             }
+            if (e instanceof net.minecraft.world.entity.animal.horse.Donkey d) d.setChest(true);
             if (e instanceof net.minecraft.world.entity.monster.Skeleton sk) {
                 sk.setItemSlot(net.minecraft.world.entity.EquipmentSlot.MAINHAND,
                         new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.BOW));

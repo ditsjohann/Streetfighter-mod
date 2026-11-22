@@ -852,6 +852,27 @@ public final class FightEngine {
             f.vx = 0;
             events.add(new FightEvent(Type.TELEPORT, f.index, from, f.y, null, null, false));
         }
+        if (fr == m.startup && m.selfDamage > 0 && phase == Phase.FIGHTING) {
+            f.hp = Math.max(1, f.hp - m.selfDamage);
+            events.add(FightEvent.text(Type.SELF_DAMAGE, f.index, f.x, f.y + 80, String.valueOf((int) m.selfDamage)));
+        }
+        if (fr == m.startup && m.cleanse) {
+            boolean any = false;
+            for (StatusEffect e : StatusEffect.ALL) {
+                if (!e.buff && f.status[e.ordinal()] > 0) {
+                    f.status[e.ordinal()] = 0;
+                    any = true;
+                }
+            }
+            events.add(FightEvent.text(Type.CLEANSE, f.index, f.x, f.y + 100, any ? "CLEANSED" : "MILK"));
+        }
+        if (fr == m.startup && m.grantProp && f.heldProp == null) {
+            Prop pr = Prop.ALL[random.nextInt(Prop.ALL.length)];
+            f.heldProp = pr;
+            f.heldTimer = Prop.HOLD_FRAMES;
+            f.heldUses = pr.uses;
+            events.add(new FightEvent(Type.PROP_PICKUP, f.index, f.x, 60, pr.name(), null, false));
+        }
         if (fr == m.startup && m.randomBrew) {
             // mystery bottle: usually a buff... sometimes it backfires
             StatusEffect[] brews = {StatusEffect.STRENGTH, StatusEffect.SPEED, StatusEffect.REGEN, StatusEffect.POISON};

@@ -47,6 +47,10 @@ public final class Move {
     public final int hitEffectFrames;
     /** Item moves: Ender Pearl warp (teleport behind the opponent), mystery bottle (random brew), throws that use the item up. */
     public final boolean teleport, randomBrew, consumesProp;
+    /** Cow milk: clears your debuffs. Donkey saddlebag: pulls out a random prop. */
+    public final boolean cleanse, grantProp;
+    /** Creeper explosions hurt the creeper too (HP lost on the first active frame). */
+    public final float selfDamage;
 
     private Move(Builder b) {
         name = b.name;
@@ -103,6 +107,9 @@ public final class Move {
         teleport = b.teleport;
         randomBrew = b.randomBrew;
         consumesProp = b.consumesProp;
+        cleanse = b.cleanse;
+        grantProp = b.grantProp;
+        selfDamage = b.selfDamage;
     }
 
     public boolean isSuper() {
@@ -161,7 +168,8 @@ public final class Move {
         private int selfEffectFrames;
         private StatusEffect hitEffect;
         private int hitEffectFrames;
-        private boolean teleport, randomBrew, consumesProp;
+        private boolean teleport, randomBrew, consumesProp, cleanse, grantProp;
+        private float selfDamage;
 
         private Builder(String name) {
             this.name = name;
@@ -183,6 +191,7 @@ public final class Move {
             selfEffects = m.selfEffects; selfEffectFrames = m.selfEffectFrames;
             hitEffect = m.hitEffect; hitEffectFrames = m.hitEffectFrames;
             teleport = m.teleport; randomBrew = m.randomBrew; consumesProp = m.consumesProp;
+            cleanse = m.cleanse; grantProp = m.grantProp; selfDamage = m.selfDamage;
         }
 
         public Builder name(String n) { this.name = n; return this; }
@@ -226,6 +235,9 @@ public final class Move {
         public Builder teleport() { this.teleport = true; return this; }
         public Builder randomBrew() { this.randomBrew = true; return this; }
         public Builder consumesProp() { this.consumesProp = true; return this; }
+        public Builder cleanse() { this.cleanse = true; return this; }
+        public Builder grantProp() { this.grantProp = true; return this; }
+        public Builder selfDamage(float hp) { this.selfDamage = hp; return this; }
 
         public Move build() {
             return new Move(this);

@@ -41,7 +41,7 @@ public final class SFCommands {
                         .requires(src -> src.hasPermission(2))
                         .then(Commands.argument("style", StringArgumentType.word())
                                 .suggests((ctx, b) -> SharedSuggestionProvider.suggest(
-                                        List.of("all", "skeleton", "villager", "pig", "chicken", "alchemist", "goat", "oak", "iron_ore", "stone_pickaxe", "zombie"), b))
+                                        List.of("all", "skeleton", "villager", "pig", "chicken", "alchemist", "goat", "oak", "iron_ore", "stone_pickaxe", "zombie", "cow", "donkey", "creeper"), b))
                                 .executes(SFCommands::unlock)))
                 .then(Commands.literal("resetstyles")
                         .requires(src -> src.hasPermission(2))

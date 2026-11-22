@@ -8,7 +8,9 @@
     "AgeableListModelMixin",
     "HierarchicalModelMixin",
     "QuadrupedModelAccessor",
-    "ChickenModelAccessor"
+    "ChickenModelAccessor",
+    "HorseModelAccessor",
+    "CreeperModelAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

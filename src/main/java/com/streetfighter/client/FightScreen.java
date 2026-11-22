@@ -174,6 +174,9 @@ public class FightScreen extends Screen {
             case IRON_ORE -> new ItemStack(Items.RAW_IRON);
             case STONE_PICKAXE -> new ItemStack(Items.STONE_PICKAXE);
             case ZOMBIE -> new ItemStack(Items.ROTTEN_FLESH);
+            case COW -> new ItemStack(Items.MILK_BUCKET);
+            case DONKEY -> new ItemStack(Items.SADDLE);
+            case CREEPER -> new ItemStack(Items.CREEPER_HEAD);
             default -> new ItemStack(Items.ROTTEN_FLESH);
         };
     }
@@ -191,6 +194,9 @@ public class FightScreen extends Screen {
             case IRON_ORE -> "Juggernaut: armored heavies, stalagmites, a command grab and boulder rolls. Slowest of all.";
             case STONE_PICKAXE -> "Rushdown: 4-hit mining target combo, spin mines, drill dives and rubble tosses.";
             case ZOMBIE -> "Undead grappler: bites inflict HUNGER (your super meter drains), command grab, the horde.";
+            case COW -> "Bruiser: charges and back-bucks; Milk Break cleanses your debuffs and regenerates.";
+            case DONKEY -> "Item trickster: Rummage pulls a random fight item from its saddlebag. Legendary Donkey Kick.";
+            case CREEPER -> "Glass cannon: huge explosions that also hurt the creeper. Creep Up silently, then KABOOM.";
             case BRAWLER -> "Wild mob: scrappy and straightforward.";
         };
     }

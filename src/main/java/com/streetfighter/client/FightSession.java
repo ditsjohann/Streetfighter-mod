@@ -64,7 +64,7 @@ public final class FightSession {
     public float fovKick;
 
     // dummies used to draw projectiles/assists with real models
-    public LivingEntity golemDummy, pigDummy, goatDummy, zombieDummy, babyZombieDummy;
+    public LivingEntity golemDummy, pigDummy, goatDummy, zombieDummy, babyZombieDummy, cowDummy, donkeyDummy, creeperDummy;
     public net.minecraft.world.entity.animal.Chicken chickenDummy;
     /** The funny villager who throws props into the fight. */
     public net.minecraft.world.entity.npc.Villager propVillager;
@@ -140,6 +140,11 @@ public final class FightSession {
         var baby = EntityType.ZOMBIE.create(mc.level);
         if (baby != null) baby.setBaby(true);
         babyZombieDummy = baby;
+        cowDummy = EntityType.COW.create(mc.level);
+        var donkey = EntityType.DONKEY.create(mc.level);
+        if (donkey != null) donkey.setChest(true);
+        donkeyDummy = donkey;
+        creeperDummy = EntityType.CREEPER.create(mc.level);
         chickenDummy = EntityType.CHICKEN.create(mc.level);
         propVillager = EntityType.VILLAGER.create(mc.level);
         if (propVillager != null) {
@@ -284,6 +289,16 @@ public final class FightSession {
                 if (pigDummy != null) pigDummy.walkAnimation.update(1.3f, 0.5f);
                 if (goatDummy != null) goatDummy.walkAnimation.update(1.4f, 0.5f);
                 if (zombieDummy != null) zombieDummy.walkAnimation.update(0.8f, 0.5f);
+                if (cowDummy != null) cowDummy.walkAnimation.update(1.3f, 0.5f);
+                if (donkeyDummy != null) donkeyDummy.walkAnimation.update(1.5f, 0.5f);
+                if (creeperDummy != null) creeperDummy.walkAnimation.update(1.2f, 0.5f);
+                // a creeper about to blow swells and flashes for real
+                if (enemyEntity instanceof net.minecraft.world.entity.monster.Creeper cr) {
+                    com.streetfighter.fight.Fighter ef = engine.enemy;
+                    boolean fuse = ef.state == com.streetfighter.fight.Fighter.State.ATTACK && ef.move != null
+                            && ef.move.selfDamage > 0 && ef.curFrame < ef.move.startup;
+                    cr.setSwellDir(fuse ? 1 : -1);
+                }
                 if (babyZombieDummy != null) babyZombieDummy.walkAnimation.update(1.6f, 0.5f);
                 if (chickenDummy != null) {
                     chickenDummy.oFlap = chickenDummy.flap;

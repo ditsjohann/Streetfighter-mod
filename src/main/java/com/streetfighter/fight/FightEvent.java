@@ -13,7 +13,8 @@ public record FightEvent(Type type, int fighter, float x, float y, String text, 
         // round 4
         AIR_JUMP, STATUS, STATUS_TICK,
         // props
-        PROP_VILLAGER, PROP_THROW, PROP_LAND, PROP_PICKUP, PROP_DROP, PROP_EXPIRE, TELEPORT
+        PROP_VILLAGER, PROP_THROW, PROP_LAND, PROP_PICKUP, PROP_DROP, PROP_EXPIRE, TELEPORT,
+        SELF_DAMAGE, CLEANSE
     }
 
     public static FightEvent of(Type type, int fighter, float x, float y) {
