@@ -14,7 +14,9 @@ public record FightEvent(Type type, int fighter, float x, float y, String text, 
         AIR_JUMP, STATUS, STATUS_TICK,
         // props
         PROP_VILLAGER, PROP_THROW, PROP_LAND, PROP_PICKUP, PROP_DROP, PROP_EXPIRE, TELEPORT,
-        SELF_DAMAGE, CLEANSE
+        SELF_DAMAGE, CLEANSE,
+        /** The match-winning K.O.: the client plays the X-ray finisher (fighter = the winner). */
+        FINISHER
     }
 
     public static FightEvent of(Type type, int fighter, float x, float y) {

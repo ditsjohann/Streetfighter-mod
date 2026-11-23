@@ -570,7 +570,7 @@ final class SelectScreenUi {
         for (Moveset.CommandNormal cn : ms.commandNormals) {
             lines.add(KeyNotation.dir(cn.dir(), true) + "+" + FightScreen.keyOf(cn.button()) + "  " + cn.move().name);
         }
-        lines.add("\u00a77D,D dash   A,A backdash   hold H in a fight to see your specials");
+        lines.add("\u00a77D,D dash   A,A backdash   hold TAB in a fight to see your specials");
         int ph = lines.size() * 10 + 8;
         int w2 = 0;
         for (String l : lines) w2 = Math.max(w2, font.width(l));

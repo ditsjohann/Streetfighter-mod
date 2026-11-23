@@ -230,7 +230,7 @@ public final class FightSession {
         Fighter enemy = new Fighter(1, info.enemyName(), enemyType, Movesets.get(enemyType), enemyStats(),
                 info.hpScale(), info.damageScale());
         FighterAI ai = FighterAI.create(enemyType, difficulty);
-        ai.passive = info.training();
+        ai.passive = info.training() || System.getProperty("sf.passive") != null; // TEMP-TEST
         engine = new FightEngine(player, enemy, ai, difficulty, minX(), maxX(), startSeparation, arena);
         engine.training = info.training();
         stage = Stage.FIGHT;
@@ -467,7 +467,19 @@ public final class FightSession {
     }
 
     /** Slow motion for the K.O. moment (the first ~3/4 second of the K.O. phase plays at quarter speed). */
+    /** The X-ray finisher playing right now, or null. */
+    public XRayFinisher xray;
+
+    public void startXRay(com.streetfighter.fight.Fighter winner, com.streetfighter.fight.Fighter loser) {
+        if (!com.streetfighter.SFConfig.XRAY_FINISHERS.get()) return;
+        xray = new XRayFinisher(winner.moves.type(), loser.body, winner.index == 0, time);
+    }
+
     private float timeScale() {
+        if (xray != null) {
+            if (!xray.done(time)) return 0f; // time stops for the X-ray
+            xray = null;
+        }
         if (engine == null || paused) return 1f;
         if (engine.phase == FightEngine.Phase.KO && engine.phaseTimer < 40) return 0.28f;
         return 1f;

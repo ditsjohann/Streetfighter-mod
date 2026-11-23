@@ -151,9 +151,14 @@ public class FightScreen extends Screen {
             select.render(g, width, height, mouseX, mouseY);
             return;
         }
+        if (session.xray != null && !session.xray.done(session.time)) {
+            session.xray.tick(session.time);
+            session.xray.render(g, font, hud, width, height, session.time);
+            return;
+        }
         hud.render(g, width, height);
         if (session.paused) hud.pausePanel(g, width, height, movePage);
-        else if (session.engine != null && !session.engine.isOver() && down(GLFW.GLFW_KEY_H)) hud.specialsHint(g, width, height);
+        else if (session.engine != null && !session.engine.isOver() && down(GLFW.GLFW_KEY_TAB)) hud.specialsHint(g, width, height);
         if (session.engine != null && session.engine.isOver() && session.matchEndFrames > 30) {
             hud.resultPanel(g, width, height, session.matchEndFrames - 30);
         }

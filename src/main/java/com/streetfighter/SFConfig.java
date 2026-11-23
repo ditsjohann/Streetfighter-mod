@@ -30,6 +30,10 @@ public final class SFConfig {
             .comment("Taking a stone pickaxe out of a crafting table makes it fight you first (win to get it).")
             .define("stonePickaxeChallenge", true);
 
+    public static final ForgeConfigSpec.BooleanValue XRAY_FINISHERS = BUILDER
+            .comment("Play a Mortal Kombat style X-ray bone-breaking finisher on the match-winning K.O.")
+            .define("xrayFinishers", true);
+
     public static final ForgeConfigSpec.BooleanValue LOSER_PENALTY = BUILDER
             .comment("Players who lose a fight are left bruised (Weakness + Slowness for 30 seconds).")
             .define("loserPenalty", true);

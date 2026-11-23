@@ -743,6 +743,10 @@ public final class WorldFx {
                 sound(SoundEvents.ENDERMAN_TELEPORT, to, 1f, 1.1f);
                 quads.glow(front(to), 2.2f, 0.3f, 0xB04FFF);
             }
+            case FINISHER -> {
+                if (f == null) break;
+                session.startXRay(f, engine.other(f));
+            }
             case SELF_DAMAGE -> {
                 if (f == null) break;
                 Vec3 p = at(f.x, f.y + 70);

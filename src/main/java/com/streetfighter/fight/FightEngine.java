@@ -198,6 +198,12 @@ public final class FightEngine {
                 if (player.hp <= 0 || enemy.hp <= 0) {
                     setPhase(Phase.KO);
                     events.add(FightEvent.of(Type.KO, -1, 0, 0));
+                    if ((player.hp <= 0) != (enemy.hp <= 0)) {
+                        Fighter w = player.hp > 0 ? player : enemy;
+                        if (w.roundsWon + 1 >= ROUNDS_TO_WIN) {
+                            events.add(new FightEvent(Type.FINISHER, w.index, other(w).x, other(w).y, null, null, true));
+                        }
+                    }
                 } else if (timer <= 0) {
                     timeOver = true;
                     setPhase(Phase.KO);

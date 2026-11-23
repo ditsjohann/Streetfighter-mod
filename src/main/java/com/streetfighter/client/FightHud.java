@@ -128,7 +128,9 @@ public final class FightHud {
         if (s.hud.flash > 0) g.fill(0, 0, w, h, argb(s.hud.flash * 18, 0xFFFFFF));
 
         if ((e.phase == FightEngine.Phase.INTRO || (e.phase == FightEngine.Phase.FIGHTING && e.round == 1
-                && e.timer > FightEngine.ROUND_FRAMES - 60 * 6)) && e.player.heldProp == null && e.enemy.heldProp == null) {
+                && e.timer > FightEngine.ROUND_FRAMES - 60 * 6)) && e.player.heldProp == null && e.enemy.heldProp == null
+                && org.lwjgl.glfw.GLFW.glfwGetKey(net.minecraft.client.Minecraft.getInstance().getWindow().getWindow(),
+                org.lwjgl.glfw.GLFW.GLFW_KEY_TAB) != org.lwjgl.glfw.GLFW.GLFW_PRESS) {
             help(g, w, my - 16);
         }
     }
@@ -308,7 +310,7 @@ public final class FightHud {
         boolean right = s.engine == null || s.engine.player.facingRight;
         String fwd = right ? "D" : "A", back = right ? "A" : "D";
         String[] lines = wrap(fwd + " forward   " + back + " back (hold to block)   W jump   S crouch   " + fwd + "," + fwd + " dash   "
-                + back + "," + back + " backdash   U I O punch   J K L kick   hold H = your specials   H+O super   U+J throw   "
+                + back + "," + back + " backdash   U I O punch   J K L kick   hold TAB = your specials   H+O super   U+J throw   "
                 + "I+K parry   O+L drive impact   ESC move list", w - 30);
         int y = bottom - lines.length * 11;
         for (String line : lines) {
@@ -326,7 +328,7 @@ public final class FightHud {
         var ms = f.moves;
         boolean right = f.facingRight;
         List<String> lines = new ArrayList<>();
-        lines.add("\u00a7eSPECIALS\u00a7r  (keep holding H and press a direction, or do the full input)");
+        lines.add("\u00a7eSPECIALS\u00a7r  (H + direction, or the full input)");
         for (var sp : ms.specials) {
             lines.add("\u00a7b" + KeyNotation.simple(sp.modernDir(), right) + "\u00a7r  " + sp.name() + "   \u00a77"
                     + KeyNotation.special(sp.motion(), sp.kick(), right));
