@@ -57,6 +57,10 @@ public final class WorldRenderEvents {
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onRenderLivingPre(RenderLivingEvent.Pre<?, ?> event) {
         if (FightAnimator.suspended || !isFighter(event.getEntity())) return;
+        if (FinisherCinematic.current != null && FinisherCinematic.current.hides(event.getEntity())) {
+            event.setCanceled(true); // replaced by the x-ray body, or it fell apart
+            return;
+        }
         FightAnimator.pre(event.getEntity(), event.getRenderer().getModel(), event.getPoseStack());
     }
 
@@ -84,6 +88,32 @@ public final class WorldRenderEvents {
     @SubscribeEvent
     public static void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {
         FightSession.abortAll();
+    }
+
+    @SubscribeEvent
+    public static void onFog(ViewportEvent.RenderFog event) {
+        FinisherCinematic f = FinisherCinematic.current;
+        FightSession s = FightSession.current();
+        if (f == null || s == null) return;
+        float[] fog = f.fog(s.time, event.getFarPlaneDistance());
+        if (fog == null) return;
+        event.setNearPlaneDistance(fog[0]);
+        event.setFarPlaneDistance(fog[1]);
+        event.setFogShape(com.mojang.blaze3d.shaders.FogShape.SPHERE);
+        event.setCanceled(true);
+    }
+
+    @SubscribeEvent
+    public static void onFogColor(ViewportEvent.ComputeFogColor event) {
+        FinisherCinematic f = FinisherCinematic.current;
+        FightSession s = FightSession.current();
+        if (f == null || s == null) return;
+        float[] fog = f.fog(s.time, 192f);
+        if (fog == null) return;
+        float k = f.fogColorMix(s.time);
+        event.setRed(Mth.lerp(k, event.getRed(), fog[2]));
+        event.setGreen(Mth.lerp(k, event.getGreen(), fog[3]));
+        event.setBlue(Mth.lerp(k, event.getBlue(), fog[4]));
     }
 
     @SubscribeEvent
@@ -274,5 +304,6 @@ public final class WorldRenderEvents {
         }
         PropRenderer.render(s, ps, cam, buffers, dispatcher);
         buffers.endBatch();
+        if (s.finisher != null) s.finisher.renderWorld(ps, cam, buffers);
     }
 }

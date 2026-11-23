@@ -42,6 +42,7 @@ public class PickaxeRenderer extends EntityRenderer<PickaxeFighterEntity> {
 
     @Override
     public void render(PickaxeFighterEntity e, float yaw, float partial, PoseStack ps, MultiBufferSource buf, int light) {
+        if (FinisherCinematic.current != null && FinisherCinematic.current.hides(e)) return;
         boolean animated = !FightAnimator.suspended;
         if (animated) FightAnimator.pre(e, null, ps);
         FightAnimator.State st = animated ? FightAnimator.stateIfPresent(e) : null;

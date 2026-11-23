@@ -3,6 +3,7 @@ package com.streetfighter.client;
 import com.streetfighter.client.world.Arena;
 import com.streetfighter.client.world.FightAnimator;
 import com.streetfighter.client.world.FightCamera;
+import com.streetfighter.client.world.FinisherCinematic;
 import com.streetfighter.client.world.WorldFx;
 import com.streetfighter.fight.AIDifficulty;
 import com.streetfighter.fight.FightEngine;
@@ -290,7 +291,7 @@ public final class FightSession {
         if (stage == Stage.FIGHT && !paused) {
             accumulator += dt * timeScale();
             int steps = 0;
-            while (accumulator >= STEP && steps < 6) {
+            while (accumulator >= STEP && steps < 6 && (finisher == null || !finisher.active(time))) {
                 accumulator -= STEP;
                 steps++;
                 FightScreen screen = mc.screen instanceof FightScreen fs ? fs : null;
@@ -336,6 +337,10 @@ public final class FightSession {
                 syncTimer = 0;
                 syncMob();
             }
+        }
+        if (finisher != null) {
+            finisher.tick(time);
+            if (finisher.active(time)) hud.flash = 0; // the K.O. flash would wash out the cinematic afterwards
         }
         animate(player, enemyEntity, dt);
         fovKick = Math.max(0, fovKick - dt * 0.4f);
@@ -432,6 +437,12 @@ public final class FightSession {
     // ------------------------------------------------------------------ camera
 
     private void updateCamera(float dt, LocalPlayer player) {
+        if (finisher != null && finisher.active(time)) {
+            FinisherCinematic.Shot sh = finisher.shot(time);
+            camera.setNextShot(sh.height(), sh.cut());
+            camera.update(sh.focus(), sh.dist(), sh.shake(), sh.roll(), (float) sh.orbit(), dt, player);
+            return;
+        }
         float px, py, ex, ey;
         if (engine == null) {
             px = selectPlayerX;
@@ -482,19 +493,21 @@ public final class FightSession {
     }
 
     /** Slow motion for the K.O. moment (the first ~3/4 second of the K.O. phase plays at quarter speed). */
-    /** The X-ray finisher playing right now, or null. */
-    public XRayFinisher xray;
+    /** The finisher cinematic (stays set after it ends so the victim keeps its final pose), or null. */
+    public FinisherCinematic finisher;
 
-    public void startXRay(com.streetfighter.fight.Fighter winner, com.streetfighter.fight.Fighter loser) {
-        if (!com.streetfighter.SFConfig.XRAY_FINISHERS.get()) return;
-        xray = new XRayFinisher(winner.moves.type(), loser.body, winner.index == 0, time);
+    public void startFinisher(com.streetfighter.fight.Fighter winner, com.streetfighter.fight.Fighter loser) {
+        if (!com.streetfighter.SFConfig.XRAY_FINISHERS.get() || finisher != null) return;
+        LivingEntity we = winner.index == 0 ? Minecraft.getInstance().player : enemyEntity;
+        LivingEntity le = loser.index == 0 ? Minecraft.getInstance().player : enemyEntity;
+        if (we == null || le == null) return;
+        finisher = new FinisherCinematic(this, winner, loser, we, le, time);
+        FinisherCinematic.current = finisher;
+        FightAnimator.finisherHook = finisher;
     }
 
     private float timeScale() {
-        if (xray != null) {
-            if (!xray.done(time)) return 0f; // time stops for the X-ray
-            xray = null;
-        }
+        if (finisher != null && finisher.active(time)) return 0f; // time stops for the finisher
         if (engine == null || paused) return 1f;
         if (engine.phase == FightEngine.Phase.KO && engine.phaseTimer < 40) return 0.28f;
         return 1f;
@@ -566,6 +579,8 @@ public final class FightSession {
         Minecraft mc = Minecraft.getInstance();
         FightCamera.reset();
         FightAnimator.clear();
+        FightAnimator.finisherHook = null;
+        FinisherCinematic.current = null;
         mc.options.hideGui = savedHideGui;
         mc.options.damageTiltStrength().set(savedDamageTilt);
         mc.options.bobView().set(savedBob);

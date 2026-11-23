@@ -165,14 +165,41 @@ becomes **S, S+A, A**.
 - **Dash:** **tap forward twice** (D, D).
 - **Backdash:** **tap back twice** (A, A). It's briefly invincible.
 
-## X-ray finishers
+## Finishers: X-ray and unique deaths
 
-The match-winning K.O. plays a Mortal Kombat style **X-RAY** cinematic. Time stops, and the loser's skeleton appears inside a
-translucent body (bone blocks inside light-blue glass). The winner's signature blow then cracks a bone, with the
-block-breaking texture spreading over it, until it snaps.
-- **Unique per style:** Steve's *Pickaxe to the Dome*, Skeleton's *Rib Collector*, Goat's *Ram Rupture*, Zombie's
-  *Bone Appetit*, Creeper's *Total Detonation*, and so on.
-- **Materials:** trees break wooden "bones", the ore golem iron, and the pickaxe its handle.
+The match-winning K.O. plays an 8 to 9 second Mortal Kombat style cinematic, **staged in the world itself**
+(not as a flat overlay). Time stops. **SPACE** skips to the death, and pressing it again skips to the end.
+1. **FINISH!** The camera cuts behind the winner's shoulder and pushes in. The world sinks into dark fog, a heartbeat
+   thumps and the victim staggers.
+2. **X-RAY.** The victim's body is swapped, in place, for an x-ray body: glass flesh around a skeleton built from
+   blocks. The fog closes into a deep blue void.
+   - Every blow gets its own camera cut, close on the target bone.
+   - The winner's weapon (a pickaxe, a bow, a TNT block...) swings in as a real 3D item.
+   - Impacts flash, throw bone shards, shake the camera and spread the block-breaking cracks.
+   - The last blow **snaps the bone in two**, and the halves drift apart.
+   - The finisher is set by the **winner's style**: Steve's *Pickaxe to the Dome*, Skeleton's *Rib Collector*,
+     Goat's *Ram Rupture*, Zombie's *Bone Appetit*, Creeper's *Total Detonation*, and so on.
+   - The skeleton is set by the **victim's body**: biped, four-legged, bird, creeper or tool. Trees have wooden bones,
+     the ore golem iron ones and the pickaxe a wooden handle.
+3. **The death.** A wide, slowly orbiting shot, and **every character dies its own way**, with physics debris:
+
+| Character | Death | What happens |
+|---|---|---|
+| Steve / Brawler | *Knocked out cold* | Wobbles, knees buckle, falls flat, dust puff, dizzy stars |
+| Villager | *Bankrupt* | Collapses and spills a shower of emeralds |
+| Alchemist | *Shattered* | Collapses as its potions burst into coloured clouds and empty bottles |
+| Skeleton | *Bone pile* | Falls apart into a clattering heap of bones, its skull and its bow |
+| Zombie | *Back to the grave* | Sways, then sinks into the ground reaching upward |
+| Pig | *Belly up* | Rolls onto its back, legs twitching, carrots spill |
+| Cow | *Spilt milk* | Rolls over, the bucket goes flying, milk splashes |
+| Chicken | *Feather explosion* | Pops into a cloud of drifting feathers and one last egg |
+| Goat | *Dehorned* | Both horns snap off and fly, then it topples |
+| Donkey | *Last kick* | Rears up and topples, losing its chest, saddle and apples |
+| Creeper | *Fizzled out* | Swells... and fizzles with a sad "pfft", leaving gunpowder |
+| Oak tree | *TIMBER!* | Creaks, then falls flat with a crash of leaves, logs and apples |
+| Iron ore | *Crumbled* | Breaks into tumbling stone, ore and raw iron blocks |
+| Stone pickaxe | *Snapped* | The handle snaps; sticks, cobblestone and the pickaxe fly |
+
 - **Config:** turn it off with `xrayFinishers`.
 
 ## Ki Clash (Dragon Ball style), villagers only
@@ -267,7 +294,7 @@ Settings are in `config/streetfighter-common.toml`: peaceful mobs, challenge ran
 Requires Java 21.
 
 ```bash
-./gradlew build        # mod jar -> build/libs/streetfighter-0.8.0.jar
+./gradlew build        # mod jar -> build/libs/streetfighter-0.9.0.jar
 ./gradlew runClient    # launch a dev client with the mod
 ```
 

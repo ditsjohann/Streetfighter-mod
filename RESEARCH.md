@@ -135,6 +135,11 @@ Sources:
 - **X-ray (MK9/MKX, now MK11 Fatal Blows):** slow motion, the view zooms into the skeleton, and bones crack and snap.
   - Here it's a match-ending finisher. Bones are bone-block models inside stained-glass "flesh".
   - Cracks reuse the block destroy-stage textures (`SheetedDecalTextureGenerator`).
+  - **v0.9 rework:** MK X-rays and Fatalities work as edited film sequences rather than overlays: a hard cut to a new
+    angle on every hit, a freeze, an x-ray "void", then a wide shot of the result. So the finisher now runs in the
+    world with real camera cuts, fog closing in (`ViewportEvent.RenderFog`/`ComputeFogColor`), the victim swapped for
+    an in-world x-ray body, and a per-character death with simulated debris (gravity, bounce, friction, spin; feathers
+    drift).
 - **Ki Clash** takes from:
   - Budokai Tenkaichi / Sparking! ZERO: flight, charging ki by hand, smash knockback into a chase, beam struggles.
   - FighterZ: Vanish for a ki bar, the homing Super/Dragon Dash, auto-combos.

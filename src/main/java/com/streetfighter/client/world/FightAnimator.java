@@ -46,6 +46,17 @@ public final class FightAnimator {
 
     public static boolean suspended;
 
+    /** Lets a finisher cinematic take over poses and whole-body transforms. */
+    public interface FinisherHook {
+        /** Overrides the target pose of {@code e}; returns the blend rate, or null to leave it alone. */
+        Float pose(LivingEntity e, Body body, float[] t, float[] cur, float time);
+
+        /** Extra whole-body transform (before scaling), e.g. toppling over. */
+        void transform(LivingEntity e, PoseStack ps, Vec3 facing, float height);
+    }
+
+    public static FinisherHook finisherHook;
+
     /** Per-frame inputs from the fight session. */
     public record Ctx(float dt, float time, float alpha, boolean hitstop, double alongAxis, float scale, Vec3 facing,
                       boolean victoryPose) {
@@ -180,6 +191,10 @@ public final class FightAnimator {
                 s.lastState = f.state;
             }
             rate = pose(s, f, t, ctx, guard);
+        }
+        if (finisherHook != null) {
+            Float r = finisherHook.pose(e, s.body, t, s.cur, tm);
+            if (r != null) rate = r;
         }
 
         // springs
@@ -624,6 +639,7 @@ public final class FightAnimator {
             ps.mulPose(new Quaternionf().rotateAxis(c[FLIP] * Mth.DEG_TO_RAD, ax, 0, az));
             ps.translate(0, -half, 0);
         }
+        if (finisherHook != null) finisherHook.transform(entity, ps, f, s.bodyHeight * s.scale);
         float squash = Mth.clamp(c[SQUASH] + s.squashS * 0.06f, 0.5f, 1.2f);
         float bulge = 1f + (1f - squash) * 0.35f; // keep volume: squash wider
         ps.scale(s.scale * bulge, s.scale * squash, s.scale * bulge);

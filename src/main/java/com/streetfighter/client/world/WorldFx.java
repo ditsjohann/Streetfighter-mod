@@ -753,7 +753,7 @@ public final class WorldFx {
             }
             case FINISHER -> {
                 if (f == null) break;
-                session.startXRay(f, engine.other(f));
+                session.startFinisher(f, engine.other(f));
             }
             case KI_CHARGE -> {
                 if (f == null) break;

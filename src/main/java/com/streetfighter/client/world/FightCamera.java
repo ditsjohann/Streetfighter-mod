@@ -105,6 +105,15 @@ public final class FightCamera {
         kickVel = kickVel.add(dir.scale(strength));
     }
 
+    private Double shotHeight;
+    private boolean cutNext;
+
+    /** Cinematic override for the next update: fixed height above the focus, and optionally a hard cut (no spring). */
+    public void setNextShot(double height, boolean cut) {
+        shotHeight = height;
+        cutNext |= cut;
+    }
+
     public void update(Vec3 focus, double distance, float shake, float extraRoll, float dt, Entity player) {
         update(focus, distance, shake, extraRoll, 0f, dt, player);
     }
@@ -126,14 +135,20 @@ public final class FightCamera {
         double oa = Math.toRadians(orbitDeg);
         Vec3 n = arena.normal.scale(side), ax = arena.axis;
         Vec3 dir = n.scale(Math.cos(oa)).add(ax.scale(Math.sin(oa)));
-        Vec3 desired = focus.add(dir.scale(distance)).add(0, 0.45 + distance * 0.07, 0);
+        double lift = shotHeight != null ? shotHeight : 0.45 + distance * 0.07;
+        boolean cut = cutNext;
+        shotHeight = null;
+        cutNext = false;
+        Vec3 desired = focus.add(dir.scale(distance)).add(0, lift, 0);
         // pull in front of walls/trees between the camera and the fighters
         double free = rayFree(focus, desired);
         double want = focus.distanceTo(desired);
         if (free < want - 0.05) {
-            desired = focus.add(desired.subtract(focus).normalize().scale(Math.max(1.6, free - 0.3)));
+            desired = focus.add(desired.subtract(focus).normalize().scale(Math.max(Math.min(1.6, want * 0.6), free - 0.3)));
         }
-        if (pos == null) {
+        if (pos == null || cut) {
+            posVel = Vec3.ZERO;
+            targetVel = Vec3.ZERO;
             pos = desired;
             target = focus;
         } else {

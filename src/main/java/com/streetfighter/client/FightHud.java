@@ -38,7 +38,7 @@ public final class FightHud {
         }
     }
 
-    void outlined(GuiGraphics g, String text, float cx, float cy, float scale, int color, int outline) {
+    public void outlined(GuiGraphics g, String text, float cx, float cy, float scale, int color, int outline) {
         g.pose().pushPose();
         g.pose().translate(cx, cy, 0);
         g.pose().scale(scale, scale, 1f);
@@ -411,7 +411,7 @@ public final class FightHud {
             }
             case KO -> {
                 if (e.timeOver) outlined(g, "TIME", w / 2f, cy, 6f * pop, 0xFFFFE070, 0xFF000000);
-                else outlined(g, "K.O.", w / 2f, cy, 7f * pop, 0xFFFF2A1A, 0xFFFFFFFF);
+                else if (s.finisher == null) outlined(g, "K.O.", w / 2f, cy, 7f * pop, 0xFFFF2A1A, 0xFFFFFFFF);
             }
             case ROUND_END -> {
                 String text;

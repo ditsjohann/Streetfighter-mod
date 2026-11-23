@@ -67,6 +67,10 @@ public class FightScreen extends Screen {
     public boolean keyPressed(int key, int scanCode, int modifiers) {
         if (session.stage == FightSession.Stage.SELECT) return select == null || select.key(key);
         if (session.engine == null) return true;
+        if (session.finisher != null && session.finisher.active(session.time)) {
+            if (key == GLFW.GLFW_KEY_SPACE || key == GLFW.GLFW_KEY_ENTER) session.finisher.skip(session.time);
+            return true;
+        }
         if (session.engine.isOver()) {
             if (session.matchEndFrames > 45 && (key == GLFW.GLFW_KEY_SPACE || key == GLFW.GLFW_KEY_ENTER
                     || key == GLFW.GLFW_KEY_ESCAPE || key == GLFW.GLFW_KEY_U || key == GLFW.GLFW_KEY_J)) {
@@ -151,9 +155,8 @@ public class FightScreen extends Screen {
             select.render(g, width, height, mouseX, mouseY);
             return;
         }
-        if (session.xray != null && !session.xray.done(session.time)) {
-            session.xray.tick(session.time);
-            session.xray.render(g, font, hud, width, height, session.time);
+        if (session.finisher != null && session.finisher.active(session.time)) {
+            session.finisher.renderHud(g, font, hud, width, height, session.time);
             return;
         }
         hud.render(g, width, height);
