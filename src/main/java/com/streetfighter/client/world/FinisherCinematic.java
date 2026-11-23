@@ -25,6 +25,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemDisplayContext;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
@@ -57,13 +58,13 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
 
     enum Bone { SKULL, JAW, SPINE, RIB, ARM, LEG, PELVIS, ALL }
 
-    enum Shape { BIPED, QUAD, BIRD, CREEPER, TOOL }
+    enum Shape { BIPED, QUAD, BIRD, CREEPER, TOOL, BLOB, SPIDER }
 
     public enum Death {
         COLLAPSE("KNOCKED OUT COLD"), EMERALD_SPILL("BANKRUPT"), POTION_POP("SHATTERED"), BONE_PILE("BONE PILE"),
         SINK("BACK TO THE GRAVE"), BELLY_UP("BELLY UP"), MILK_SPILL("SPILT MILK"), FEATHER_BURST("FEATHER EXPLOSION"),
         HORN_SNAP("DEHORNED"), BUCK_COLLAPSE("LAST KICK"), FIZZLE("FIZZLED OUT"), TIMBER("TIMBER!"),
-        CRUMBLE("CRUMBLED"), SNAP("SNAPPED");
+        CRUMBLE("CRUMBLED"), SNAP("SNAPPED"), SPLIT("SPLIT UP"), CURL("CURLED UP"), TANNED("TANNED HIDE");
         final String title;
 
         Death(String title) {
@@ -127,12 +128,15 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
             case CHICKEN -> Shape.BIRD;
             case CREEPER -> Shape.CREEPER;
             case STONE_PICKAXE -> Shape.TOOL;
+            case SLIME -> Shape.BLOB;
+            case SPIDER -> Shape.SPIDER;
             default -> FightAnimator.bodyOf(loserE) == FightAnimator.Body.QUAD ? Shape.QUAD : Shape.BIPED;
         };
         this.boneMat = switch (body) {
             case OAK -> Blocks.STRIPPED_OAK_LOG.defaultBlockState();
             case IRON_ORE -> Blocks.IRON_BLOCK.defaultBlockState();
             case STONE_PICKAXE -> Blocks.OAK_PLANKS.defaultBlockState();
+            case SLIME -> Blocks.SLIME_BLOCK.defaultBlockState(); // no bones, just a gooey core
             default -> Blocks.BONE_BLOCK.defaultBlockState();
         };
         this.flesh = switch (body) {
@@ -140,6 +144,9 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
             case IRON_ORE, STONE_PICKAXE -> Blocks.GRAY_STAINED_GLASS.defaultBlockState();
             case ZOMBIE, CREEPER -> Blocks.LIME_STAINED_GLASS.defaultBlockState();
             case SKELETON -> Blocks.WHITE_STAINED_GLASS.defaultBlockState();
+            case SLIME -> Blocks.LIME_STAINED_GLASS.defaultBlockState();
+            case SPIDER -> Blocks.RED_STAINED_GLASS.defaultBlockState();
+            case LEATHERWORKER -> Blocks.ORANGE_STAINED_GLASS.defaultBlockState();
             default -> Blocks.LIGHT_BLUE_STAINED_GLASS.defaultBlockState();
         };
         layoutHeight = switch (shape) {
@@ -147,6 +154,8 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
             case BIRD -> 1.3f;
             case CREEPER -> 1.7f;
             case TOOL -> 1.9f;
+            case BLOB -> 1.0f;
+            case SPIDER -> 0.9f;
             default -> 2.0f;
         };
         build();
@@ -171,6 +180,9 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
             case COW -> new Finisher("UDDER DESTRUCTION", Bone.RIB, 2, new ItemStack(Items.MILK_BUCKET));
             case DONKEY -> new Finisher("KICK OF DOOM", Bone.JAW, 1, new ItemStack(Items.SADDLE));
             case CREEPER -> new Finisher("TOTAL DETONATION", Bone.ALL, 1, new ItemStack(Items.TNT));
+            case SLIME -> new Finisher("STICKY SITUATION", Bone.SPINE, 2, new ItemStack(Items.SLIME_BLOCK));
+            case SPIDER -> new Finisher("EIGHT-LEGGED SNAP", Bone.LEG, 3, new ItemStack(Items.SPIDER_EYE));
+            case LEATHERWORKER -> new Finisher("WHIPLASH", Bone.SPINE, 2, new ItemStack(Items.LEAD));
             case BRAWLER -> new Finisher("BONE BREAKER", Bone.RIB, 2, new ItemStack(Items.BONE));
         };
     }
@@ -190,6 +202,9 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
             case OAK -> Death.TIMBER;
             case IRON_ORE -> Death.CRUMBLE;
             case STONE_PICKAXE -> Death.SNAP;
+            case SLIME -> Death.SPLIT;
+            case SPIDER -> Death.CURL;
+            case LEATHERWORKER -> Death.TANNED;
             default -> model == FightAnimator.Body.QUAD ? Death.BELLY_UP
                     : model == FightAnimator.Body.BIRD ? Death.FEATHER_BURST : Death.COLLAPSE;
         };
@@ -217,6 +232,27 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
                 for (int s = -1; s <= 1; s += 2) {
                     add(Bone.LEG, s * 0.12f, 0, 0.16f, 0.1f, 0.34f, 0.1f);
                     add(Bone.LEG, s * 0.12f, 0, -0.16f, 0.1f, 0.34f, 0.1f);
+                }
+            }
+            case BLOB -> {
+                // a slime has no skeleton: just its gooey core and a few bubbles
+                add(Bone.SKULL, 0, 0.28f, 0, 0.42f, 0.42f, 0.42f);
+                add(Bone.RIB, 0.28f, 0.62f, 0.12f, 0.1f, 0.1f, 0.1f);
+                add(Bone.RIB, -0.25f, 0.7f, -0.15f, 0.08f, 0.08f, 0.08f);
+                add(Bone.RIB, 0.1f, 0.12f, -0.3f, 0.07f, 0.07f, 0.07f);
+            }
+            case SPIDER -> {
+                add(Bone.SKULL, 0.56f, 0.3f, 0, 0.3f, 0.3f, 0.3f);
+                add(Bone.JAW, 0.74f, 0.22f, 0, 0.1f, 0.12f, 0.26f);
+                for (int i = 0; i < 3; i++) add(Bone.SPINE, 0.28f - i * 0.16f, 0.36f, 0, 0.14f, 0.1f, 0.12f);
+                for (int i = 0; i < 3; i++) add(Bone.RIB, -0.3f - i * 0.16f, 0.2f, 0, 0.06f, 0.42f, 0.5f);
+                add(Bone.PELVIS, -0.78f, 0.3f, 0, 0.14f, 0.2f, 0.26f);
+                for (int sd = -1; sd <= 1; sd += 2) {
+                    for (int i = 0; i < 4; i++) {
+                        float x = 0.3f - i * 0.18f;
+                        add(Bone.LEG, x, 0.4f, sd * 0.32f, 0.06f, 0.06f, 0.4f);
+                        add(Bone.LEG, x, 0f, sd * 0.52f, 0.06f, 0.44f, 0.06f);
+                    }
                 }
             }
             case TOOL -> {
@@ -268,7 +304,8 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
         if (fin.target == Bone.ALL) return true;
         Bone t = fin.target;
         if (shape == Shape.TOOL && (t == Bone.ARM || t == Bone.LEG || t == Bone.RIB)) t = Bone.SPINE;
-        if ((shape == Shape.QUAD || shape == Shape.CREEPER) && t == Bone.ARM) t = Bone.LEG;
+        if ((shape == Shape.QUAD || shape == Shape.CREEPER || shape == Shape.SPIDER) && t == Bone.ARM) t = Bone.LEG;
+        if (shape == Shape.BLOB) return tag == Bone.SKULL; // every blow lands on the core
         return tag == t;
     }
 
@@ -338,7 +375,7 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
     /** Local skeleton point to world. */
     private Vec3 toWorld(float x, float y, float z) {
         Vector3f v = new Vector3f(x, y, z);
-        if (shape == Shape.QUAD) v.rotateY(-Mth.HALF_PI);
+        if (shape == Shape.QUAD || shape == Shape.SPIDER) v.rotateY(-Mth.HALF_PI);
         v.mul(k());
         v.rotateY(yawRad());
         Vec3 f = feet();
@@ -406,8 +443,10 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
     private float deathCrashTime() {
         return switch (death) {
             case TIMBER -> 0.78f;
-            case COLLAPSE, EMERALD_SPILL, POTION_POP -> 0.78f;
+            case COLLAPSE, EMERALD_SPILL, POTION_POP, TANNED -> 0.78f;
             case CRUMBLE -> 0.3f;
+            case SPLIT -> 0.4f;
+            case CURL -> 0.55f;
             case FIZZLE -> 0.45f;
             case BELLY_UP, MILK_SPILL, HORN_SNAP, BUCK_COLLAPSE -> 0.62f;
             default -> -1f;
@@ -515,6 +554,9 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
             case TIMBER -> 0.78f;
             case SINK -> 0.3f;
             case COLLAPSE -> 0.78f;
+            case SPLIT -> 0.4f;
+            case CURL -> 0.55f;
+            case TANNED -> 0.6f;
         };
         if (!deathMid && dp >= mt) {
             deathMid = true;
@@ -631,13 +673,36 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
                 burst(ParticleTypes.CLOUD, f.add(0, 0.1, 0), 14, 0.6, 0.05);
                 play(SoundEvents.PLAYER_BIG_FALL, mid, 1.5f, 0.8f);
             }
+            case SPLIT -> {
+                for (int i = 0; i < 4; i++) spawnBlock(Blocks.SLIME_BLOCK.defaultBlockState(), mid, 2.6f, 0.3f + random.nextFloat() * 0.12f);
+                for (int i = 0; i < 7; i++) spawnItem(new ItemStack(Items.SLIME_BALL), mid, 2.2f, 0.45f);
+                burst(new ItemParticleOption(ParticleTypes.ITEM, new ItemStack(Items.SLIME_BALL)), mid, 50, 0.6, 0.8);
+                burst(ParticleTypes.ITEM_SLIME, mid, 40, 0.8, 0.4);
+                play(SoundEvents.SLIME_DEATH, mid, 1.6f, 0.7f);
+                play(SoundEvents.SLIME_SQUISH, mid, 1.8f, 0.6f);
+                play(SoundEvents.HONEY_BLOCK_BREAK, mid, 1.2f, 0.8f);
+            }
+            case CURL -> {
+                for (int i = 0; i < 6; i++) spawnItem(new ItemStack(Items.STRING), mid, 1.8f, 0.45f);
+                for (int i = 0; i < 2; i++) spawnItem(new ItemStack(Items.SPIDER_EYE), mid, 1.6f, 0.5f);
+                spawnBlock(Blocks.COBWEB.defaultBlockState(), mid, 1.2f, 0.4f);
+                play(SoundEvents.SPIDER_DEATH, mid, 1.6f, 0.8f);
+            }
+            case TANNED -> {
+                for (int i = 0; i < 6; i++) spawnItem(new ItemStack(Items.LEATHER), mid, 2f, 0.45f);
+                Item[] armor = {Items.LEATHER_HELMET, Items.LEATHER_CHESTPLATE, Items.LEATHER_BOOTS};
+                for (Item it : armor) spawnItem(new ItemStack(it), f.add(0, h * 0.7, 0), 2.2f, 0.55f);
+                spawnItem(new ItemStack(Items.SADDLE), mid, 1.5f, 0.6f);
+                play(SoundEvents.VILLAGER_DEATH, mid, 1.5f, 0.8f);
+                play(SoundEvents.ARMOR_EQUIP_LEATHER.value(), mid, 1.5f, 0.7f);
+            }
             case SINK -> {
                 for (int i = 0; i < 5; i++) spawnItem(new ItemStack(Items.ROTTEN_FLESH), mid, 1.5f, 0.5f);
                 play(SoundEvents.ZOMBIE_DEATH, mid, 1.5f, 0.8f);
                 play(SoundEvents.GRAVEL_BREAK, mid, 1.5f, 0.6f);
             }
         }
-        if (death == Death.COLLAPSE || death == Death.EMERALD_SPILL || death == Death.POTION_POP) {
+        if (death == Death.COLLAPSE || death == Death.EMERALD_SPILL || death == Death.POTION_POP || death == Death.TANNED) {
             burst(ParticleTypes.CLOUD, f.add(0, 0.1, 0), 10, 0.6, 0.05);
             play(SoundEvents.PLAYER_BIG_FALL, mid, 1.5f, 0.8f);
         }
@@ -654,6 +719,9 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
             case GOAT -> SoundEvents.GOAT_SCREAMING_HURT;
             case DONKEY -> SoundEvents.DONKEY_HURT;
             case CREEPER -> SoundEvents.CREEPER_HURT;
+            case SLIME -> SoundEvents.SLIME_HURT;
+            case SPIDER -> SoundEvents.SPIDER_HURT;
+            case LEATHERWORKER -> SoundEvents.VILLAGER_HURT;
             case OAK -> SoundEvents.WOOD_HIT;
             case IRON_ORE, STONE_PICKAXE -> SoundEvents.STONE_HIT;
             default -> SoundEvents.PLAYER_HURT;
@@ -739,7 +807,7 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
         }
         float dp = deathP(a);
         switch (death) {
-            case COLLAPSE, EMERALD_SPILL, POTION_POP -> {
+            case COLLAPSE, EMERALD_SPILL, POTION_POP, TANNED -> {
                 float knees = Mth.clamp((dp - 0.25f) / 0.3f, 0, 1);
                 t[RLX] = -0.9f * knees; t[LLX] = -0.9f * knees; t[SQUASH] = 1 - 0.12f * knees;
                 t[RAX] = -0.2f; t[LAX] = -0.2f; t[RAZ] = 0.3f + 0.6f * knees; t[LAZ] = -0.3f - 0.6f * knees;
@@ -753,6 +821,12 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
             }
             case SINK -> {
                 t[RAX] = -2.6f; t[LAX] = -2.4f; t[HX] = -0.4f; // reaching up as it sinks
+            }
+            case CURL -> {
+                // legs flail on its back, then curl in
+                float curl = ease(Mth.clamp((dp - 0.55f) / 0.3f, 0, 1));
+                float tw = dp > 0.35f ? Mth.sin(time * 30f) * 0.5f * (1 - curl) : 0;
+                t[RAX] = -0.6f - 0.9f * curl + tw; t[RLX] = 0.6f + 0.9f * curl - tw; t[RAZ] = 0.4f * curl; t[HX] = -0.4f;
             }
             default -> {
             }
@@ -778,7 +852,7 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
         float dp = deathP(a);
         float ax = (float) face.z, az = (float) -face.x; // lateral axis: positive = fall forward
         switch (death) {
-            case COLLAPSE, EMERALD_SPILL, POTION_POP -> {
+            case COLLAPSE, EMERALD_SPILL, POTION_POP, TANNED -> {
                 float knees = Mth.clamp((dp - 0.25f) / 0.3f, 0, 1);
                 float fall = easeIn(Mth.clamp((dp - 0.55f) / 0.23f, 0, 1));
                 float bounce = dp > 0.78f ? (float) Math.sin((dp - 0.78f) / 0.22f * Math.PI) * 0.06f * (1 - (dp - 0.78f) / 0.22f) : 0;
@@ -798,7 +872,7 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
                 ps.mulPose(new Quaternionf().rotateAxis((sway + sink * 12) * Mth.DEG_TO_RAD, ax, 0, az));
                 ps.translate(0, -sink * height * 1.15, 0);
             }
-            case BELLY_UP, MILK_SPILL -> {
+            case BELLY_UP, MILK_SPILL, CURL -> {
                 float wob = dp < 0.3f ? (float) Math.sin(dp * 60) * 8 : 0;
                 float roll = ease(Mth.clamp((dp - 0.3f) / 0.32f, 0, 1));
                 ps.translate(0, height * 0.5, 0);
@@ -814,6 +888,12 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
                 float topple = easeIn(Mth.clamp((dp - 0.35f) / 0.27f, 0, 1));
                 ps.mulPose(new Quaternionf().rotateAxis(-rear * 32 * Mth.DEG_TO_RAD, ax, 0, az));
                 ps.mulPose(new Quaternionf().rotateAxis(topple * 88 * Mth.DEG_TO_RAD, (float) face.x, 0, (float) face.z));
+            }
+            case SPLIT -> {
+                // jiggles, flattens... and splits
+                float q = ease(Mth.clamp(dp / 0.4f, 0, 1));
+                float jig = (float) Math.sin(dp * 90) * 0.08f * (1 - q);
+                ps.scale(1 + 0.5f * q + jig, 1 - 0.55f * q - jig, 1 + 0.5f * q + jig);
             }
             case FIZZLE -> {
                 float swell = Mth.clamp(dp / 0.45f, 0, 1);
@@ -841,6 +921,7 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
             case FIZZLE -> dp >= 0.45f;
             case CRUMBLE -> dp >= 0.3f;
             case SNAP -> dp >= 0.2f;
+            case SPLIT -> dp >= 0.4f;
             case SINK -> dp >= 0.999f;
             default -> false;
         };
@@ -887,7 +968,7 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
         ps.mulPose(Axis.YP.rotation(yawRad()));
         float k = k() * (0.85f + 0.15f * fadeIn);
         ps.scale(k, k, k);
-        if (shape == Shape.QUAD) ps.mulPose(Axis.YP.rotation(-Mth.HALF_PI));
+        if (shape == Shape.QUAD || shape == Shape.SPIDER) ps.mulPose(Axis.YP.rotation(-Mth.HALF_PI));
         // flinch on every impact
         for (int i = 0; i < done; i++) {
             float s = a - blowTime(i);
@@ -963,6 +1044,12 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
                 box(ps, br, buf, -0.25f, 0.36f, -0.16f, 0.5f, 0.8f, 0.32f);
                 box(ps, br, buf, -0.26f, 1.16f, -0.26f, 0.52f, 0.52f, 0.52f);
                 box(ps, br, buf, -0.25f, 0f, -0.26f, 0.5f, 0.36f, 0.52f);
+            }
+            case BLOB -> box(ps, br, buf, -0.5f, 0f, -0.5f, 1f, 1f, 1f);
+            case SPIDER -> {
+                box(ps, br, buf, -0.12f, 0.24f, -0.2f, 0.46f, 0.32f, 0.4f);
+                box(ps, br, buf, 0.38f, 0.16f, -0.2f, 0.36f, 0.36f, 0.4f);
+                box(ps, br, buf, -0.92f, 0.1f, -0.32f, 0.72f, 0.56f, 0.64f);
             }
             case TOOL -> {
                 box(ps, br, buf, -0.1f, 0f, -0.1f, 0.2f, 1.35f, 0.2f);

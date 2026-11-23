@@ -133,6 +133,27 @@ public final class FightRewards {
                 bag.chance(Items.MUSIC_DISC_CAT, 0.05f);
                 bag.chance(Items.CREEPER_HEAD, 0.03f);
             }
+            case SLIME -> {
+                bag.add(Items.SLIME_BALL, 10, 18);
+                bag.chance(Items.SLIME_BLOCK, 0.35f);
+                bag.chance(Items.LEAD, 0.4f);
+                bag.chance(Items.STICKY_PISTON, 0.15f);
+            }
+            case SPIDER -> {
+                bag.add(Items.STRING, 10, 18);
+                bag.add(Items.SPIDER_EYE, 2, 4);
+                bag.add(Items.COBWEB, 1, 3);
+                bag.chance(Items.FERMENTED_SPIDER_EYE, 0.25f);
+            }
+            case LEATHERWORKER -> {
+                bag.add(Items.LEATHER, 10, 16);
+                bag.add(Items.EMERALD, 4, 8);
+                bag.add(Items.RABBIT_HIDE, 2, 4);
+                bag.chance(Items.SADDLE, 0.3f);
+                bag.chance(Items.LEATHER_HORSE_ARMOR, 0.3f);
+                Item[] armor = {Items.LEATHER_HELMET, Items.LEATHER_CHESTPLATE, Items.LEATHER_LEGGINGS, Items.LEATHER_BOOTS};
+                bag.stacks.add(new ItemStack(armor[r.nextInt(armor.length)]));
+            }
             case ZOMBIE -> {
                 bag.add(Items.ROTTEN_FLESH, 10, 16);
                 bag.add(Items.IRON_INGOT, 1, 3);

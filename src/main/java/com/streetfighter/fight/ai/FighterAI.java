@@ -81,6 +81,8 @@ public class FighterAI {
             case COW -> new CowAI(difficulty);
             case DONKEY -> new DonkeyAI(difficulty);
             case CREEPER -> new CreeperAI(difficulty);
+            case SLIME -> new SlimeAI(difficulty);
+            case SPIDER -> new SpiderAI(difficulty);
             default -> new BrawlerAI(difficulty);
         };
     }

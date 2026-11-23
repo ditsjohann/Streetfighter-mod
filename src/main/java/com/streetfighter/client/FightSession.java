@@ -66,7 +66,8 @@ public final class FightSession {
     public float fovKick;
 
     // dummies used to draw projectiles/assists with real models
-    public LivingEntity golemDummy, pigDummy, goatDummy, zombieDummy, babyZombieDummy, cowDummy, donkeyDummy, creeperDummy;
+    public LivingEntity golemDummy, pigDummy, goatDummy, zombieDummy, babyZombieDummy, cowDummy, donkeyDummy, creeperDummy,
+            slimeDummy, spiderDummy;
     public net.minecraft.world.entity.animal.Chicken chickenDummy;
     /** The funny villager who throws props into the fight. */
     public net.minecraft.world.entity.npc.Villager propVillager;
@@ -147,6 +148,8 @@ public final class FightSession {
         if (donkey != null) donkey.setChest(true);
         donkeyDummy = donkey;
         creeperDummy = EntityType.CREEPER.create(mc.level);
+        slimeDummy = EntityType.SLIME.create(mc.level);
+        spiderDummy = EntityType.CAVE_SPIDER.create(mc.level);
         chickenDummy = EntityType.CHICKEN.create(mc.level);
         propVillager = EntityType.VILLAGER.create(mc.level);
         if (propVillager != null) {
@@ -233,7 +236,7 @@ public final class FightSession {
     public void beginFight(FighterType style, boolean ki) {
         Minecraft mc = Minecraft.getInstance();
         playerStyle = style;
-        kiMode = ki && kiAvailable();
+        kiMode = (ki || enemyType.kiOnly()) && kiAvailable();
         Moveset pm = kiMode ? Movesets.ki(style) : Movesets.get(style);
         FighterStats st = pm.stats();
         FighterStats body = Movesets.HUMANOID;
@@ -241,7 +244,8 @@ public final class FightSession {
                 st.gravity(), body.hurtWidth(), body.hurtHeight(), body.crouchHeight());
         String playerName = mc.player != null ? mc.player.getName().getString() : "Steve";
         Fighter player = new Fighter(0, playerName, FighterType.STEVE, pm, playerStats, 1f, 1f);
-        Moveset em = kiMode ? Movesets.ki(FighterType.VILLAGER) : Movesets.get(enemyType);
+        Moveset em = kiMode ? Movesets.ki(enemyType == FighterType.LEATHERWORKER ? enemyType : FighterType.VILLAGER)
+                : Movesets.get(enemyType);
         Fighter enemy = new Fighter(1, info.enemyName(), enemyType, em, kiMode ? em.stats() : enemyStats(),
                 kiMode ? 1f : info.hpScale(), kiMode ? 1f : info.damageScale());
         FighterAI ai = kiMode ? new com.streetfighter.fight.ai.KiAI(difficulty) : FighterAI.create(enemyType, difficulty);
@@ -309,6 +313,7 @@ public final class FightSession {
                 if (cowDummy != null) cowDummy.walkAnimation.update(1.3f, 0.5f);
                 if (donkeyDummy != null) donkeyDummy.walkAnimation.update(1.5f, 0.5f);
                 if (creeperDummy != null) creeperDummy.walkAnimation.update(1.2f, 0.5f);
+                if (spiderDummy != null) spiderDummy.walkAnimation.update(1.8f, 0.5f);
                 // a creeper about to blow swells and flashes for real
                 if (enemyEntity instanceof net.minecraft.world.entity.monster.Creeper cr) {
                     com.streetfighter.fight.Fighter ef = engine.enemy;

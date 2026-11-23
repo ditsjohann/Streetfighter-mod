@@ -187,6 +187,9 @@ public class FightScreen extends Screen {
             case COW -> new ItemStack(Items.MILK_BUCKET);
             case DONKEY -> new ItemStack(Items.SADDLE);
             case CREEPER -> new ItemStack(Items.CREEPER_HEAD);
+            case SLIME -> new ItemStack(Items.SLIME_BALL);
+            case SPIDER -> new ItemStack(Items.SPIDER_EYE);
+            case LEATHERWORKER -> new ItemStack(Items.LEATHER);
             default -> new ItemStack(Items.ROTTEN_FLESH);
         };
     }
@@ -207,6 +210,9 @@ public class FightScreen extends Screen {
             case COW -> "Bruiser: charges and back-bucks; Milk Break cleanses your debuffs and regenerates.";
             case DONKEY -> "Item trickster: Rummage pulls a random fight item from its saddlebag. Legendary Donkey Kick.";
             case CREEPER -> "Glass cannon: huge explosions that also hurt the creeper. Creep Up silently, then KABOOM.";
+            case SLIME -> "Bouncer: hold W when you land to BOING higher (twice). Sticky slimeballs slow you; Mitosis splits it up.";
+            case SPIDER -> "Trapper: webs slow you, bites poison you. Press W again in the air to Web Zip. Low and fast.";
+            case LEATHERWORKER -> "KI CLASH ONLY: tough hide (armored Smash), a Leather Lasso that yanks you in, and hide barrages.";
             case BRAWLER -> "Wild mob: scrappy and straightforward.";
         };
     }

@@ -10,5 +10,7 @@ public enum ProjectileVisual {
     // cow / donkey / creeper
     MILK, COW, DONKEY, CHEST, GUNPOWDER, CREEPER, BLAST,
     // Ki Clash
-    KI_BLAST, BEAM, SPIRIT_BALL
+    KI_BLAST, BEAM, SPIRIT_BALL,
+    // slime / spider / leatherworker
+    SLIMEBALL, MINI_SLIME, SPIDER, LEATHER, LASSO
 }

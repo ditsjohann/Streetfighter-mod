@@ -41,7 +41,7 @@ final class SelectScreenUi {
             FighterType.CHICKEN, FighterType.GOAT,
             FighterType.OAK, FighterType.IRON_ORE, FighterType.STONE_PICKAXE, null, FighterType.ZOMBIE, FighterType.COW,
             FighterType.DONKEY,
-            FighterType.CREEPER, null, null, null, null, null, null};
+            FighterType.CREEPER, FighterType.SLIME, FighterType.SPIDER, FighterType.LEATHERWORKER, null, null, null};
     private static final int RANDOM_CELL = 10; // centre of the bottom row
     private static final float SELECT_SECONDS = 30f;
 
@@ -70,6 +70,7 @@ final class SelectScreenUi {
         this.session = session;
         this.font = font;
         this.hud = hud;
+        this.kiMode = session.enemyType.kiOnly() && session.kiAvailable();
     }
 
     // =====================================================================================================
@@ -95,6 +96,9 @@ final class SelectScreenUi {
             case COW -> new Profile("BRUISER", "THE PASTURE", 4, 2, 4, 2, 0xB98A5E);
             case DONKEY -> new Profile("ITEM TRICKSTER", "THE STABLES", 3, 3, 3, 3, 0xC2A27A);
             case CREEPER -> new Profile("GLASS CANNON", "DARK FORESTS", 5, 3, 1, 2, 0x4CC24C);
+            case SLIME -> new Profile("BOUNCER", "SWAMPS", 3, 3, 4, 3, 0x7ED957);
+            case SPIDER -> new Profile("TRAPPER", "MINESHAFTS", 2, 5, 1, 3, 0xB0263A);
+            case LEATHERWORKER -> new Profile("KI BRAWLER", "THE TANNERY", 4, 2, 5, 3, 0xC8834A);
             case BRAWLER -> new Profile("WILD MOB", "THE WILD", 3, 3, 3, 2, 0xFF6A4A);
         };
     }
@@ -121,12 +125,16 @@ final class SelectScreenUi {
                 case COW -> EntityType.COW;
                 case DONKEY -> EntityType.DONKEY;
                 case CREEPER -> EntityType.CREEPER;
+                case SLIME -> EntityType.SLIME;
+                case SPIDER -> EntityType.SPIDER;
+                case LEATHERWORKER -> EntityType.VILLAGER;
                 default -> EntityType.ZOMBIE;
             };
             var e = type.create(mc.level);
             if (e instanceof Villager v) {
                 v.setVillagerData(v.getVillagerData().setProfession(
-                        k == FighterType.ALCHEMIST ? VillagerProfession.CLERIC : VillagerProfession.NONE));
+                        k == FighterType.ALCHEMIST ? VillagerProfession.CLERIC
+                                : k == FighterType.LEATHERWORKER ? VillagerProfession.LEATHERWORKER : VillagerProfession.NONE));
             }
             if (e instanceof net.minecraft.world.entity.animal.horse.Donkey d) d.setChest(true);
             if (e instanceof net.minecraft.world.entity.monster.Skeleton sk) {
@@ -147,12 +155,17 @@ final class SelectScreenUi {
     private boolean selectable(int cell) {
         if (cell == RANDOM_CELL) return true;
         if (cell < 0 || cell >= GRID.length || GRID[cell] == null) return false;
-        return !kiMode || kiStyle(GRID[cell]);
+        return kiMode ? kiStyle(GRID[cell]) : !GRID[cell].kiOnly();
     }
 
     /** Styles that have a Ki Clash kit. */
     static boolean kiStyle(FighterType t) {
-        return t == FighterType.STEVE || t == FighterType.VILLAGER;
+        return t == FighterType.STEVE || t == FighterType.VILLAGER || t == FighterType.LEATHERWORKER;
+    }
+
+    /** The Leatherworker only fights by Ki Clash rules. */
+    private boolean kiForced() {
+        return session.enemyType.kiOnly();
     }
 
     private int enemyCell() {
@@ -177,7 +190,9 @@ final class SelectScreenUi {
             case GLFW.GLFW_KEY_S, GLFW.GLFW_KEY_DOWN -> move(0, 1);
             case GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_SPACE, GLFW.GLFW_KEY_U, GLFW.GLFW_KEY_J -> confirm();
             case GLFW.GLFW_KEY_M -> {
-                if (session.kiAvailable()) {
+                if (kiForced()) {
+                    play(SoundEvents.VILLAGER_NO, 1f);
+                } else if (session.kiAvailable()) {
                     kiMode = !kiMode;
                     if (!selectable(cursor)) cursor = 0;
                     play(kiMode ? SoundEvents.BEACON_ACTIVATE : SoundEvents.UI_BUTTON_CLICK.value(), kiMode ? 1.6f : 1f);
@@ -435,7 +450,8 @@ final class SelectScreenUi {
         // ---- mode banner (villagers only): Street Fighter or Ki Clash
         if (session.kiAvailable()) {
             String mode = kiMode ? "KI CLASH (Dragon Ball rules)" : "STREET FIGHTER";
-            String hint = "[M] switch to " + (kiMode ? "STREET FIGHTER" : "KI CLASH");
+            String hint = kiForced() ? "the Leatherworker only fights by Ki Clash rules"
+                    : "[M] switch to " + (kiMode ? "STREET FIGHTER" : "KI CLASH");
             int mw = Math.max(font.width(mode), font.width(hint)) + 16;
             int mx = w / 2 - mw / 2, my = 36;
             g.fill(mx, my, mx + mw, my + 22, kiMode ? 0xE0A04000 : 0xC0101830);
@@ -654,15 +670,15 @@ final class SelectScreenUi {
                 g.pose().popPose();
             }
         }
-        // Ki Clash: styles without a Ki kit are greyed out
-        if (kiMode) {
+        // Ki Clash: styles without a Ki kit are greyed out; in Street Fighter rules, Ki-only styles are
+        {
             g.pose().pushPose();
             g.pose().translate(0, 0, 340);
             for (int i = 0; i < GRID.length; i++) {
-                if (GRID[i] == null || kiStyle(GRID[i])) continue;
+                if (GRID[i] == null || (kiMode ? kiStyle(GRID[i]) : !GRID[i].kiOnly())) continue;
                 int x = L.cellX(i), y = L.cellY(i);
                 g.fill(x, y, x + L.cs, y + L.cs, 0xC0000000);
-                g.drawCenteredString(font, "SF", x + L.cs / 2, y + L.cs / 2 - 4, 0xFF666666);
+                g.drawCenteredString(font, kiMode ? "SF" : "KI", x + L.cs / 2, y + L.cs / 2 - 4, kiMode ? 0xFF666666 : 0xFFB07A30);
             }
             g.pose().popPose();
         }

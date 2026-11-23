@@ -188,7 +188,7 @@ public final class WorldRenderEvents {
                     dispatcher.render(s.arrowDummy, 0, 0, 0, yRot, 1f, ps, buffers, light);
                     ps.popPose();
                 }
-                case GOLEM, PIG, GOAT, CHICKEN, ZOMBIE, BABY_ZOMBIE, COW, DONKEY, CREEPER -> {
+                case GOLEM, PIG, GOAT, CHICKEN, ZOMBIE, BABY_ZOMBIE, COW, DONKEY, CREEPER, MINI_SLIME, SPIDER -> {
                     LivingEntity dummy = switch (p.spec.visual) {
                         case GOLEM -> s.golemDummy;
                         case GOAT -> s.goatDummy;
@@ -198,6 +198,8 @@ public final class WorldRenderEvents {
                         case COW -> s.cowDummy;
                         case DONKEY -> s.donkeyDummy;
                         case CREEPER -> s.creeperDummy;
+                        case MINI_SLIME -> s.slimeDummy;
+                        case SPIDER -> s.spiderDummy;
                         default -> s.pigDummy;
                     };
                     if (dummy == null) break;
@@ -251,6 +253,9 @@ public final class WorldRenderEvents {
                         case MILK -> new ItemStack(Items.MILK_BUCKET);
                         case CHEST -> new ItemStack(Items.CHEST);
                         case GUNPOWDER -> new ItemStack(Items.GUNPOWDER);
+                        case SLIMEBALL -> new ItemStack(Items.SLIME_BALL);
+                        case LEATHER -> new ItemStack(Items.LEATHER);
+                        case LASSO -> new ItemStack(Items.LEAD);
                         case POTION -> net.minecraft.world.item.alchemy.PotionContents.createItemStack(Items.SPLASH_POTION,
                                 WorldFx.potionFor(p.spec.effect));
                         default -> new ItemStack(Items.SNOWBALL);

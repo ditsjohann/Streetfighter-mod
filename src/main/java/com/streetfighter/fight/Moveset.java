@@ -48,6 +48,8 @@ public final class Moveset {
     public Move kiBlast, vanish;
     /** Extra jumps in the air (Chicken flap). */
     public int airJumps;
+    /** Slime: holding up when landing from a jump bounces straight into a higher one (twice in a row). */
+    public boolean bouncy;
     /** Frames of slow-fall available per jump while holding up (Chicken glide); 0 = none. */
     public int glideFrames;
 

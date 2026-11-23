@@ -458,6 +458,21 @@ public final class WorldFx {
                     case APPLE -> sound(SoundEvents.SNOWBALL_THROW, p, 1f, 0.7f);
                     case MILK -> sound(SoundEvents.COW_MILK, p, 1.2f, 1f);
                     case KI_BLAST -> sound(SoundEvents.FIRECHARGE_USE, p, 0.6f, 2f);
+                    case SLIMEBALL -> sound(SoundEvents.SLIME_JUMP_SMALL, p, 1.2f, 1f);
+                    case MINI_SLIME -> {
+                        sound(SoundEvents.SLIME_JUMP, p, 1.3f, 1.2f);
+                        burst(ParticleTypes.ITEM_SLIME, p, 20, 0.6, 0.4);
+                    }
+                    case SPIDER -> sound(SoundEvents.SPIDER_AMBIENT, p, 1.3f, 1.3f);
+                    case COBWEB, WEB -> {
+                        sound(SoundEvents.WOOL_PLACE, p, 1.2f, 1.4f);
+                        sound(SoundEvents.SPIDER_STEP, p, 0.8f, 1.5f);
+                    }
+                    case LEATHER -> sound(SoundEvents.ARMOR_EQUIP_LEATHER.value(), p, 1f, 1.3f);
+                    case LASSO -> {
+                        sound(SoundEvents.LEASH_KNOT_PLACE, p, 1.4f, 0.9f);
+                        sound(SoundEvents.PLAYER_ATTACK_SWEEP, p, 1f, 1.4f);
+                    }
                     case BEAM -> {
                         sound(SoundEvents.BEACON_DEACTIVATE, p, 1.2f, 1.6f);
                         sound(SoundEvents.WARDEN_SONIC_BOOM, p, 0.5f, 1.4f);
@@ -662,8 +677,29 @@ public final class WorldFx {
                     announce(SoundEvents.WITHER_DEATH, 0.25f, 1.6f);
                 }
             }
+            case BOING -> {
+                if (f == null) break;
+                Vec3 g = ground(f.x);
+                burst(ParticleTypes.ITEM_SLIME, g.add(0, 0.2, 0), 24, 0.6, 0.6);
+                quads.ring(front(g.add(0, 0.15, 0)), 0.3f, 2.6f, 0.3f, 0x7ED957);
+                sound(SoundEvents.SLIME_JUMP, g, 1.4f, 0.8f + 0.2f * f.bounces);
+                sound(SoundEvents.SLIME_BLOCK_FALL, g, 1f, 1f);
+                hud.callout(f.bounces >= 2 ? "SUPER BOING!" : "BOING!", f.index, 0xFF9CFF6A);
+                FightAnimator.onLand(entityOf(f), true);
+            }
             case AIR_JUMP -> {
                 if (f == null) break;
+                if (f.moves.type() == FighterType.SPIDER) {
+                    // Web Zip: a silk line shoots up and yanks the spider along
+                    Vec3 from = at(f.x, f.y + 40);
+                    for (int i = 0; i < 14; i++) {
+                        Vec3 q = from.add(session.arena.axis.scale(f.dir() * i * 0.12)).add(0, i * 0.28, 0);
+                        level().addParticle(ParticleTypes.END_ROD, q.x, q.y, q.z, 0, 0, 0);
+                    }
+                    sound(SoundEvents.SPIDER_STEP, from, 1.2f, 1.6f);
+                    sound(SoundEvents.FISHING_BOBBER_THROW, from, 0.8f, 1.4f);
+                    break;
+                }
                 Vec3 p = at(f.x, f.y + 40);
                 feathers(p, 10);
                 quads.ring(front(at(f.x, f.y + 10)), 0.2f, 1.6f, 0.25f, 0xFFFFFF);
@@ -800,7 +836,7 @@ public final class WorldFx {
                 burst(ParticleTypes.TOTEM_OF_UNDYING, p, 80, 1.4, 1.0);
                 sound(SoundEvents.BEACON_ACTIVATE, p, 1.5f, 0.8f);
                 sound(SoundEvents.LIGHTNING_BOLT_THUNDER, p, 0.8f, 1.4f);
-                hud.callout(f.moves.type() == FighterType.VILLAGER ? "SUPER VILLAGER!" : "SUPER STEVE!", f.index, 0xFFFFD21A);
+                hud.callout("SUPER " + f.moves.type().displayName.toUpperCase() + "!", f.index, 0xFFFFD21A);
             }
             case BEAM_STRUGGLE -> {
                 Vec3 p = at(ev.x(), ev.y());
@@ -1118,8 +1154,8 @@ public final class WorldFx {
     }
 
     /** Ki colour: villagers glow emerald, everyone else cyan. */
-    private int kiColor(Fighter f) {
-        return f.moves.type() == FighterType.VILLAGER ? 0x3CFF8A : 0x5CC8FF;
+    public static int kiColor(Fighter f) {
+        return f.moves.type() == FighterType.VILLAGER ? 0x3CFF8A : f.moves.type() == FighterType.LEATHERWORKER ? 0xE89A48 : 0x5CC8FF;
     }
 
     private static float swooshAngle(AnimPose pose) {
@@ -1149,6 +1185,9 @@ public final class WorldFx {
             case COW -> SoundEvents.COW_AMBIENT;
             case DONKEY -> SoundEvents.DONKEY_ANGRY;
             case CREEPER -> SoundEvents.CREEPER_PRIMED;
+            case SLIME -> SoundEvents.SLIME_JUMP;
+            case SPIDER -> SoundEvents.SPIDER_AMBIENT;
+            case LEATHERWORKER -> SoundEvents.VILLAGER_WORK_LEATHERWORKER;
             default -> SoundEvents.PLAYER_ATTACK_SWEEP;
         };
     }

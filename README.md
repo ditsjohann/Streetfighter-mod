@@ -60,6 +60,9 @@ the world**, on the actual terrain. Beat a mob and you learn its fighting style.
   | Cow | 8–12 beef, 6–10 leather, a bucket of milk |
   | Donkey | leather, chests, apples, golden carrots, maybe a saddle |
   | Creeper | 8–14 gunpowder, TNT, a rare music disc or creeper head |
+  | Slime | 10–18 slimeballs, maybe a slime block, a lead or a sticky piston |
+  | Spider | 10–18 string, spider eyes, cobwebs, maybe a fermented spider eye |
+  | Leatherworker | 10–16 leather, emeralds, rabbit hide, a leather armor piece, maybe a saddle or horse armor |
   | Any other mob | its own loot rolled 2–4 extra times |
 
   - **Bonuses:** ×1.5 on Hard AI and ×1.25 for a perfect win, plus XP orbs.
@@ -82,7 +85,8 @@ the world**, on the actual terrain. Beat a mob and you learn its fighting style.
   - **Exempt:** creative mode.
   - **Config:** turn it off with `stonePickaxeChallenge`.
 - **Learn styles by winning.** Defeat a Skeleton, Pig, plain Villager, Chicken, Cleric villager (the Alchemist), Goat, Oak Tree, Iron Ore,
-  Stone Pickaxe, Zombie, Cow, Donkey or Creeper and its style becomes selectable.
+  Stone Pickaxe, Zombie, Cow, Donkey, Creeper, Slime or Spider and its style becomes selectable. Beat a Leatherworker
+  villager (in Ki Clash) to learn his Ki Clash style.
 
 ## Fighting system
 
@@ -118,6 +122,8 @@ Every style has a Street Fighter–sized kit (~44 moves each):
 | **Cow** | Milk Splash 236P, Moo-percut 623P, Cattle Charge 236K (armored), Milk Break 214K (cleanses your debuffs + regen); Back Buck 4HK wall-splats | Cattle Drive, Milk Flood, Mooonshot |
 | **Donkey** | Chest Toss 236P, Hee-Haw! 623P (sonic bray burst), Pack Mule Charge 236K, Rummage 214K (pulls a random fight item from its saddlebag); Donkey Kick 4HK | Caravan, Treasure Rain, Kick of the Century |
 | **Creeper** | Gunpowder Toss 236P, Rocket Jump 623P, Creep Up 236K (silent low dash), Short Fuse 214P (huge blast); explosions also hurt the creeper | Chain Reaction, Creeper Swarm, Charged Creeper |
+| **Slime** | Slimeball 236P (bouncing, slows), Boing Uppercut 623P, Goo Slide 236K (low, slows), Belly Flop 214P (overhead, armored) | Slime Rain, Mitosis, King Slime Crush |
+| **Spider** | Web Shot 236P (slows), Pounce 623P, Venom Lunge 236K (poisons), Web Trap 214P (a sticky web on the ground) | Web Prison, Brood Swarm, Eight-Leg Frenzy |
 | **Goat** | Ram Charge 236P (wall-splats on H/EX, armored EX), Horn Toss 623P, Screaming Bleat 214P (low shockwave that slows), Goat Leap 214K (overhead) | Avalanche, Herd Charge, Peak Breaker |
 | **Any other mob** | Lunge, Rising Claw, Pounce, Leap Smash | Frenzy, Bone Storm, Rampage |
 
@@ -149,6 +155,12 @@ The pause menu (ESC) shows the full move list for your style.
   saddlebag. Its Donkey Kick is the strongest wall-splat back-kick in the game.
 - **Creeper: Walking Bomb.** A glass cannon: its explosions are huge but **also hurt the creeper**. An enemy
   creeper really swells and flashes white while its fuse burns.
+
+- **Slime: Bouncing Blob.** Hold **W** when you land from a jump to **BOING** straight into a higher jump, twice
+  in a row. Sticky slimeballs, slides and traps slow you down; Mitosis splits off mini slimes that hop at you.
+- **Spider: Wall Crawler.** Low, fast and fragile. **Web Zip:** press W again in mid-air to shoot a silk line and
+  yank yourself along. Webs slow you, fangs and lunges poison you, and Web Trap leaves a sticky web on the ground.
+  Spiders and cave spiders both fight in this style.
 
 **Status effects** show as coloured tags above the super meter (e.g. `POISON 4s`) and as swirling potion particles around
 the fighter:
@@ -199,13 +211,16 @@ The match-winning K.O. plays an 8 to 9 second Mortal Kombat style cinematic, **s
 | Oak tree | *TIMBER!* | Creaks, then falls flat with a crash of leaves, logs and apples |
 | Iron ore | *Crumbled* | Breaks into tumbling stone, ore and raw iron blocks |
 | Stone pickaxe | *Snapped* | The handle snaps; sticks, cobblestone and the pickaxe fly |
+| Slime | *Split up* | Jiggles, flattens, then splits into bouncing slime cubes and slimeballs (it has no bones, only a gooey core) |
+| Spider | *Curled up* | Flips onto its back, legs flailing, then curls up; string and spider eyes fly |
+| Leatherworker | *Tanned hide* | Collapses while his leather armor, leather and saddle go flying |
 
 - **Config:** turn it off with `xrayFinishers`.
 
 ## Ki Clash (Dragon Ball style), villagers only
 
 Against **any villager** the select screen offers a second rule set. Press **M** to switch between **Street Fighter** and
-**Ki Clash**. Ki Clash is playable as Steve, or as Villager once you've learned that style.
+**Ki Clash**. Ki Clash is playable as Steve, or as Villager or Leatherworker once you've learned those styles.
 
 | Action | Keys |
 |---|---|
@@ -223,6 +238,16 @@ Against **any villager** the select screen offers a second rule set. Press **M**
 - **Supers:** a giant spirit ball, a huge beam, and the **Super Villager / Super Steve** transformation (golden aura, +30%
   damage, +20% speed, ki regeneration).
 - **The AI** charges, blasts, flies after you, rushes, vanishes and transforms.
+
+### The Leatherworker (Ki Clash only)
+
+Challenge a **leatherworker villager** and the fight is always Ki Clash (the select screen locks the mode). His kit:
+- **Tough Hide:** his Smash plows through a hit early in its wind-up.
+- **Leather Lasso** (S, S+A, A + kick): a thrown lead that **yanks you toward him** and leaves you open. "GET OVER HERE!"
+- **Hide Barrage:** a volley of tanned leather instead of ki blasts.
+- **Tanning Cannon** (beam), **Saddle Rising** (uppercut), and the supers **Cauldron Bomb**, **Final Whip** and the
+  **Super Leatherworker** transformation. His aura burns tan-orange.
+- Win to learn his style. It can only be picked in Ki Clash, so it shows as "KI" on the Street Fighter grid.
 - **Clash:** when both fighters' strikes meet head-on, nobody gets hit. The fists collide in a shockwave and both
   fighters are knocked back (with a bit of ki for each).
 
@@ -315,7 +340,7 @@ Settings are in `config/streetfighter-common.toml`: peaceful mobs, challenge ran
 Requires Java 21.
 
 ```bash
-./gradlew build        # mod jar -> build/libs/streetfighter-0.10.0.jar
+./gradlew build        # mod jar -> build/libs/streetfighter-0.11.0.jar
 ./gradlew runClient    # launch a dev client with the mod
 ```
 

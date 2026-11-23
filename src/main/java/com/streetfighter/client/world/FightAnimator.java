@@ -118,6 +118,7 @@ public final class FightAnimator {
             if (m instanceof QuadrupedModel<?> || m instanceof net.minecraft.client.model.HorseModel<?>
                     || m instanceof net.minecraft.client.model.CreeperModel<?>) return Body.QUAD;
             if (m instanceof net.minecraft.client.model.ChickenModel<?>) return Body.BIRD;
+            if (m instanceof net.minecraft.client.model.SpiderModel<?>) return Body.QUAD;
         }
         return Body.OTHER;
     }
@@ -281,13 +282,20 @@ public final class FightAnimator {
         switch (f.state) {
             case IDLE, LANDING -> {
                 t[UP] += Mth.sin(tm * 6.5f) * 0.02f;
+                if (body == Body.OTHER && f.moves.type() == com.streetfighter.fight.FighterType.SLIME) {
+                    float j = Math.abs(Mth.sin(tm * 4.2f));
+                    t[SQUASH] = 0.86f + 0.14f * j; // a constant jelly wobble
+                    t[UP] = j * 0.05f;
+                    return 18f;
+                }
                 if (body == Body.HUMANOID) stance(f.moves.type(), t, tm);
                 else if (quad) t[HX] += Mth.sin(tm * 1.7f) > 0.6f ? 0.35f : 0; // grazing head bob
                 return 14f;
             }
             case WALK -> {
                 float ph = s.walkPhase;
-                if (body == Body.TOOL) { // hops along on its handle
+                if (body == Body.TOOL || body == Body.OTHER && f.moves.type() == com.streetfighter.fight.FighterType.SLIME) {
+                    // hops along (the pickaxe on its handle, the slime squishing between hops)
                     t[UP] = Math.abs(Mth.sin(ph * 0.8f)) * 0.3f;
                     t[LEAN] = (Math.signum(f.vx) == f.dir() ? 10 : -6);
                     return 22f;
@@ -491,6 +499,16 @@ public final class FightAnimator {
             }
             case OAK -> {
                 t[RAZ] = 0.7f + bob * 0.08f; t[LAZ] = -0.7f - bob * 0.08f; t[RAX] = -0.5f; t[LAX] = -0.5f;
+            }
+            case SLIME -> {
+                t[SQUASH] = 0.9f + Math.abs(bob) * 0.06f; t[RAX] = -0.5f; t[LAX] = -0.5f; t[RAZ] = 0.5f; t[LAZ] = -0.5f;
+            }
+            case SPIDER -> {
+                t[LEAN] = 22; t[SQUASH] = 0.9f; t[RAX] = -1.2f + bob * 0.1f; t[LAX] = -1.2f - bob * 0.1f;
+                t[RAZ] = 0.35f; t[LAZ] = -0.35f; t[HX] = -0.3f;
+            }
+            case LEATHERWORKER -> {
+                t[RAX] = -0.7f; t[LAX] = -0.4f; t[RAZ] = 0.15f; t[LAZ] = -0.2f; t[LEAN] = 4;
             }
             case CREEPER -> {
                 t[SQUASH] = 0.9f; t[LEAN] = 14; t[RAX] = -0.4f; t[LAX] = -0.4f; t[HX] = 0.25f;
@@ -731,6 +749,28 @@ public final class FightAnimator {
             rot(s, a.streetfighter$leftFrontLeg(), c[RAX] - c[RAZ], 0, 0);
             rot(s, a.streetfighter$rightHindLeg(), c[RLX] - c[RAZ], 0, 0);
             rot(s, a.streetfighter$leftHindLeg(), c[RLX] + c[RAZ], 0, 0);
+        } else if (model instanceof net.minecraft.client.model.SpiderModel<?> sm) {
+            // eight legs: a skittering gait from the walk phase; front legs rear up to strike, hind legs kick
+            ModelPart root = sm.root();
+            ModelPart head = child(root, "head");
+            if (head != null) {
+                save(s, head);
+                head.xRot = c[HX] * 0.6f + headRecoil;
+            }
+            String[] names = {"front", "middle_front", "middle_hind", "hind"};
+            float strike = Math.max(0, -c[RAX]), kick = Math.max(0, c[RLX]);
+            for (int i = 0; i < 4; i++) {
+                for (int side = -1; side <= 1; side += 2) {
+                    ModelPart leg = child(root, (side < 0 ? "right_" : "left_") + names[i] + "_leg");
+                    if (leg == null) continue;
+                    save(s, leg);
+                    float ph = s.walkPhase * 1.4f + (i % 2 == 0 ? 0 : Mth.PI) + (side < 0 ? 0 : Mth.PI);
+                    leg.yRot += Mth.sin(ph) * 0.35f;
+                    leg.zRot -= side * Math.abs(Mth.cos(ph)) * 0.2f; // vanilla: right legs lift with +zRot
+                    float lift = i == 0 ? strike * 0.8f : i == 3 ? kick * 0.6f : 0;
+                    leg.zRot -= side * lift;
+                }
+            }
         } else if (model instanceof net.minecraft.client.model.CreeperModel<?> cm) {
             com.streetfighter.mixin.CreeperModelAccessor a = (com.streetfighter.mixin.CreeperModelAccessor) cm;
             ModelPart head = a.streetfighter$head();

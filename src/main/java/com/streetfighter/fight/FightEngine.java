@@ -402,6 +402,7 @@ public final class FightEngine {
                     f.vx = (f.holdingForward() ? f.dir() * f.stats.jumpVx() : f.holdingBack() ? -f.dir() * f.stats.jumpVx() : 0) * speedMul;
                     f.airAttackUsed = false;
                     f.wallJumpUsed = false;
+                    f.bounces = 0;
                     f.airJumpsLeft = f.moves.airJumps;
                     f.glideLeft = f.moves.glideFrames;
                     events.add(FightEvent.of(Type.JUMP, f.index, f.x, f.y));
@@ -1058,6 +1059,17 @@ public final class FightEngine {
         if (f.state == State.JUMP || f.state == State.HITSTUN || f.state == State.KNOCKDOWN || f.state == State.KO) f.flying = false;
         switch (f.state) {
             case JUMP -> {
+                // slime: hold up on landing to BOING into a higher jump
+                if (f.moves.bouncy && f.input.up && f.bounces < 2) {
+                    f.bounces++;
+                    f.vy = f.stats.jumpVy() * (1.12f + 0.1f * f.bounces);
+                    f.stateAge = 0;
+                    f.airAttackUsed = false;
+                    shake = Math.max(shake, 2);
+                    events.add(FightEvent.of(Type.BOING, f.index, f.x, 0));
+                    return;
+                }
+                f.bounces = 0;
                 f.state = State.LANDING;
                 f.stateTimer = 4;
                 if (!icy(f)) f.vx = 0;

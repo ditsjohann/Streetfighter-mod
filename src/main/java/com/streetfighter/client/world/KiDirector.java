@@ -331,7 +331,7 @@ public final class KiDirector {
         // power-up glow from the edges
         if (rumble > 0) {
             Fighter c = e.fighter(chargeTime[0] >= chargeTime[1] ? 0 : 1);
-            int col = c.has(StatusEffect.SUPER_FORM) ? 0xFFC020 : c.moves.type() == com.streetfighter.fight.FighterType.VILLAGER ? 0x3CFF8A : 0x5CC8FF;
+            int col = c.has(StatusEffect.SUPER_FORM) ? 0xFFC020 : WorldFx.kiColor(c);
             int a = (int) (rumble * (70 + 30 * Math.sin(now * 14)));
             int edge = h / 5;
             g.fillGradient(0, h - edge, w, h, argb(0, col), argb(a, col));

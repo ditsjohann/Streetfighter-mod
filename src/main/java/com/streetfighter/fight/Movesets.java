@@ -36,6 +36,8 @@ public final class Movesets {
         SETS.put(FighterType.COW, cow());
         SETS.put(FighterType.DONKEY, donkey());
         SETS.put(FighterType.CREEPER, creeper());
+        SETS.put(FighterType.SLIME, slime());
+        SETS.put(FighterType.SPIDER, spider());
         SETS.put(FighterType.BRAWLER, brawler());
     }
 
@@ -43,6 +45,7 @@ public final class Movesets {
     }
 
     public static Moveset get(FighterType type) {
+        if (type.kiOnly()) return ki(type); // Ki Clash only: its Ki kit stands in everywhere
         return SETS.get(type);
     }
 
@@ -1164,6 +1167,140 @@ public final class Movesets {
     }
 
     // =====================================================================================================
+    // SLIME: bouncing blob. Hold up when landing to BOING into a higher jump (twice in a row).
+    // =====================================================================================================
+
+    private static Moveset slime() {
+        FighterStats stats = new FighterStats(1120, 3.4f, 3.0f, 16.5f, 4.6f, 0.68f, 62, 96, 70);
+        Moveset m = new Moveset(FighterType.SLIME, stats);
+        m.bouncy = true;
+        Tune t = new Tune(-1, 8, 1.25f, 0.85f, 2);
+        normals(m, t, new String[]{"Jiggle Jab", "Goo Punch", "Belly Bounce", "Blob Tap", "Splat Kick", "Gel Wallop",
+                "Low Jiggle", "Goo Gut", "Pop Up", "Puddle Poke", "Ooze Slide", "Slime Sweep",
+                "Air Jiggle", "Air Goo", "Body Drop", "Air Tap", "Air Splat", "Cannonball"});
+        m.commandNormals.add(new Moveset.CommandNormal(6, Button.HP,
+                commandNormal("Gloop Overhead", AnimPose.OVERHEAD, 18, 3, 17, 64, 10, 85, 60, 125, HitLevel.HIGH)));
+        m.commandNormals.add(new Moveset.CommandNormal(3, Button.HK,
+                commandNormal("Puddle Trip", AnimPose.SWEEP, 10, 4, 22, 70, 15, 112, 0, 24, HitLevel.LOW)
+                        .toBuilder().knockdown().crouching().hitEffect(StatusEffect.SLOW, 90).build()));
+        Move wobble = Move.builder("Wobble Combo").kind(Kind.TARGET).frames(8, 3, 18).damage(72).box(10, 88, 30, 100)
+                .stun(21, 15).push(7).cancelable().pose(AnimPose.HEADBUTT).build();
+        m.targetCombos.add(new Moveset.TargetCombo(m.stand.get(Button.MP), Button.HP, wobble));
+
+        m.specials.add(new Moveset.Special("Slimeball", Motion.QCF, false, Role.PROJECTILE, 5, variants(s -> Move.builder("")
+                .frames(pick(s, 13, 12, 11, 11), 2, pick(s, 24, 23, 22, 21)).damage(0).box(0, 0, 0, 0)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.SLIMEBALL)
+                        .velocity(pick(s, 6f, 7.5f, 9f, 8f), pick(s, 6f, 5.5f, 4.5f, 5.5f)).gravity(0.34f).bounce(0.78f)
+                        .size(30, 30).offset(28, 70).damage(pick(s, 56f, 60f, 64f, 48f)).stun(20, 13).push(5)
+                        .effect(StatusEffect.SLOW, s == 3 ? 150 : 80).count(s == 3 ? 3 : 1, 9).lifetime(110).build(),
+                        pick(s, 13, 12, 11, 11))
+                .pose(AnimPose.THROW), "Slimeball")));
+        m.specials.add(new Moveset.Special("Boing Uppercut", Motion.DP, false, Role.ANTI_AIR, 6, variants(s -> Move.builder("")
+                .frames(4, pick(s, 12, 14, 16, 16), pick(s, 22, 25, 28, 24)).damage(pick(s, 95f, 55f, 42f, 48f))
+                .box(-5, 60, 40, 150).stun(27, 16).push(3).launch(12).knockdown().multiHit(pick(s, 1, 2, 3, 3), 5)
+                .leap(pick(s, 13f, 15.5f, 18f, 18f), 1.8f, 3).invuln(0, pick(s, 4, 5, 7, 12)).landingLag(12)
+                .pose(AnimPose.UPPERCUT), "Boing Uppercut")));
+        m.specials.add(new Moveset.Special("Goo Slide", Motion.QCF, true, Role.LOW, 2, variants(s -> Move.builder("")
+                .frames(9, 13, pick(s, 19, 21, 23, 17)).damage(pick(s, 58f, 64f, 70f, 76f)).box(12, 95, 0, 36)
+                .level(HitLevel.LOW).stun(20, 13).push(6).knockdown().crouching()
+                .dash(pick(s, 7f, 9f, 11f, 11f), 9, 22).hitEffect(StatusEffect.SLOW, s == 3 ? 180 : 110)
+                .pose(AnimPose.SLIDE), "Goo Slide")));
+        m.specials.add(new Moveset.Special("Belly Flop", Motion.QCB, false, Role.OVERHEAD, 4, variants(s -> {
+            Move.Builder b = Move.builder("").frames(11, 1, 18).damage(pick(s, 84f, 92f, 100f, 108f)).box(-20, 90, -10, 70)
+                    .level(HitLevel.HIGH).stun(22, 14).push(6).launch(4).knockdown().untilLanding()
+                    .leap(16f, pick(s, 3f, 4.5f, 6f, 6f), 4).armor(1, 11).pose(AnimPose.SLAM);
+            if (s == 3) b.groundBounce();
+            return b;
+        }, "Belly Flop")));
+
+        m.supers.add(new Moveset.Super(1, Motion.QCF2, false, Move.builder("Slime Rain").superLevel(1)
+                .frames(14, 2, 40).damage(0).box(0, 0, 0, 0).invuln(0, 14)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.SLIMEBALL).velocity(0f, -12f).size(30, 30)
+                        .damage(44).stun(18, 12).push(3).effect(StatusEffect.SLOW, 90).count(7, 6).fromSky(180, 520)
+                        .lifetime(90).build(), 14)
+                .pose(AnimPose.SHOOT_UP).callout("SLIME RAIN!").build()));
+        m.supers.add(new Moveset.Super(2, Motion.QCB2, false, Move.builder("Mitosis").superLevel(2)
+                .frames(12, 2, 36).damage(0).box(0, 0, 0, 0).invuln(0, 14)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.MINI_SLIME).velocity(5.5f, 7f, 8f, 6f).gravity(0.36f)
+                        .bounce(0.85f).size(46, 46).offset(30, 0).damage(52).stun(20, 12).push(4).launch(5)
+                        .effect(StatusEffect.SLOW, 100).count(4, 10).durable().lifetime(200).build(), 12)
+                .pose(AnimPose.SCREAM).callout("MITOSIS!").build()));
+        m.supers.add(new Moveset.Super(3, Motion.QCF2, true, Move.builder("King Slime Crush").superLevel(3)
+                .frames(10, 1, 30).damage(320).box(-40, 140, -20, 110).level(HitLevel.HIGH).stun(40, 24).push(12)
+                .launch(14).knockdown().groundBounce().untilLanding().leap(22f, 5f, 6).invuln(0, 30).armor(3, 60)
+                .pose(AnimPose.SLAM).callout("KING SLIME CRUSH!").build()));
+        universals(m, "Gulp", "Spit Out", 110);
+        return m;
+    }
+
+    // =====================================================================================================
+    // SPIDER: fast, low trapper. Webs slow you, bites poison you; press up in mid-air to Web Zip.
+    // =====================================================================================================
+
+    private static Moveset spider() {
+        FighterStats stats = new FighterStats(930, 4.0f, 3.6f, 15.5f, 5.0f, 0.76f, 72, 78, 56);
+        Moveset m = new Moveset(FighterType.SPIDER, stats);
+        m.airJumps = 1; // Web Zip
+        Tune t = new Tune(-1, 6, 0.95f, 0.7f, 6);
+        normals(m, t, new String[]{"Fang Jab", "Leg Jab", "Fang Slash", "Leg Tap", "Leg Kick", "Eight-Leg Spin",
+                "Low Fang", "Gut Bite", "Pounce Up", "Skitter Poke", "Leg Poke", "Leg Sweep",
+                "Air Fang", "Air Leg", "Ceiling Drop", "Air Tap", "Air Kick", "Dive Bite"});
+        m.commandNormals.add(new Moveset.CommandNormal(6, Button.HP,
+                commandNormal("Venom Fang", AnimPose.OVERHEAD, 17, 3, 17, 58, 10, 88, 40, 110, HitLevel.HIGH)
+                        .toBuilder().hitEffect(StatusEffect.POISON, 120).build()));
+        m.commandNormals.add(new Moveset.CommandNormal(3, Button.HK,
+                commandNormal("Skitter Sweep", AnimPose.SWEEP, 9, 4, 22, 66, 15, 118, 0, 22, HitLevel.LOW)
+                        .toBuilder().knockdown().crouching().build()));
+        Move flurry = Move.builder("Leg Flurry").kind(Kind.TARGET).frames(5, 9, 14).damage(22).box(8, 80, 30, 80)
+                .stun(17, 11).push(2).multiHit(3, 3).cancelable().pose(AnimPose.JAB).build();
+        m.targetCombos.add(new Moveset.TargetCombo(m.stand.get(Button.LP), Button.MP, flurry));
+
+        m.specials.add(new Moveset.Special("Web Shot", Motion.QCF, false, Role.PROJECTILE, 5, variants(s -> Move.builder("")
+                .frames(pick(s, 12, 11, 10, 10), 2, pick(s, 24, 23, 22, 20)).damage(0).box(0, 0, 0, 0)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.COBWEB).velocity(pick(s, 8f, 10f, 12f, 11f), 0f)
+                        .size(40, 40).offset(35, 60).damage(pick(s, 40f, 42f, 44f, 36f)).stun(24, 14).push(3)
+                        .effect(StatusEffect.SLOW, pick(s, 120, 140, 160, 200)).count(s == 3 ? 2 : 1, 12)
+                        .lifetime(110).build(), pick(s, 12, 11, 10, 10))
+                .pose(AnimPose.SHOOT), "Web Shot")));
+        m.specials.add(new Moveset.Special("Pounce", Motion.DP, false, Role.ANTI_AIR, 6, variants(s -> Move.builder("")
+                .frames(5, 1, 14).damage(pick(s, 80f, 88f, 96f, 104f)).box(-5, 80, 10, 90).stun(24, 15).push(6)
+                .launch(8).knockdown().untilLanding().leap(pick(s, 12f, 13.5f, 15f, 15f), pick(s, 4f, 5.5f, 7f, 7f), 4)
+                .invuln(0, pick(s, 3, 4, 6, 10)).hitEffect(s == 3 ? StatusEffect.POISON : null, 150)
+                .pose(AnimPose.FLYING_KICK), "Pounce")));
+        m.specials.add(new Moveset.Special("Venom Lunge", Motion.QCF, true, Role.RUSH, 2, variants(s -> Move.builder("")
+                .frames(pick(s, 9, 8, 7, 7), 12, pick(s, 18, 20, 22, 16)).damage(pick(s, 62f, 68f, 74f, 82f))
+                .box(10, 85, 10, 70).stun(22, 14).push(8).stopOnHit().knockdown().crouching()
+                .dash(pick(s, 8f, 10f, 12f, 12f), pick(s, 9, 8, 7, 7), pick(s, 21, 20, 19, 19))
+                .hitEffect(StatusEffect.POISON, pick(s, 120, 150, 180, 240)).projInvuln(0, s == 3 ? 21 : -1)
+                .pose(AnimPose.LUNGE), "Venom Lunge")));
+        m.specials.add(new Moveset.Special("Web Trap", Motion.QCB, false, Role.TRAP, 2, variants(s -> Move.builder("")
+                .frames(14, 2, pick(s, 22, 24, 26, 22)).damage(0).box(0, 0, 0, 0)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.WEB).velocity(0f, 0f).size(110, 60)
+                        .offset(pick(s, 110f, 170f, 230f, 170f), 0).damage(6).stun(30, 10).multiHit(99, 40)
+                        .effect(StatusEffect.SLOW, s == 3 ? 240 : 150).aura().lifetime(pick(s, 200, 230, 260, 320)).build(), 14)
+                .pose(AnimPose.THROW), "Web Trap")));
+
+        m.supers.add(new Moveset.Super(1, Motion.QCF2, false, Move.builder("Web Prison").superLevel(1)
+                .frames(12, 2, 34).damage(0).box(0, 0, 0, 0).invuln(0, 12)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.COBWEB).velocity(9f, 0f).size(90, 140).offset(40, 60)
+                        .damage(55).stun(34, 16).push(1).multiHit(4, 8).effect(StatusEffect.SLOW, 360).durable()
+                        .lifetime(100).build(), 12)
+                .pose(AnimPose.SHOOT).callout("WEB PRISON!").build()));
+        m.supers.add(new Moveset.Super(2, Motion.QCB2, false, Move.builder("Brood Swarm").superLevel(2)
+                .frames(10, 2, 38).damage(0).box(0, 0, 0, 0).invuln(0, 12)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.SPIDER).velocity(9f, 0f).size(70, 40).offset(-200, 0)
+                        .damage(54).stun(24, 14).push(4).launch(5).effect(StatusEffect.POISON, 200).count(4, 10)
+                        .lifetime(170).build(), 10)
+                .pose(AnimPose.SCREAM).callout("BROOD SWARM!").build()));
+        m.supers.add(new Moveset.Super(3, Motion.QCF2, true, Move.builder("Eight-Leg Frenzy").superLevel(3)
+                .frames(7, 70, 32).damage(34).box(5, 90, 0, 100).stun(30, 12).push(0.5f).launch(14).knockdown()
+                .multiHit(12, 5).dash(10f, 7, 14).invuln(0, 12).lockOnHit().wallSplat()
+                .hitEffect(StatusEffect.POISON, 300).pose(AnimPose.RUSH).callout("EIGHT-LEG FRENZY!").build()));
+        universals(m, "Wrap Up", "Silk Toss", 112);
+        return m;
+    }
+
+    // =====================================================================================================
     // KI CLASH kits (Dragon Ball style): rush auto-combos, smash, ki blasts, dragon dash, vanish, beams
     // =====================================================================================================
 
@@ -1171,6 +1308,7 @@ public final class Movesets {
 
     /** Ki Clash moveset for a style (Steve or any villager); other styles fall back to Steve's. */
     public static Moveset ki(FighterType type) {
+        if (type == FighterType.LEATHERWORKER) return KI_SETS.computeIfAbsent(type, k -> leatherworkerKi());
         FighterType key = type == FighterType.VILLAGER || type == FighterType.ALCHEMIST ? FighterType.VILLAGER : FighterType.STEVE;
         return KI_SETS.computeIfAbsent(key, k -> k == FighterType.VILLAGER
                 ? kiKit(FighterType.VILLAGER, new FighterStats(1050, 3.4f, 3.0f, 15f, 4.4f, 0.75f, 46, 128, 86),
@@ -1179,6 +1317,34 @@ public final class Movesets {
                 : kiKit(FighterType.STEVE, HUMANOID,
                 new String[]{"Diamond Beam", "Block Barrage", "Meteor Uppercut", "Ender Strike",
                         "Spirit Diamond", "Final Pickaxe Flash", "Super Steve"}));
+    }
+
+    /**
+     * Leatherworker (Ki Clash only): a tough hide and a leather lasso. His Smash plows through a hit, the Leather
+     * Lasso yanks you into his reach, and Hide Barrage throws a volley of tanned leather.
+     */
+    private static Moveset leatherworkerKi() {
+        Moveset m = kiKit(FighterType.LEATHERWORKER, new FighterStats(960, 3.1f, 2.7f, 14.5f, 4.2f, 0.75f, 48, 128, 86),
+                new String[]{"Tanning Cannon", "Hide Barrage", "Saddle Rising", "Leather Lasso",
+                        "Cauldron Bomb", "Final Whip", "Super Leatherworker"});
+        // tough hide: the Smash plows through one hit early in its wind-up
+        m.stand.put(Button.HP, m.stand.get(Button.HP).toBuilder().armor(1, 5).build());
+        // Hide Barrage: tanned leather instead of ki
+        m.specials.set(1, new Moveset.Special("Hide Barrage", Motion.QCB, false, Role.LOW, 4, variants(s -> Move.builder("")
+                .frames(10, 2, pick(s, 22, 22, 22, 18)).damage(0).box(0, 0, 0, 0).meter(pick(s, 30, 35, 40, 60))
+                .projectile(ProjectileSpec.builder(ProjectileVisual.LEATHER).velocity(12f, 0f, 1.5f, -1.5f, 2.5f, -2.5f, 0f)
+                        .aimed().size(30, 30).offset(40, 100).damage(24).stun(15, 9).push(2).spin()
+                        .count(pick(s, 4, 5, 6, 8), 5).lifetime(90).build(), 10)
+                .pose(AnimPose.THROW), "Hide Barrage")));
+        // Leather Lasso: a thrown lead that pulls you in (negative push) and leaves you open
+        m.specials.set(3, new Moveset.Special("Leather Lasso", Motion.QCB, true, Role.RUSH, 4, variants(s -> Move.builder("")
+                .frames(pick(s, 12, 11, 10, 10), 2, pick(s, 26, 25, 24, 20)).damage(0).box(0, 0, 0, 0)
+                .meter(pick(s, 20, 20, 20, 50))
+                .projectile(ProjectileSpec.builder(ProjectileVisual.LASSO).velocity(pick(s, 12f, 14f, 16f, 16f), 0f).aimed()
+                        .size(44, 44).offset(40, 100).damage(pick(s, 26f, 28f, 30f, 36f)).stun(pick(s, 22, 23, 24, 30), 12)
+                        .push(pick(s, -5f, -6f, -7f, -8f)).lifetime(pick(s, 26, 30, 34, 40)).build(), pick(s, 12, 11, 10, 10))
+                .pose(AnimPose.THROW).callout(s == 3 ? null : "GET OVER HERE!"), "Leather Lasso")));
+        return m;
     }
 
     private static Moveset kiKit(FighterType type, FighterStats stats, String[] n) {

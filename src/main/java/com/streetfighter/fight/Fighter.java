@@ -54,6 +54,8 @@ public final class Fighter {
     public boolean groundBouncePending;
     public boolean wallSplatPending;
     public boolean wallJumpUsed;
+    /** Slime bounces chained since last standing on the ground. */
+    public int bounces;
     public int hazardTimer;
     public int parryRecovery;
     /** Frame counter for sub-step render interpolation. */

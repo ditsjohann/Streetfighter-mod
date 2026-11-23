@@ -25,6 +25,10 @@ public enum FighterType {
     COW("cow", "Cow", "Mad Cow", true),
     DONKEY("donkey", "Donkey", "Stubborn Mule", true),
     CREEPER("creeper", "Creeper", "Walking Bomb", true),
+    SLIME("slime", "Slime", "Bouncing Blob", true),
+    SPIDER("spider", "Spider", "Wall Crawler", true),
+    /** Leatherworker villager: a Ki Clash (Dragon Ball rules) only fighter. */
+    LEATHERWORKER("leatherworker", "Leatherworker", "Ki Tanner", true),
     BRAWLER("brawler", "Brawler", "Wild Mob", false);
 
     public final String id;
@@ -38,6 +42,11 @@ public enum FighterType {
         this.displayName = displayName;
         this.title = title;
         this.learnable = learnable;
+    }
+
+    /** Styles that only exist in Ki Clash (no Street Fighter kit). */
+    public boolean kiOnly() {
+        return this == LEATHERWORKER;
     }
 
     public static FighterType byId(String id) {
@@ -66,11 +75,14 @@ public enum FighterType {
         if (entity.getType() == EntityType.COW || entity.getType() == EntityType.MOOSHROOM) return COW;
         if (entity.getType() == EntityType.DONKEY || entity.getType() == EntityType.MULE) return DONKEY;
         if (entity.getType() == EntityType.CREEPER) return CREEPER;
+        if (entity.getType() == EntityType.SLIME) return SLIME;
+        if (entity.getType() == EntityType.SPIDER || entity.getType() == EntityType.CAVE_SPIDER) return SPIDER;
         if (entity.getType() == EntityType.GOAT) return GOAT;
         if (entity instanceof Villager villager) {
             VillagerProfession profession = villager.getVillagerData().getProfession();
             if (profession == VillagerProfession.NONE || profession == VillagerProfession.NITWIT) return VILLAGER;
             if (profession == VillagerProfession.CLERIC) return ALCHEMIST;
+            if (profession == VillagerProfession.LEATHERWORKER) return LEATHERWORKER;
         }
         return BRAWLER;
     }
