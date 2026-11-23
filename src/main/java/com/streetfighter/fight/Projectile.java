@@ -16,6 +16,10 @@ public final class Projectile {
     public int lastHitAge = -100;
     public boolean exploded;
     public float prevX, prevY;
+    /** Beam struggle winners hit harder. */
+    public float dmgMul = 1f;
+    /** Where the beam was fired from (for drawing the beam column). */
+    public float originX, originY;
 
     public Projectile(int id, int owner, ProjectileSpec spec) {
         this.id = id;

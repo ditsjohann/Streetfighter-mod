@@ -51,6 +51,8 @@ public final class Move {
     public final boolean cleanse, grantProp;
     /** Creeper explosions hurt the creeper too (HP lost on the first active frame). */
     public final float selfDamage;
+    /** Ki Clash Dragon Dash: flies straight at the opponent during the dash frames. */
+    public final boolean homing;
 
     private Move(Builder b) {
         name = b.name;
@@ -110,6 +112,7 @@ public final class Move {
         cleanse = b.cleanse;
         grantProp = b.grantProp;
         selfDamage = b.selfDamage;
+        homing = b.homing;
     }
 
     public boolean isSuper() {
@@ -170,6 +173,7 @@ public final class Move {
         private int hitEffectFrames;
         private boolean teleport, randomBrew, consumesProp, cleanse, grantProp;
         private float selfDamage;
+        private boolean homing;
 
         private Builder(String name) {
             this.name = name;
@@ -191,7 +195,7 @@ public final class Move {
             selfEffects = m.selfEffects; selfEffectFrames = m.selfEffectFrames;
             hitEffect = m.hitEffect; hitEffectFrames = m.hitEffectFrames;
             teleport = m.teleport; randomBrew = m.randomBrew; consumesProp = m.consumesProp;
-            cleanse = m.cleanse; grantProp = m.grantProp; selfDamage = m.selfDamage;
+            cleanse = m.cleanse; grantProp = m.grantProp; selfDamage = m.selfDamage; homing = m.homing;
         }
 
         public Builder name(String n) { this.name = n; return this; }
@@ -238,6 +242,7 @@ public final class Move {
         public Builder cleanse() { this.cleanse = true; return this; }
         public Builder grantProp() { this.grantProp = true; return this; }
         public Builder selfDamage(float hp) { this.selfDamage = hp; return this; }
+        public Builder homing() { this.homing = true; return this; }
 
         public Move build() {
             return new Move(this);

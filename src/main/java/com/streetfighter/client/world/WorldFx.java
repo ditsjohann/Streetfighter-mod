@@ -131,6 +131,7 @@ public final class WorldFx {
             case SPEED -> net.minecraft.world.item.alchemy.Potions.SWIFTNESS;
             case REGEN -> net.minecraft.world.item.alchemy.Potions.REGENERATION;
             case HUNGER -> net.minecraft.world.item.alchemy.Potions.WEAKNESS;
+            case SUPER_FORM -> net.minecraft.world.item.alchemy.Potions.STRENGTH;
         };
     }
 
@@ -455,6 +456,13 @@ public final class WorldFx {
                     case POTION -> sound(SoundEvents.SPLASH_POTION_THROW, p, 1f, 0.9f);
                     case APPLE -> sound(SoundEvents.SNOWBALL_THROW, p, 1f, 0.7f);
                     case MILK -> sound(SoundEvents.COW_MILK, p, 1.2f, 1f);
+                    case KI_BLAST -> sound(SoundEvents.FIRECHARGE_USE, p, 0.6f, 2f);
+                    case BEAM -> {
+                        sound(SoundEvents.BEACON_DEACTIVATE, p, 1.2f, 1.6f);
+                        sound(SoundEvents.WARDEN_SONIC_BOOM, p, 0.5f, 1.4f);
+                        session.fovKick = Math.max(session.fovKick, 0.05f);
+                    }
+                    case SPIRIT_BALL -> sound(SoundEvents.BEACON_ACTIVATE, p, 1.2f, 0.6f);
                     case CHEST -> sound(SoundEvents.DONKEY_CHEST, p, 1.2f, 1f);
                     case GUNPOWDER -> sound(SoundEvents.CREEPER_PRIMED, p, 0.8f, 1.4f);
                     case COW -> sound(SoundEvents.COW_AMBIENT, p, 1.3f, 0.8f);
@@ -747,6 +755,66 @@ public final class WorldFx {
                 if (f == null) break;
                 session.startXRay(f, engine.other(f));
             }
+            case KI_CHARGE -> {
+                if (f == null) break;
+                Vec3 p = at(f.x, f.y + 60);
+                sound(SoundEvents.BEACON_AMBIENT, p, 1.2f, 1.6f);
+                sound(SoundEvents.FIRECHARGE_USE, p, 0.25f, 1.8f);
+                Vec3 g = ground(f.x);
+                if (f.grounded()) {
+                    burst(ParticleTypes.CLOUD, g.add(0, 0.1, 0), 6, 0.6, 0.05);
+                    dust(f.x, 4, 0.12);
+                }
+                burst(ParticleTypes.END_ROD, p, 6, 0.5, 0.6);
+            }
+            case FLY -> {
+                if (f == null) break;
+                Vec3 g = ground(f.x);
+                quads.ring(front(g.add(0, 0.1, 0)), 0.3f, 2.6f, 0.3f, 0xFFFFFF);
+                dust(f.x, 10, 0.18);
+                sound(SoundEvents.ENDER_DRAGON_FLAP, g, 0.7f, 1.6f);
+            }
+            case AIR_RECOVER -> {
+                if (f == null) break;
+                Vec3 p = at(f.x, f.y + 60);
+                quads.glow(front(p), 1.6f, 0.2f, 0xFFFFFF);
+                sound(SoundEvents.PHANTOM_FLAP, p, 0.6f, 1.6f);
+            }
+            case SMASH -> {
+                Vec3 p = at(ev.x(), ev.y());
+                quads.ring(front(p), 0.4f, 5.5f, 0.4f, 0xFFFFFF);
+                quads.ring(front(p), 0.2f, 3.5f, 0.3f, 0xFFE070);
+                burst(ParticleTypes.EXPLOSION, p, 2, 0.3, 0);
+                sound(SoundEvents.PLAYER_ATTACK_KNOCKBACK, p, 1.4f, 0.6f);
+                sound(SoundEvents.GENERIC_EXPLODE.value(), p, 0.45f, 1.5f);
+                hud.callout("SMASH!", engine.other(f).index, 0xFFFFE070);
+                session.fovKick = Math.max(session.fovKick, 0.06f);
+            }
+            case TRANSFORM -> {
+                if (f == null) break;
+                Vec3 p = at(f.x, f.y + 70);
+                hud.flash = 14;
+                quads.ring(front(p), 0.5f, 8f, 0.7f, 0xFFD21A);
+                quads.glow(front(p), 6f, 0.9f, 0xFFD21A);
+                burst(ParticleTypes.TOTEM_OF_UNDYING, p, 80, 1.4, 1.0);
+                sound(SoundEvents.BEACON_ACTIVATE, p, 1.5f, 0.8f);
+                sound(SoundEvents.LIGHTNING_BOLT_THUNDER, p, 0.8f, 1.4f);
+                hud.callout(f.moves.type() == FighterType.VILLAGER ? "SUPER VILLAGER!" : "SUPER STEVE!", f.index, 0xFFFFD21A);
+            }
+            case BEAM_STRUGGLE -> {
+                Vec3 p = at(ev.x(), ev.y());
+                hud.flash = 6;
+                sound(SoundEvents.BEACON_POWER_SELECT, p, 1.5f, 0.6f);
+                sound(SoundEvents.GENERIC_EXPLODE.value(), p, 0.6f, 0.7f);
+                hud.callout("BEAM STRUGGLE!", 0, 0xFFFFE070);
+                hud.callout("MASH ANY BUTTON!", 1, 0xFFFFE070);
+            }
+            case BEAM_STRUGGLE_END -> {
+                Vec3 p = at(ev.x(), ev.y());
+                quads.ring(front(p), 0.6f, 7f, 0.5f, 0xFFFFFF);
+                burst(ParticleTypes.EXPLOSION, p, 4, 0.6, 0);
+                sound(SoundEvents.GENERIC_EXPLODE.value(), p, 1f, 0.8f);
+            }
             case SELF_DAMAGE -> {
                 if (f == null) break;
                 Vec3 p = at(f.x, f.y + 70);
@@ -994,8 +1062,49 @@ public final class WorldFx {
         FightEngine engine = session.engine;
         if (engine == null) return out;
         float t = session.time;
+        float al = session.alpha();
+        // Ki Clash projectiles are pure energy: glowing balls and beam columns
+        for (Projectile p : engine.projectiles) {
+            if (p.delay > 0) continue;
+            var vis = p.spec.visual;
+            if (vis != ProjectileVisual.KI_BLAST && vis != ProjectileVisual.BEAM && vis != ProjectileVisual.SPIRIT_BALL) continue;
+            Fighter owner = engine.fighter(p.owner);
+            int col = kiColor(owner);
+            float px = p.prevX + (p.x - p.prevX) * al, py = p.prevY + (p.y - p.prevY) * al;
+            Vec3 head = front(session.arena.toWorldFlat(px, py));
+            if (vis == ProjectileVisual.KI_BLAST) {
+                out.add(FxRenderer.transientGlow(head, 0.9f, col));
+                out.add(FxRenderer.transientGlow(head, 0.45f, 0xFFFFFF));
+            } else if (vis == ProjectileVisual.SPIRIT_BALL) {
+                float pulse = 1f + 0.08f * (float) Math.sin(t * 9);
+                out.add(FxRenderer.transientGlow(head, 4.2f * pulse, 0x3C8CFF));
+                out.add(FxRenderer.transientGlow(head, 2.6f * pulse, 0xBFE8FF));
+            } else {
+                // beam: a column of glows from the user's hands to the head
+                float w = p.spec.height / 50f;
+                Vec3 from = front(session.arena.toWorldFlat(session.renderX(owner) + owner.dir() * 40, session.renderY(owner) + 95));
+                Vec3 d = head.subtract(from);
+                int n = Math.max(1, (int) (d.length() / 0.32));
+                for (int i = 0; i <= n; i++) {
+                    Vec3 q = from.add(d.scale(i / (double) n));
+                    float wob = 1f + 0.1f * (float) Math.sin(t * 30 + i);
+                    out.add(FxRenderer.transientGlow(q, 1.2f * w * wob, col));
+                    if (i % 2 == 0) out.add(FxRenderer.transientGlow(q, 0.55f * w, 0xFFFFFF));
+                }
+                out.add(FxRenderer.transientGlow(head, 2.4f * w, col));
+                out.add(FxRenderer.transientGlow(head, 1.3f * w, 0xFFFFFF));
+            }
+        }
         for (Fighter f : new Fighter[]{engine.player, engine.enemy}) {
             Vec3 c = front(session.worldOf(f).add(0, 1.0, 0)).subtract(session.arena.normal.scale(session.camera.side() * 0.9));
+            if (f.charging) {
+                float pulse = 2.6f + 0.35f * (float) Math.sin(t * 14 + f.index);
+                out.add(FxRenderer.transientGlow(c, pulse, f.has(StatusEffect.SUPER_FORM) ? 0xFFC020 : kiColor(f)));
+                out.add(FxRenderer.transientGlow(c, pulse * 0.6f, 0xFFFFFF));
+            }
+            if (f.has(StatusEffect.SUPER_FORM)) {
+                out.add(FxRenderer.transientGlow(c, 2.0f + 0.2f * (float) Math.sin(t * 10), 0xD09010));
+            }
             if (f.meter >= 100 && engine.phase == FightEngine.Phase.FIGHTING) {
                 float pulse = 1.9f + 0.25f * (float) Math.sin(t * 6 + f.index);
                 out.add(FxRenderer.transientGlow(c, pulse * (0.8f + 0.1f * f.bars()), f.index == 0 ? 0x2C6CA0 : 0xA03020));
@@ -1005,6 +1114,11 @@ public final class WorldFx {
             if (f.state == Fighter.State.ATTACK && f.move != null && f.armorLeft > 0) out.add(FxRenderer.transientGlow(c, 2.2f, 0x2C9F50));
         }
         return out;
+    }
+
+    /** Ki colour: villagers glow emerald, everyone else cyan. */
+    private int kiColor(Fighter f) {
+        return f.moves.type() == FighterType.VILLAGER ? 0x3CFF8A : 0x5CC8FF;
     }
 
     private static float swooshAngle(AnimPose pose) {

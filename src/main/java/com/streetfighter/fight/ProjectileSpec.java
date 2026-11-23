@@ -34,6 +34,8 @@ public final class ProjectileSpec {
     public final boolean aura;
     /** Size of the explosion hitbox for {@link #explodes} projectiles. */
     public final float blastSize;
+    /** Fired straight at the opponent (ki blasts, beams) instead of along vx/vy. */
+    public final boolean aimed;
 
     private ProjectileSpec(Builder b) {
         visual = b.visual;
@@ -69,6 +71,7 @@ public final class ProjectileSpec {
         effectFrames = b.effectFrames;
         aura = b.aura;
         blastSize = b.blastSize;
+        aimed = b.aimed;
     }
 
     public Builder toBuilder() {
@@ -110,6 +113,7 @@ public final class ProjectileSpec {
         private int effectFrames;
         private boolean aura;
         private float blastSize = 150;
+        private boolean aimed;
 
         private Builder(ProjectileVisual visual) {
             this.visual = visual;
@@ -122,7 +126,7 @@ public final class ProjectileSpec {
             bounce = s.bounce; count = s.count; delayStep = s.delayStep; fromSky = s.fromSky; skySpread = s.skySpread;
             skyHeight = s.skyHeight; durable = s.durable; spin = s.spin; hits = s.hits; hitInterval = s.hitInterval;
             explodes = s.explodes; wallSplat = s.wallSplat; bothSides = s.bothSides;
-            effect = s.effect; effectFrames = s.effectFrames; aura = s.aura; blastSize = s.blastSize;
+            effect = s.effect; effectFrames = s.effectFrames; aura = s.aura; blastSize = s.blastSize; aimed = s.aimed;
         }
 
         public Builder effect(StatusEffect e, int frames) {
@@ -134,6 +138,11 @@ public final class ProjectileSpec {
         public Builder aura() {
             this.aura = true;
             this.durable = true;
+            return this;
+        }
+
+        public Builder aimed() {
+            this.aimed = true;
             return this;
         }
 

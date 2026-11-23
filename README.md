@@ -155,6 +155,48 @@ the fighter:
 - **Poison** ticks damage but never KOs.
 - **Slowness** cuts walk and jump speed by 40%.
 
+## Controls (keys, not arrows)
+
+Motions are shown as the actual keys, and they **flip when you switch sides**. When you face right, a "quarter circle
+forward" is written **S, S+D, D + U/I/O**: press S, then S and D together, then D, then a punch. When you face left it
+becomes **S, S+A, A**.
+- **During a fight:** hold **TAB** to see your specials. The pause menu (ESC) shows the full move list for the side you're on.
+- **Simple inputs:** every special also has a one-button version, **H + direction**.
+- **Dash:** **tap forward twice** (D, D).
+- **Backdash:** **tap back twice** (A, A). It's briefly invincible.
+
+## X-ray finishers
+
+The match-winning K.O. plays a Mortal Kombat style **X-RAY** cinematic. Time stops, and the loser's skeleton appears inside a
+translucent body (bone blocks inside light-blue glass). The winner's signature blow then cracks a bone, with the
+block-breaking texture spreading over it, until it snaps.
+- **Unique per style:** Steve's *Pickaxe to the Dome*, Skeleton's *Rib Collector*, Goat's *Ram Rupture*, Zombie's
+  *Bone Appetit*, Creeper's *Total Detonation*, and so on.
+- **Materials:** trees break wooden "bones", the ore golem iron, and the pickaxe its handle.
+- **Config:** turn it off with `xrayFinishers`.
+
+## Ki Clash (Dragon Ball style), villagers only
+
+Against **any villager** the select screen offers a second rule set. Press **M** to switch between **Street Fighter** and
+**Ki Clash**. Ki Clash is playable as Steve, or as Villager once you've learned that style.
+
+| Action | Keys |
+|---|---|
+| Fly (take off / rise / descend) | **W** / **W** / **S**. Hold S near the ground to land. Fly sideways with A/D |
+| Charge ki (aura) | hold **H + S** |
+| Ki blast (aimed at the opponent) | tap **H** |
+| Dragon Dash: homes in through the air | **D, D** |
+| Vanish: teleport behind and strike (1 ki bar) | **I + K** |
+| Rush auto-combo / Smash (sends them flying) | **U U U U U** / **O** |
+| Guard (also in the air) | hold back |
+
+- **Recovery:** launched fighters catch themselves in mid-air.
+- **Beams:** specials cost ki. When two beams collide there's a **beam struggle**: mash any button to push yours through
+  and hit for 1.6× damage.
+- **Supers:** a giant spirit ball, a huge beam, and the **Super Villager / Super Steve** transformation (golden aura, +30%
+  damage, +20% speed, ki regeneration).
+- **The AI** charges, blasts, flies after you, rushes, vanishes and transforms.
+
 ## The funny villager (fight items)
 
 Every 8 seconds of fighting there's a **20% chance** a nitwit villager pops up at the edge of the fight:
@@ -225,7 +267,7 @@ Settings are in `config/streetfighter-common.toml`: peaceful mobs, challenge ran
 Requires Java 21.
 
 ```bash
-./gradlew build        # mod jar -> build/libs/streetfighter-0.7.0.jar
+./gradlew build        # mod jar -> build/libs/streetfighter-0.8.0.jar
 ./gradlew runClient    # launch a dev client with the mod
 ```
 

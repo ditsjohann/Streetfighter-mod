@@ -11,7 +11,9 @@ public enum StatusEffect {
     SPEED("SPEED UP", true, 0x7CAFC6),
     REGEN("REGENERATION", true, 0xCD5CAB),
     /** Zombie bites: the super meter drains away. */
-    HUNGER("HUNGER", false, 0x587653);
+    HUNGER("HUNGER", false, 0x587653),
+    /** Ki Clash transformation (Super Villager / Super Steve): stronger, faster, regenerates ki. */
+    SUPER_FORM("SUPER FORM", true, 0xFFD21A);
 
     public final String label;
     public final boolean buff;

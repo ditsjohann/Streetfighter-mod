@@ -61,6 +61,8 @@ final class SelectScreenUi {
     private int rouletteIndex;
     private float lastRouletteTick;
     private boolean showMoves;
+    /** Ki Clash (Dragon Ball style) instead of Street Fighter rules - only against villagers. */
+    private boolean kiMode;
     private int lastSecond = -1;
     private boolean vsSoundPlayed;
 
@@ -143,7 +145,14 @@ final class SelectScreenUi {
     }
 
     private boolean selectable(int cell) {
-        return cell == RANDOM_CELL || (cell >= 0 && cell < GRID.length && GRID[cell] != null);
+        if (cell == RANDOM_CELL) return true;
+        if (cell < 0 || cell >= GRID.length || GRID[cell] == null) return false;
+        return !kiMode || kiStyle(GRID[cell]);
+    }
+
+    /** Styles that have a Ki Clash kit. */
+    static boolean kiStyle(FighterType t) {
+        return t == FighterType.STEVE || t == FighterType.VILLAGER;
     }
 
     private int enemyCell() {
@@ -167,6 +176,13 @@ final class SelectScreenUi {
             case GLFW.GLFW_KEY_W, GLFW.GLFW_KEY_UP -> move(0, -1);
             case GLFW.GLFW_KEY_S, GLFW.GLFW_KEY_DOWN -> move(0, 1);
             case GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_SPACE, GLFW.GLFW_KEY_U, GLFW.GLFW_KEY_J -> confirm();
+            case GLFW.GLFW_KEY_M -> {
+                if (session.kiAvailable()) {
+                    kiMode = !kiMode;
+                    if (!selectable(cursor)) cursor = 0;
+                    play(kiMode ? SoundEvents.BEACON_ACTIVATE : SoundEvents.UI_BUTTON_CLICK.value(), kiMode ? 1.6f : 1f);
+                }
+            }
             case GLFW.GLFW_KEY_TAB -> {
                 showMoves = !showMoves;
                 play(SoundEvents.UI_BUTTON_CLICK.value(), 1.8f);
@@ -251,7 +267,7 @@ final class SelectScreenUi {
 
     private List<Integer> unlockedCells() {
         List<Integer> out = new ArrayList<>();
-        for (int i = 0; i < GRID.length; i++) if (GRID[i] != null && session.isUnlocked(GRID[i])) out.add(i);
+        for (int i = 0; i < GRID.length; i++) if (GRID[i] != null && session.isUnlocked(GRID[i]) && selectable(i)) out.add(i);
         return out;
     }
 
@@ -304,7 +320,7 @@ final class SelectScreenUi {
                     play(SoundEvents.PLAYER_ATTACK_STRONG, 0.6f);
                     play(SoundEvents.BELL_BLOCK, 1.2f);
                 }
-                if (a > 2.1f) session.beginFight(chosen);
+                if (a > 2.1f) session.beginFight(chosen, kiMode);
             }
         }
     }
@@ -378,7 +394,7 @@ final class SelectScreenUi {
                 ep, false, false);
 
         // ---- stat panels / move list between the showcases
-        int panelTop = 38;
+        int panelTop = session.kiAvailable() ? 62 : 38;
         int vsGap = Math.max(44, (int) (L.gridW() * 0.2f));
         int panelW = Math.max(80, (L.gridW() - vsGap) / 2);
         int panelBottom = L.gy - 10;
@@ -394,7 +410,8 @@ final class SelectScreenUi {
         // ---- VS emblem
         float vsPulse = 1f + 0.06f * Mth.sin(t * 5f);
         if (!(showMoves && mine != null)) {
-            hud.outlined(g, "VS", w / 2f, panelTop + 30, vsGap / 16f * vsPulse, 0xFFFFD21A, 0xFF8A1A00);
+            hud.outlined(g, kiMode ? "VS" : "VS", w / 2f, panelTop + 30, vsGap / 16f * vsPulse,
+                    kiMode ? 0xFFFFB020 : 0xFFFFD21A, 0xFF8A1A00);
         }
 
         // ---- grid
@@ -414,6 +431,18 @@ final class SelectScreenUi {
         String diff = session.difficulty.displayName.toUpperCase() + " AI";
         italic(g, diff, w - 10, 8, w >= 480 ? 1.6f : 1.2f, session.difficulty == com.streetfighter.fight.AIDifficulty.HARD
                 ? 0xFFFF6B5B : 0xFF8BEA8B, 0xFF000000, true);
+
+        // ---- mode banner (villagers only): Street Fighter or Ki Clash
+        if (session.kiAvailable()) {
+            String mode = kiMode ? "KI CLASH (Dragon Ball rules)" : "STREET FIGHTER";
+            String hint = "[M] switch to " + (kiMode ? "STREET FIGHTER" : "KI CLASH");
+            int mw = Math.max(font.width(mode), font.width(hint)) + 16;
+            int mx = w / 2 - mw / 2, my = 36;
+            g.fill(mx, my, mx + mw, my + 22, kiMode ? 0xE0A04000 : 0xC0101830);
+            g.fill(mx, my + 21, mx + mw, my + 22, kiMode ? 0xFFFFB020 : 0xFF2E9BFF);
+            g.drawCenteredString(font, mode, w / 2, my + 2, kiMode ? 0xFFFFE070 : 0xFFFFFFFF);
+            g.drawCenteredString(font, hint, w / 2, my + 12, 0xFFBBBBBB);
+        }
 
         // ---- lock-in flash and VS splash
         if (phase == Phase.CONFIRMED) {
@@ -624,6 +653,18 @@ final class SelectScreenUi {
                 g.fill(x, y + cs - 2, x + cs, y + cs, FightHud.argb(un ? 255 : 90, accent));
                 g.pose().popPose();
             }
+        }
+        // Ki Clash: styles without a Ki kit are greyed out
+        if (kiMode) {
+            g.pose().pushPose();
+            g.pose().translate(0, 0, 340);
+            for (int i = 0; i < GRID.length; i++) {
+                if (GRID[i] == null || kiStyle(GRID[i])) continue;
+                int x = L.cellX(i), y = L.cellY(i);
+                g.fill(x, y, x + L.cs, y + L.cs, 0xC0000000);
+                g.drawCenteredString(font, "SF", x + L.cs / 2, y + L.cs / 2 - 4, 0xFF666666);
+            }
+            g.pose().popPose();
         }
         // CPU marker on the opponent's cell (after all cells so nothing covers its tag)
         int ec = enemyCell;

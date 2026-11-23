@@ -125,7 +125,10 @@ public final class WorldRenderEvents {
             float rx = p.prevX + (p.x - p.prevX) * s.alpha(), ry = p.prevY + (p.y - p.prevY) * s.alpha();
             if (p.exploded || p.spec.visual == com.streetfighter.fight.ProjectileVisual.SHOCKWAVE
                     || p.spec.visual == com.streetfighter.fight.ProjectileVisual.CLOUD
-                    || p.spec.visual == com.streetfighter.fight.ProjectileVisual.BLAST) continue;
+                    || p.spec.visual == com.streetfighter.fight.ProjectileVisual.BLAST
+                    || p.spec.visual == com.streetfighter.fight.ProjectileVisual.KI_BLAST
+                    || p.spec.visual == com.streetfighter.fight.ProjectileVisual.BEAM
+                    || p.spec.visual == com.streetfighter.fight.ProjectileVisual.SPIRIT_BALL) continue;
             Vec3 w = p.bottomAnchored() ? arena.toWorld(rx, ry, 0.5) : arena.toWorldFlat(rx, ry);
             int light = LevelRenderer.getLightColor(mc.level, BlockPos.containing(w.x, w.y + 0.6, w.z));
             switch (p.spec.visual) {

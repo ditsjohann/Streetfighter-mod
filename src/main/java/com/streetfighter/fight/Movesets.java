@@ -1164,6 +1164,106 @@ public final class Movesets {
     }
 
     // =====================================================================================================
+    // KI CLASH kits (Dragon Ball style): rush auto-combos, smash, ki blasts, dragon dash, vanish, beams
+    // =====================================================================================================
+
+    private static final Map<FighterType, Moveset> KI_SETS = new EnumMap<>(FighterType.class);
+
+    /** Ki Clash moveset for a style (Steve or any villager); other styles fall back to Steve's. */
+    public static Moveset ki(FighterType type) {
+        FighterType key = type == FighterType.VILLAGER || type == FighterType.ALCHEMIST ? FighterType.VILLAGER : FighterType.STEVE;
+        return KI_SETS.computeIfAbsent(key, k -> k == FighterType.VILLAGER
+                ? kiKit(FighterType.VILLAGER, new FighterStats(1050, 3.4f, 3.0f, 15f, 4.4f, 0.75f, 46, 128, 86),
+                new String[]{"Hmm-ehameha", "Emerald Barrage", "Bell Rising", "Instant Trade-mission",
+                        "Spirit Emerald", "Final Hmm-ash", "Super Villager"})
+                : kiKit(FighterType.STEVE, HUMANOID,
+                new String[]{"Diamond Beam", "Block Barrage", "Meteor Uppercut", "Ender Strike",
+                        "Spirit Diamond", "Final Pickaxe Flash", "Super Steve"}));
+    }
+
+    private static Moveset kiKit(FighterType type, FighterStats stats, String[] n) {
+        Moveset m = new Moveset(type, stats);
+        Tune t = new Tune(-1, 6, 1f, 1f, 0);
+        normals(m, t, new String[]{"Rush Jab", "Rush Straight", "Smash", "Rush Kick", "Rush Knee", "Smash Kick",
+                "Low Rush", "Body Rush", "Rising Smash", "Low Kick", "Sweep Rush", "Ground Smash",
+                "Air Jab", "Air Rush", "Air Smash", "Air Kick", "Air Knee", "Meteor Kick"});
+        // heavy = Smash: sends them flying (Ki Clash multiplies launches)
+        m.stand.put(Button.HP, m.stand.get(Button.HP).toBuilder().push(18).launch(9).knockdown().wallSplat()
+                .callout("SMASH!").build());
+        m.stand.put(Button.HK, m.stand.get(Button.HK).toBuilder().push(16).launch(8).knockdown().build());
+        // rush auto-combo: tap U again on hit
+        Move r2 = Move.builder("Rush 2").kind(Kind.TARGET).frames(4, 3, 10).damage(32).box(8, 76, 70, 115).stun(16, 10)
+                .push(2.5f).pose(AnimPose.STRAIGHT).build();
+        Move r3 = Move.builder("Rush 3").kind(Kind.TARGET).frames(5, 3, 11).damage(34).box(8, 80, 40, 100).stun(16, 10)
+                .push(2.5f).pose(AnimPose.FRONT_KICK).build();
+        Move r4 = Move.builder("Rush 4").kind(Kind.TARGET).frames(5, 4, 12).damage(36).box(8, 85, 60, 125).stun(17, 11)
+                .push(3f).cancelable().pose(AnimPose.HOOK).build();
+        Move r5 = Move.builder("Rush Finisher").kind(Kind.TARGET).frames(8, 4, 20).damage(70).box(8, 95, 50, 150)
+                .stun(24, 14).push(17).launch(10).knockdown().wallSplat().pose(AnimPose.UPPERCUT).callout("SMASH!").build();
+        Move smash = m.stand.get(Button.HP).toBuilder().kind(Kind.TARGET).name("Rush Smash").build();
+        Move lp = m.stand.get(Button.LP);
+        m.targetCombos.add(new Moveset.TargetCombo(lp, Button.LP, r2));
+        m.targetCombos.add(new Moveset.TargetCombo(r2, Button.LP, r3));
+        m.targetCombos.add(new Moveset.TargetCombo(r3, Button.LP, r4));
+        m.targetCombos.add(new Moveset.TargetCombo(r4, Button.LP, r5));
+        for (Move from : new Move[]{lp, r2, r3, r4}) m.targetCombos.add(new Moveset.TargetCombo(from, Button.HP, smash));
+
+        m.specials.add(new Moveset.Special(n[0], Motion.QCF, false, Role.PROJECTILE, 6, variants(s -> Move.builder("")
+                .frames(pick(s, 20, 18, 16, 14), 2, pick(s, 26, 26, 26, 22)).damage(0).box(0, 0, 0, 0).meter(pick(s, 50, 60, 70, 100))
+                .projectile(ProjectileSpec.builder(ProjectileVisual.BEAM).velocity(pick(s, 13f, 15f, 17f, 18f), 0f).aimed()
+                        .size(s == 3 ? 80 : 64, s == 3 ? 64 : 50).offset(45, 95).damage(pick(s, 26f, 28f, 30f, 30f))
+                        .stun(20, 12).push(4).launch(s >= 2 ? 6 : 0).multiHit(s == 3 ? 7 : 5, 5).durable()
+                        .lifetime(70).build(), pick(s, 20, 18, 16, 14))
+                .pose(AnimPose.SHOOT).callout(n[0].toUpperCase() + "!"), n[0])));
+        m.specials.add(new Moveset.Special(n[1], Motion.QCB, false, Role.LOW, 4, variants(s -> Move.builder("")
+                .frames(10, 2, pick(s, 22, 22, 22, 18)).damage(0).box(0, 0, 0, 0).meter(pick(s, 30, 35, 40, 60))
+                .projectile(ProjectileSpec.builder(ProjectileVisual.KI_BLAST).velocity(13f, 0f, 1.5f, -1.5f, 2.5f, -2.5f, 0f, 1f, -1f)
+                        .aimed().size(26, 26).offset(40, 100).damage(22).stun(14, 9).push(2)
+                        .count(pick(s, 5, 6, 7, 10), 4).lifetime(90).build(), 10)
+                .pose(AnimPose.PALM), n[1])));
+        m.specials.add(new Moveset.Special(n[2], Motion.DP, false, Role.ANTI_AIR, 0, variants(s -> Move.builder("")
+                .frames(4, pick(s, 12, 14, 16, 16), pick(s, 22, 25, 28, 24)).damage(pick(s, 90f, 50f, 40f, 44f))
+                .box(0, 65, 40, 165).stun(26, 16).push(8).launch(12).knockdown().multiHit(pick(s, 1, 2, 3, 3), 5)
+                .leap(pick(s, 11f, 13f, 15f, 15f), 2f, 4).invuln(0, pick(s, 4, 5, 7, 12)).meter(pick(s, 0, 0, 0, 50))
+                .pose(AnimPose.UPPERCUT), n[2])));
+        m.specials.add(new Moveset.Special(n[3], Motion.QCB, true, Role.RUSH, 4, variants(s -> Move.builder("")
+                .frames(8, 4, pick(s, 18, 18, 18, 14)).damage(pick(s, 70f, 76f, 82f, 90f)).box(10, 90, 30, 130)
+                .stun(24, 14).push(16).launch(8).knockdown().wallSplat().teleport().invuln(0, 10)
+                .meter(pick(s, 25, 25, 25, 60)).pose(AnimPose.HOOK).callout(s == 3 ? null : "BEHIND YOU!"), n[3])));
+
+        m.supers.add(new Moveset.Super(1, Motion.QCF2, false, Move.builder(n[4]).superLevel(1)
+                .frames(32, 2, 34).damage(0).box(0, 0, 0, 0).invuln(0, 32)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.SPIRIT_BALL).velocity(7f, 0f).aimed().size(120, 120)
+                        .offset(20, 230).damage(58).stun(26, 14).push(6).launch(8).knockdown().multiHit(4, 7).durable()
+                        .lifetime(150).build(), 32)
+                .pose(AnimPose.SUMMON).callout(n[4].toUpperCase() + "!").build()));
+        m.supers.add(new Moveset.Super(2, Motion.QCB2, false, Move.builder(n[5]).superLevel(2)
+                .frames(20, 2, 34).damage(0).box(0, 0, 0, 0).invuln(0, 20)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.BEAM).velocity(20f, 0f).aimed().size(110, 110).offset(45, 95)
+                        .damage(36).stun(24, 14).push(5).launch(9).knockdown().multiHit(9, 4).durable().lifetime(80).build(), 20)
+                .pose(AnimPose.SHOOT).callout(n[5].toUpperCase() + "!").build()));
+        m.supers.add(new Moveset.Super(3, Motion.QCF2, true, Move.builder(n[6]).superLevel(3)
+                .frames(36, 2, 30).damage(0).box(0, 0, 0, 0).invuln(0, 40)
+                .selfEffect(900, StatusEffect.SUPER_FORM, StatusEffect.REGEN)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.BLAST).velocity(0f, 0f).size(30, 30).offset(0, 70)
+                        .damage(120).stun(30, 18).push(14).launch(12).knockdown().explodes().blast(300).lifetime(1).build(), 36)
+                .pose(AnimPose.SCREAM).callout(n[6].toUpperCase() + "!").build()));
+        universals(m, "Throw", "Back Throw", 115);
+
+        // Ki Clash universals: Dragon Dash (homing), ki blast, vanish
+        m.dash = Move.builder("Dragon Dash").frames(3, 28, 6).damage(45).box(10, 80, 20, 120).stun(20, 12).push(9)
+                .launch(6).knockdown().stopOnHit().homing().dash(14f, 3, 31).pose(AnimPose.DASH).build();
+        m.kiBlast = Move.builder("Ki Blast").kind(Kind.SPECIAL).frames(4, 1, 9).damage(0).box(0, 0, 0, 0).meter(8)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.KI_BLAST).velocity(15f, 0f).aimed().size(24, 24)
+                        .offset(40, 100).damage(18).stun(12, 8).push(2).lifetime(80).build(), 4)
+                .pose(AnimPose.PALM).build();
+        m.vanish = Move.builder("Vanish").kind(Kind.SPECIAL).frames(7, 4, 16).damage(70).box(10, 95, 30, 135)
+                .stun(26, 16).push(17).launch(9).knockdown().wallSplat().teleport().invuln(0, 13).meter(100)
+                .pose(AnimPose.HOOK).callout("VANISH!").build();
+        return m;
+    }
+
+    // =====================================================================================================
     // BRAWLER: every other mob
     // =====================================================================================================
 

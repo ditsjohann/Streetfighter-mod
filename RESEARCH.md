@@ -109,6 +109,39 @@ Based on the SF2 / SF4 / SF6 select screens and the MUGEN/Ikemen `select.def` mo
   after a fixed flight time.
 - **Drops:** a knockdown drops the held item with its remaining time and uses.
 
+### Round 8: feel, X-ray finishers, Ki Clash
+Sources:
+- [MK Wiki: X-Ray](https://mortalkombat.fandom.com/wiki/X-Ray)
+- [ScreenRant: MK11 Fatal Blows](https://screenrant.com/mortal-kombat-11-fatal-blows-guide-explained/)
+- [DBFZ mechanics doc](https://docs.google.com/document/d/1XjKSwjcXRwpvag-O861JcMXqHFrax3Dn0UY59osr6AY/mobilebasic)
+- [Bandai Namco: Sparking! ZERO combos & features](https://en.bandainamcoent.eu/dragon-ball/news/dragon-ball-sparking-zero-combos-and-features)
+- [Destructoid: Sparking Zero vanish](https://www.destructoid.com/dragon-ball-sparking-zero-how-to-vanish/)
+- [SuperCombo: Budokai Tenkaichi 3 offense](https://srk.shib.live/w/Dragon_Ball_Z:_Budokai_Tenkaichi_3/Offense)
+- [Prima: SFV glossary (dash/backdash)](https://primagames.com/eguides/street-fighter-v-eguide/glossary/a-c)
+- [GMTK: how to make a good 2D camera](https://gmtk.substack.com/p/how-to-make-a-good-2d-camera)
+- [Godot forum: trauma shake and hit-stop](https://forum.godotengine.org/t/game-feel-effects-that-stack-without-fighting-your-code-trauma-shake-real-time-hit-stop-and-apply-the-difference/146379)
+
+- **Controls notation:** fighting-game arrows confused players because they're relative to facing. Motions are now
+  printed as real keys and flipped for the current side (`client/KeyNotation.java`).
+- **Dash and backdash:** double-tap with a neutral gap, so 236/623 never dash (`InputBuffer.doubleTap`). The
+  backdash is briefly invincible, then airborne, like SF.
+- **Camera:**
+  - A critically damped spring replaces the lerp follow.
+  - **Trauma shake:** the shake strength is squared and driven by smooth noise rather than per-frame random jitter.
+  - A directional kick along each heavy hit.
+  - An orbit during supers and the K.O.
+  - About 0.7 s of slow motion on the K.O.
+- **Animation:** take-off squash and landing settle, a gut-bend reaction on mid hits, and idle stances per learned style.
+- **X-ray (MK9/MKX, now MK11 Fatal Blows):** slow motion, the view zooms into the skeleton, and bones crack and snap.
+  - Here it's a match-ending finisher. Bones are bone-block models inside stained-glass "flesh".
+  - Cracks reuse the block destroy-stage textures (`SheetedDecalTextureGenerator`).
+- **Ki Clash** takes from:
+  - Budokai Tenkaichi / Sparking! ZERO: flight, charging ki by hand, smash knockback into a chase, beam struggles.
+  - FighterZ: Vanish for a ki bar, the homing Super/Dragon Dash, auto-combos.
+  - The transformation plays the role of Sparking! mode.
+- **Beam struggle:** both beams freeze where they meet and the meeting point slides by the difference in mash rate.
+  The winner's beam continues at 1.6× damage.
+
 ## Not adopted (yet)
 - Rollback netcode (GGPO-style), which several engines plan for. In Minecraft the simulation runs on the challenger's
   client, so it isn't needed for 1-player fights.

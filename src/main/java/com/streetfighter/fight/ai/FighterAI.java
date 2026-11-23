@@ -85,6 +85,11 @@ public class FighterAI {
         };
     }
 
+    /** Hook for mode-specific behaviour (Ki Clash); return true to take over this frame. */
+    protected boolean preThink(FightEngine e, Fighter self, Fighter opp, float dist) {
+        return false;
+    }
+
     protected boolean hard() {
         return difficulty == AIDifficulty.HARD;
     }
@@ -97,6 +102,11 @@ public class FighterAI {
         out.clear();
         if (passive || self.state == State.KO || self.state == State.VICTORY) return out;
         float dist = Math.abs(opp.x - self.x);
+        if (e.struggle != null && e.struggle.involves(self)) {
+            // beam struggle: mash!
+            if (chance(difficulty == AIDifficulty.HARD ? 0.44f : 0.3f)) out.lp = e.frame % 2 == 0;
+            return out;
+        }
 
         if (self.state == State.HITSTUN || self.state == State.KNOCKDOWN || self.state == State.WALL_SPLAT
                 || self.state == State.CRUMPLE) {
@@ -115,6 +125,8 @@ public class FighterAI {
             else parrying = false;
             return out;
         }
+
+        if (preThink(e, self, opp, dist)) return out;
 
         // ---------------- combo in progress
         if (combo != null) {

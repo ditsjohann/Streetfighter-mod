@@ -71,6 +71,8 @@ public final class Fighter {
     // --- props
     /** The item this fighter is holding (thrown in by the villager), or null. */
     public Prop heldProp;
+    /** Ki Clash: flying (no gravity) and charging ki. */
+    public boolean flying, charging;
     public int heldTimer, heldUses;
 
     public boolean has(StatusEffect e) {
@@ -90,6 +92,7 @@ public final class Fighter {
         float m = 1f;
         if (has(StatusEffect.SLOW)) m *= 0.6f;
         if (has(StatusEffect.SPEED)) m *= 1.3f;
+        if (has(StatusEffect.SUPER_FORM)) m *= 1.2f;
         return m;
     }
 
@@ -150,6 +153,7 @@ public final class Fighter {
     }
 
     public boolean canBlock() {
+        if (flying && (state == State.JUMP || state == State.BLOCKSTUN)) return true; // Ki Clash: guard in the air
         return grounded() && (actionable() || state == State.BLOCKSTUN);
     }
 

@@ -44,6 +44,8 @@ public final class Moveset {
     public Move forwardThrow, backThrow, driveImpact;
     /** Double-tap forward / back. */
     public Move dash, backdash;
+    /** Ki Clash only: rapid ki blast (tap H), Vanish (I+K, one bar). */
+    public Move kiBlast, vanish;
     /** Extra jumps in the air (Chicken flap). */
     public int airJumps;
     /** Frames of slow-fall available per jump while holding up (Chicken glide); 0 = none. */

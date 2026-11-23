@@ -217,22 +217,36 @@ public final class FightSession {
 
     // ------------------------------------------------------------------ match flow
 
+    /** True when the opponent is a villager: those fights can be played as Ki Clash (Dragon Ball style). */
+    public boolean kiAvailable() {
+        return enemyEntity instanceof net.minecraft.world.entity.npc.AbstractVillager;
+    }
+
+    public boolean kiMode;
+
     public void beginFight(FighterType style) {
+        beginFight(style, false);
+    }
+
+    public void beginFight(FighterType style, boolean ki) {
         Minecraft mc = Minecraft.getInstance();
         playerStyle = style;
-        Moveset pm = Movesets.get(style);
+        kiMode = ki && kiAvailable();
+        Moveset pm = kiMode ? Movesets.ki(style) : Movesets.get(style);
         FighterStats st = pm.stats();
         FighterStats body = Movesets.HUMANOID;
         FighterStats playerStats = new FighterStats(st.maxHp(), st.walkSpeed(), st.backSpeed(), st.jumpVy(), st.jumpVx(),
                 st.gravity(), body.hurtWidth(), body.hurtHeight(), body.crouchHeight());
         String playerName = mc.player != null ? mc.player.getName().getString() : "Steve";
         Fighter player = new Fighter(0, playerName, FighterType.STEVE, pm, playerStats, 1f, 1f);
-        Fighter enemy = new Fighter(1, info.enemyName(), enemyType, Movesets.get(enemyType), enemyStats(),
-                info.hpScale(), info.damageScale());
-        FighterAI ai = FighterAI.create(enemyType, difficulty);
-        ai.passive = info.training() || System.getProperty("sf.passive") != null; // TEMP-TEST
+        Moveset em = kiMode ? Movesets.ki(FighterType.VILLAGER) : Movesets.get(enemyType);
+        Fighter enemy = new Fighter(1, info.enemyName(), enemyType, em, kiMode ? em.stats() : enemyStats(),
+                kiMode ? 1f : info.hpScale(), kiMode ? 1f : info.damageScale());
+        FighterAI ai = kiMode ? new com.streetfighter.fight.ai.KiAI(difficulty) : FighterAI.create(enemyType, difficulty);
+        ai.passive = info.training();
         engine = new FightEngine(player, enemy, ai, difficulty, minX(), maxX(), startSeparation, arena);
         engine.training = info.training();
+        engine.kiMode = kiMode;
         stage = Stage.FIGHT;
         lastNanos = System.nanoTime();
         accumulator = 0;
@@ -432,7 +446,8 @@ public final class FightSession {
         Vec3 pw = arena.toWorld(px, py, 0.3), ew = arena.toWorld(ex, ey, 0.3);
         Vec3 focus = pw.add(ew).scale(0.5).add(0, 1.05, 0);
         double sep = Math.abs(px - ex) / Arena.UNITS_PER_BLOCK;
-        double dist = Mth.clamp(2.6 + sep * 0.8, 4.2, 10.5);
+        double vsep = Math.abs(py - ey) / Arena.UNITS_PER_BLOCK;
+        double dist = Mth.clamp(2.6 + Math.max(sep, vsep * 1.3) * 0.8, 4.2, kiMode ? 13.5 : 10.5);
         float roll = 0, orbit = 0;
         if (engine == null) {
             dist = Math.max(dist, 7.5); // wider shot on the select screen so the panels don't cover anyone

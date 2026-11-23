@@ -8,5 +8,7 @@ public enum ProjectileVisual {
     // props thrown in by the villager
     ANVIL, SLIME, WEB, COBWEB, TRIDENT, PEARL, CHAIR, BOTTLE,
     // cow / donkey / creeper
-    MILK, COW, DONKEY, CHEST, GUNPOWDER, CREEPER, BLAST
+    MILK, COW, DONKEY, CHEST, GUNPOWDER, CREEPER, BLAST,
+    // Ki Clash
+    KI_BLAST, BEAM, SPIRIT_BALL
 }

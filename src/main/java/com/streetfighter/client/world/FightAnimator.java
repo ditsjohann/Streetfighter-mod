@@ -237,6 +237,31 @@ public final class FightAnimator {
             Float r = birdPose(s, f, t, ctx);
             if (r != null) return r;
         }
+        if (f.charging) {
+            // powering up: fists clenched at the sides, head back, trembling
+            t[RAX] = -0.35f; t[RAZ] = 0.55f; t[LAX] = -0.35f; t[LAZ] = -0.55f; t[RAY] = 0; t[LAY] = 0;
+            t[RLZ] = 0.2f; t[LLZ] = -0.2f; t[HX] = -0.35f; t[LEAN] = -4; t[SQUASH] = 0.96f;
+            t[FWD] = Mth.sin(ctx.time() * 70f) * 0.015f;
+            t[FLIP] = 0;
+            s.cur[FLIP] = 0;
+            return 20f;
+        }
+        if (f.flying && f.state == Fighter.State.JUMP) {
+            // Ki Clash flight: hover upright when still, lean into the direction of travel when moving fast
+            float along = f.vx * f.dir();
+            float speed = Mth.clamp(along / com.streetfighter.fight.FightEngine.FLY_SPEED, -1f, 1f);
+            t[LEAN] = speed > 0 ? 55f * speed : 15f * speed;
+            t[LEAN] -= Mth.clamp(f.vy / 5f, -1f, 1f) * 10f;
+            t[RLX] = 0.35f + Mth.sin(ctx.time() * 2.2f) * 0.08f; t[LLX] = 0.15f - Mth.sin(ctx.time() * 2.2f) * 0.08f;
+            t[RLZ] = 0.05f; t[LLZ] = -0.05f;
+            if (speed > 0.6f) { // superman: one fist forward
+                t[RAX] = -2.9f; t[RAY] = 0; t[RAZ] = 0; t[LAX] = 0.3f; t[LAZ] = -0.2f;
+            }
+            t[UP] += Mth.sin(ctx.time() * 2.4f) * 0.05f;
+            t[FLIP] = 0;
+            s.cur[FLIP] = 0;
+            return 12f;
+        }
         float tm = ctx.time();
         switch (f.state) {
             case IDLE, LANDING -> {

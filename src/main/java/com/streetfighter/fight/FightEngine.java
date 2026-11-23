@@ -75,6 +75,11 @@ public final class FightEngine {
     public boolean timeOver;
     /** Training mode: the dummy refills its health when a combo ends and the timer never runs out. */
     public boolean training;
+    /** Ki Clash (Dragon Ball style) rules: flight, ki charge/blasts, dragon dash, vanish, beams. */
+    public boolean kiMode;
+    public static final float KI_CEILING = 520f, FLY_SPEED = 4.4f;
+    /** The beam struggle in progress, or null. */
+    public BeamStruggle struggle;
     private boolean firstAttackDone;
     private int projectileIds;
     /** Total simulated frames (used for render interpolation and effects). */
@@ -153,7 +158,12 @@ public final class FightEngine {
         pendingProp = null;
         villagerTimer = 0;
         propRollTimer = PROP_ROLL_FRAMES / 2 + random.nextInt(PROP_ROLL_FRAMES);
-        for (Fighter f : fighters) f.heldProp = null;
+        for (Fighter f : fighters) {
+            f.heldProp = null;
+            f.flying = false;
+            f.charging = false;
+        }
+        struggle = null;
         timer = ROUND_FRAMES;
         hitstop = 0;
         freeze = 0;
@@ -305,7 +315,7 @@ public final class FightEngine {
         updateProps();
         resolveBodies();
         for (Fighter f : fighters) {
-            if (f.actionable()) {
+            if (f.actionable() || (kiMode && f.state == State.JUMP && f.flying)) {
                 if (f.comboTaken > 0) f.comboTaken = 0;
                 f.actionableAge++;
             } else if (f.state != State.ATTACK) {
@@ -329,6 +339,8 @@ public final class FightEngine {
             if (e == StatusEffect.POISON && left % 20 == 0) {
                 f.hp = Math.max(1, f.hp - 7);
                 events.add(FightEvent.text(Type.STATUS_TICK, f.index, f.x, f.y + f.hurtHeight() * 0.6f, e.name()));
+            } else if (e == StatusEffect.SUPER_FORM) {
+                f.meter = Math.min(Fighter.MAX_METER, f.meter + 0.35f);
             } else if (e == StatusEffect.HUNGER) {
                 f.meter = Math.max(0, f.meter - 0.35f);
                 if (left % 30 == 0) {
@@ -370,11 +382,13 @@ public final class FightEngine {
         InputBuffer b = f.buffer;
         float speedMul = floorSpeed(f) * f.statusSpeed();
 
+        f.charging = false;
+        if (kiMode && kiControl(f, in, opp)) return;
         switch (f.state) {
             case IDLE, WALK, CROUCH -> {
                 if (Math.abs(opp.x - f.x) > 1) f.facingRight = opp.x > f.x;
                 Move chosen = chooseGroundMove(f, in, opp);
-                boolean parryHeld = in.parry || (b.held(Button.MP) && b.held(Button.MK) && chosen == null);
+                boolean parryHeld = !kiMode && (in.parry || (b.held(Button.MP) && b.held(Button.MK) && chosen == null));
                 if (chosen != null) {
                     startMove(f, chosen);
                 } else if (parryHeld) {
@@ -487,6 +501,63 @@ public final class FightEngine {
         }
     }
 
+    // ------------------------------------------------------------------ Ki Clash
+
+    /** Ki Clash controls that replace or extend the normal ones. Returns true if it handled this frame. */
+    private boolean kiControl(Fighter f, FightInput in, Fighter opp) {
+        InputBuffer b = f.buffer;
+        boolean free = f.actionable() || (f.state == State.JUMP && f.flying);
+        if (!free) return false;
+        // charge ki: hold H + S (anywhere)
+        if (in.kiCharge || (in.sp && in.down)) {
+            f.charging = true;
+            f.vx *= 0.7f;
+            if (f.flying) f.vy *= 0.7f;
+            if (f.meter < Fighter.MAX_METER && f.stateAge % 20 == 0) {
+                events.add(FightEvent.of(Type.KI_CHARGE, f.index, f.x, f.y));
+            }
+            f.meter = Math.min(Fighter.MAX_METER, f.meter + 1.8f);
+            if (f.actionable()) setState(f, State.IDLE);
+            f.facingRight = opp.x > f.x || (opp.x == f.x && f.facingRight);
+            return true;
+        }
+        // vanish (I+K): teleport behind and strike, one bar
+        boolean vanishIn = in.parry || b.together(Button.MP, Button.MK, 3);
+        if (vanishIn && f.moves.vanish != null && f.meter >= f.moves.vanish.meterCost) {
+            consumeAll(b);
+            startMove(f, f.moves.vanish);
+            return true;
+        }
+        if (f.state == State.JUMP && f.flying) {
+            f.facingRight = opp.x > f.x || (opp.x == f.x && f.facingRight);
+            Move chosen = chooseGroundMove(f, in, opp);
+            if (chosen != null) {
+                startMove(f, chosen);
+                f.vx *= 0.3f;
+                f.vy = 0;
+                return true;
+            }
+            float sp = FLY_SPEED * f.statusSpeed();
+            float tx = f.holdingForward() ? f.dir() * sp : f.holdingBack() ? -f.dir() * sp * 0.85f : 0;
+            float ty = in.up ? sp * 0.9f : in.down ? -sp * 0.9f : 0;
+            f.vx += (tx - f.vx) * 0.22f;
+            f.vy += (ty - f.vy) * 0.22f;
+            return true;
+        }
+        if (f.actionable() && in.up) {
+            // take off: in Ki Clash jumping means flying
+            f.state = State.JUMP;
+            f.stateAge = 0;
+            f.flying = true;
+            f.vy = 6f;
+            f.vx = f.holdingForward() ? f.dir() * FLY_SPEED : f.holdingBack() ? -f.dir() * FLY_SPEED : 0;
+            f.airAttackUsed = false;
+            events.add(FightEvent.of(Type.FLY, f.index, f.x, f.y));
+            return true;
+        }
+        return false;
+    }
+
     private void walk(Fighter f, float target) {
         if (icy(f)) f.vx += (target - f.vx) * 0.08f;
         else f.vx = target;
@@ -536,7 +607,12 @@ public final class FightEngine {
                 m = (in.backThrowReq || f.holdingBack()) ? f.moves.backThrow : f.moves.forwardThrow;
             }
         }
+        if (m == null && kiMode && f.moves.kiBlast != null && (in.kiBlast || (b.buffered(Button.SP) && b.currentDir() == 5))
+                && f.meter >= f.moves.kiBlast.meterCost) {
+            m = f.moves.kiBlast;
+        }
         if (m == null) m = pickSpecial(f, in);
+        if (m != null && m.kind != Move.Kind.SUPER && m.meterCost > f.meter) m = null; // not enough ki / meter
         if (m == null && f.moves.dash != null) {
             if (in.dash > 0 || b.doubleTap(true)) m = f.moves.dash;
             else if (in.dash < 0 || b.doubleTap(false)) m = f.moves.backdash;
@@ -571,7 +647,7 @@ public final class FightEngine {
     }
 
     private Move pickSuper(Fighter f, FightInput in) {
-        if (!f.grounded()) return null;
+        if (!f.grounded() && !(kiMode && f.flying)) return null;
         InputBuffer b = f.buffer;
         int level = 0;
         if (in.superLevel > 0) level = in.superLevel;
@@ -592,7 +668,7 @@ public final class FightEngine {
     }
 
     private Move pickSpecial(Fighter f, FightInput in) {
-        if (!f.grounded()) return null;
+        if (!f.grounded() && !(kiMode && f.flying)) return null;
         InputBuffer b = f.buffer;
         if (in.special >= 0) {
             Moveset.Special s = f.moves.special(in.special);
@@ -601,7 +677,7 @@ public final class FightEngine {
             return s.variant(st);
         }
         // Modern: SP + direction picks the special (medium strength, EX with SP + light).
-        if (b.buffered(Button.SP)) {
+        if (b.buffered(Button.SP) && !(kiMode && b.currentDir() == 5)) {
             int dir = b.currentDir();
             int want = dir == 6 || dir == 9 ? 6 : dir == 2 || dir == 1 || dir == 3 ? 2 : dir == 4 || dir == 7 ? 4 : 5;
             for (Moveset.Special s : f.moves.specials) {
@@ -663,6 +739,15 @@ public final class FightEngine {
         f.armorLeft = m.armorHits;
         if (!chain) f.chainCount = 0;
         if (!m.air && f.grounded() && !icy(f)) f.vx = 0;
+        if (kiMode && f.flying) {
+            f.vx *= 0.3f;
+            f.vy = 0;
+        }
+        if (m.selfEffects.length > 0) {
+            for (StatusEffect e : m.selfEffects) {
+                if (e == StatusEffect.SUPER_FORM) events.add(FightEvent.of(Type.TRANSFORM, f.index, f.x, f.y));
+            }
+        }
         if (m.meterCost > 0) f.meter = Math.max(0, f.meter - m.meterCost);
         if (m.kind == Move.Kind.ITEM && f.heldProp != null) {
             f.heldUses--;
@@ -679,6 +764,16 @@ public final class FightEngine {
     }
 
     private void toIdle(Fighter f) {
+        if (kiMode && f.flying && f.y > 0.5f) {
+            f.state = State.JUMP; // back to hovering
+            f.stateAge = 0;
+            f.move = null;
+            f.launched = false;
+            f.vx = 0;
+            f.vy = 0;
+            f.armorLeft = 0;
+            return;
+        }
         f.state = State.IDLE;
         f.stateAge = 0;
         f.move = null;
@@ -701,6 +796,17 @@ public final class FightEngine {
                 if (f.grounded()) {
                     f.vx *= friction;
                     if (f.stateTimer <= 0 && !f.launched) toIdle(f);
+                } else if (kiMode && f.stateTimer <= 0 && f.stateAge > 16 && f.hp > 0) {
+                    // Ki Clash: catch yourself in mid-air
+                    f.state = State.JUMP;
+                    f.stateAge = 0;
+                    f.flying = true;
+                    f.launched = false;
+                    f.wallSplatPending = false;
+                    f.vx *= 0.25f;
+                    f.vy = 0;
+                    f.invuln = 8;
+                    events.add(FightEvent.of(Type.AIR_RECOVER, f.index, f.x, f.y));
                 }
             }
             case BLOCKSTUN -> {
@@ -752,7 +858,12 @@ public final class FightEngine {
         }
 
         boolean wasAir = f.y > 0 || f.vy > 0;
-        if (wasAir) f.vy -= f.stats.gravity();
+        boolean homingNow = f.state == State.ATTACK && f.move != null && f.move.homing;
+        if (kiMode && f.state != State.KO && (f.flying || homingNow) && f.state != State.HITSTUN) {
+            // flying: no gravity
+        } else if (wasAir) {
+            f.vy -= f.stats.gravity() * (kiMode && f.state == State.HITSTUN ? 0.45f : 1f);
+        }
         // glide: holding up while falling slows the descent (Chicken)
         f.gliding = false;
         if (wasAir && f.glideLeft > 0 && f.vy < -1.5f && f.input.up
@@ -763,6 +874,10 @@ public final class FightEngine {
         }
         f.x += f.vx;
         f.y += f.vy;
+        if (kiMode && f.y > KI_CEILING) {
+            f.y = KI_CEILING;
+            if (f.vy > 0) f.vy = f.state == State.HITSTUN ? -f.vy * 0.4f : 0;
+        }
         // walls: launched fighters bounce or splat; everyone else stops
         float left = arenaMin + WALL, right = arenaMax - WALL;
         if (f.x < left || f.x > right) {
@@ -836,7 +951,20 @@ public final class FightEngine {
         Move m = f.move;
         int fr = f.moveFrame;
         f.curFrame = fr;
-        if (m.moveStart >= 0) {
+        if (m.homing && fr >= m.moveStart && fr < m.moveEnd && f.curFrame < f.activeEnd) {
+            // Dragon Dash: fly straight at the opponent
+            Fighter o = other(f);
+            float dx = o.x - f.x, dy = (o.y + o.hurtHeight() * 0.4f) - (f.y + f.hurtHeight() * 0.4f);
+            float len = (float) Math.sqrt(dx * dx + dy * dy);
+            if (len < 55) {
+                f.activeEnd = Math.min(f.activeEnd, f.curFrame + 4);
+            } else {
+                f.vx = dx / len * m.moveVx;
+                f.vy = dy / len * m.moveVx;
+                f.facingRight = dx > 0;
+            }
+            f.flying = kiMode;
+        } else if (m.moveStart >= 0) {
             if (m.moveVy != 0) {
                 if (fr == m.moveStart) {
                     f.vy = m.moveVy;
@@ -905,9 +1033,17 @@ public final class FightEngine {
         f.moveFrame++;
         long end = (long) f.activeEnd + m.recovery;
         if (f.moveFrame >= end) {
-            if (f.grounded()) {
+            if (f.grounded() && !(kiMode && f.flying && f.y > 0.5f)) {
                 toIdle(f);
+                f.flying = false;
                 if (f.input.down) setState(f, State.CROUCH);
+            } else if (kiMode && (f.flying || m.homing)) {
+                f.state = State.JUMP; // back to hovering
+                f.stateAge = 0;
+                f.move = null;
+                f.flying = true;
+                f.vx *= 0.3f;
+                f.vy = 0;
             } else {
                 f.moveFrame = (int) end;
             }
@@ -915,6 +1051,11 @@ public final class FightEngine {
     }
 
     private void onLand(Fighter f) {
+        if (kiMode && f.flying && f.state == State.JUMP && !f.input.down) {
+            f.vy = 0; // skim the ground; hold S to land
+            return;
+        }
+        if (f.state == State.JUMP || f.state == State.HITSTUN || f.state == State.KNOCKDOWN || f.state == State.KO) f.flying = false;
         switch (f.state) {
             case JUMP -> {
                 f.state = State.LANDING;
@@ -1166,9 +1307,16 @@ public final class FightEngine {
                 d.vx = dirAway * Math.max(9f, h.push);
             }
             if (h.groundBounce) d.groundBouncePending = true;
+            if (kiMode) {
+                d.vx *= 1.7f;
+                d.vy = Math.max(d.vy, h.launch * 0.8f);
+                d.flying = false;
+                if (h.push >= 14) events.add(new FightEvent(Type.SMASH, d.index, px, py, null, null, true));
+            }
         } else {
             d.vx = dirAway * h.push;
         }
+        d.charging = false;
         if (melee && nearWall(d)) a.vx -= dirAway * h.push * 0.5f;
         if ((h.knockdown || h.crumple) && d.heldProp != null) dropProp(d, dirAway);
         a.meter = Math.min(Fighter.MAX_METER, a.meter + 3 + h.damage / 25f);
@@ -1190,7 +1338,7 @@ public final class FightEngine {
     }
 
     private static float strengthMul(Fighter a) {
-        return a.has(StatusEffect.STRENGTH) ? 1.25f : 1f;
+        return (a.has(StatusEffect.STRENGTH) ? 1.25f : 1f) * (a.has(StatusEffect.SUPER_FORM) ? 1.3f : 1f);
     }
 
     private void knockOut(Fighter d, int dirAway) {
@@ -1256,6 +1404,14 @@ public final class FightEngine {
                 p.vx = f.dir() * spec.vx;
                 p.vy = spec.vy(i);
                 p.delay = i * spec.delayStep;
+                if (spec.aimed) {
+                    float dx = opp.x - p.x, dy = (opp.y + opp.hurtHeight() * 0.5f) - p.y;
+                    float len = Math.max(1f, (float) Math.sqrt(dx * dx + dy * dy));
+                    p.vx = dx / len * spec.vx;
+                    p.vy = dy / len * spec.vx + spec.vy(i);
+                }
+                p.originX = p.x;
+                p.originY = p.y;
             }
             p.prevX = p.x;
             p.prevY = p.y;
@@ -1281,8 +1437,58 @@ public final class FightEngine {
         events.add(new FightEvent(Type.EXPLOSION, p.owner, p.x, p.y, null, p.spec.visual, true));
     }
 
+    /** Beam struggle: both owners frozen mid-beam, mashing; the meeting point slides toward the slower one. */
+    private void updateStruggle() {
+        BeamStruggle st = struggle;
+        if (st.a.dead || st.b.dead) {
+            struggle = null;
+            return;
+        }
+        st.timer++;
+        Fighter fa = fighters[st.a.owner], fb = fighters[st.b.owner];
+        int pa = mashes(fa), pb = mashes(fb);
+        st.mashA += pa;
+        st.mashB += pb;
+        st.progress = Math.max(-1f, Math.min(1f, st.progress + (pa - pb) * 0.045f));
+        for (Fighter f : new Fighter[]{fa, fb}) {
+            if (f.state == State.ATTACK && f.move != null) f.moveFrame = Math.min(f.moveFrame, f.move.projectileFrame + 2);
+            f.vx = 0;
+            f.vy = 0;
+        }
+        float span = Math.abs(fb.x - fa.x) * 0.4f;
+        float head = st.meetX + st.progress * span * Math.signum(fb.x - fa.x);
+        for (Projectile p : new Projectile[]{st.a, st.b}) {
+            p.x = head;
+            p.y = st.meetY;
+            p.vx = p.vy = 0;
+            p.age = Math.min(p.age, 5);
+        }
+        shake = Math.max(shake, 3);
+        if (Math.abs(st.progress) >= 1f || st.timer > 210) {
+            boolean aWins = st.progress > 0 || (st.progress == 0 && random.nextBoolean());
+            Projectile win = aWins ? st.a : st.b, lose = aWins ? st.b : st.a;
+            Fighter loser = fighters[lose.owner];
+            lose.dead = true;
+            win.dmgMul = 1.6f;
+            float dx = loser.x - win.x, dy = (loser.y + loser.hurtHeight() * 0.5f) - win.y;
+            float len = Math.max(1f, (float) Math.sqrt(dx * dx + dy * dy));
+            win.vx = dx / len * Math.max(14f, win.spec.vx);
+            win.vy = dy / len * Math.max(14f, win.spec.vx);
+            events.add(new FightEvent(Type.BEAM_STRUGGLE_END, win.owner, win.x, win.y, null, null, true));
+            struggle = null;
+        }
+    }
+
+    private int mashes(Fighter f) {
+        int n = 0;
+        for (Button btn : Button.values()) if (f.buffer.pressedThisFrame(btn)) n++;
+        return Math.min(1, n);
+    }
+
     private void updateProjectiles() {
+        if (struggle != null) updateStruggle();
         for (Projectile p : projectiles) {
+            if (struggle != null && (p == struggle.a || p == struggle.b)) continue;
             if (p.dead) continue;
             if (p.delay > 0) {
                 p.delay--;
@@ -1344,7 +1550,13 @@ public final class FightEngine {
                 int dirAway = p.vx != 0 ? (p.vx > 0 ? 1 : -1) : (target.x >= p.x ? 1 : -1);
                 float py = Math.max(target.y + 10, Math.min(p.maxY(), target.y + target.hurtHeight()) - 10);
                 boolean last = p.hitsDone + 1 >= Math.max(1, p.spec.hits) || p.exploded;
-                HitResult r = applyHit(fighters[p.owner], target, HitInfo.of(p.spec, last), p.x, py, dirAway, false);
+                HitInfo hi = HitInfo.of(p.spec, last);
+                if (p.dmgMul != 1f) {
+                    hi = new HitInfo(hi.damage() * p.dmgMul, hi.level(), hi.hitstun(), hi.blockstun(), hi.push(), hi.launch(),
+                            hi.knockdown(), hi.special(), hi.wallSplat(), hi.groundBounce(), hi.crumple(), hi.strength(),
+                            hi.superHit(), hi.projectile(), hi.effect(), hi.effectFrames());
+                }
+                HitResult r = applyHit(fighters[p.owner], target, hi, p.x, py, dirAway, false);
                 if (r != HitResult.MISS) {
                     p.hitsDone++;
                     p.lastHitAge = p.age;
@@ -1362,6 +1574,11 @@ public final class FightEngine {
                 Projectile b = projectiles.get(j);
                 if (b.dead || b.delay > 0 || a.owner == b.owner || b.spec.aura) continue;
                 if (a.minX() < b.maxX() && a.maxX() > b.minX() && a.minY() < b.maxY() && a.maxY() > b.minY()) {
+                    if (struggle == null && a.spec.visual == ProjectileVisual.BEAM && b.spec.visual == ProjectileVisual.BEAM) {
+                        struggle = new BeamStruggle(a.owner == 0 ? a : b, a.owner == 0 ? b : a);
+                        events.add(new FightEvent(Type.BEAM_STRUGGLE, -1, struggle.meetX, struggle.meetY, null, null, true));
+                        continue;
+                    }
                     if (a.spec.durable && b.spec.durable) continue;
                     if (!a.spec.durable) a.dead = true;
                     if (!b.spec.durable) b.dead = true;

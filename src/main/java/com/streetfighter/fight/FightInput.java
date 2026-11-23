@@ -25,6 +25,8 @@ public final class FightInput {
     public int itemUse;
     /** AI shortcut: 1 = dash forward, -1 = backdash. */
     public int dash;
+    /** AI shortcuts for Ki Clash. */
+    public boolean kiCharge, kiBlast;
 
     public void clear() {
         left = right = up = down = false;
@@ -36,6 +38,7 @@ public final class FightInput {
         throwReq = backThrowReq = driveImpact = parry = airJump = false;
         itemUse = 0;
         dash = 0;
+        kiCharge = kiBlast = false;
     }
 
     public boolean anyButton() {
@@ -52,6 +55,8 @@ public final class FightInput {
         c.airJump = airJump;
         c.itemUse = itemUse;
         c.dash = dash;
+        c.kiCharge = kiCharge;
+        c.kiBlast = kiBlast;
         return c;
     }
 }

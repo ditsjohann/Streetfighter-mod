@@ -119,6 +119,7 @@ public final class FightHud {
         statusTags(g, e.player, 12, my - 24, false, w);
         statusTags(g, e.enemy, w - 12, my - 24, true, w);
 
+        if (e.struggle != null) struggleBar(g, e.struggle, w, h);
         combo(g, e.player, false, w, h);
         combo(g, e.enemy, true, w, h);
         callouts(g, w, barY + barH + 22, barX0);
@@ -133,6 +134,20 @@ public final class FightHud {
                 org.lwjgl.glfw.GLFW.GLFW_KEY_TAB) != org.lwjgl.glfw.GLFW.GLFW_PRESS) {
             help(g, w, my - 16);
         }
+    }
+
+    /** Beam struggle: whoever mashes faster pushes the meeting point toward the other. */
+    private void struggleBar(GuiGraphics g, com.streetfighter.fight.BeamStruggle st, int w, int h) {
+        int bw = Math.min(260, w - 60), bh = 10, x = w / 2 - bw / 2, y = (int) (h * 0.24f);
+        g.fill(x - 2, y - 2, x + bw + 2, y + bh + 2, 0xFF000000);
+        int mid = x + bw / 2 + (int) (st.progress * bw / 2f);
+        g.fillGradient(x, y, mid, y + bh, 0xFF5CC8FF, 0xFF1A5CA0);
+        g.fillGradient(mid, y, x + bw, y + bh, 0xFFFF7A4A, 0xFFA02A10);
+        g.fill(mid - 2, y - 4, mid + 2, y + bh + 4, 0xFFFFFFFF);
+        boolean blink = (st.timer / 6) % 2 == 0;
+        outlined(g, "MASH!", w / 2f, y - 12, 2f, blink ? 0xFFFFE070 : 0xFFFFFFFF, 0xFF000000);
+        g.drawString(font, "YOU", x, y + bh + 4, 0xFF7FE0FF, true);
+        g.drawString(font, "CPU", x + bw - font.width("CPU"), y + bh + 4, 0xFFFF8A6A, true);
     }
 
     /** What a fighter is holding: icon, name, time/uses left, and (for the player) how to use it. */
@@ -166,6 +181,7 @@ public final class FightHud {
                 case SPEED -> "SPEED";
                 case REGEN -> "REGEN";
                 case HUNGER -> "HUNGER";
+                case SUPER_FORM -> "SUPER";
             };
             String txt = name + " " + (left + 59) / 60 + "s";
             int tw = font.width(txt) + 6;
@@ -239,7 +255,8 @@ public final class FightHud {
             g.fill(rightSide ? sx0 : sx0 + seg - 1, y, (rightSide ? sx0 : sx0 + seg - 1) + 1, y + h, 0xFF000000);
         }
         String lvl = bars > 0 ? String.valueOf(bars) : "";
-        String label = bars >= 3 ? "SUPER  MAX" : "SUPER";
+        String base = s.kiMode ? "KI" : "SUPER";
+        String label = bars >= 3 ? base + "  MAX" : base;
         int lx = rightSide ? x + w - font.width(label) : x;
         g.drawString(font, label, lx, y - 11, any ? 0xFF8FEBFF : 0xFFB0B8D0, true);
         if (!lvl.isEmpty()) {
@@ -309,6 +326,18 @@ public final class FightHud {
     private void help(GuiGraphics g, int w, int bottom) {
         boolean right = s.engine == null || s.engine.player.facingRight;
         String fwd = right ? "D" : "A", back = right ? "A" : "D";
+        if (s.kiMode) {
+            String[] ki = wrap("KI CLASH:   W fly / rise   S descend (hold to land)   " + back + " guard   H ki blast   hold H+S charge ki   "
+                    + fwd + "," + fwd + " dragon dash   U U U U rush combo   O smash   I+K vanish (1 bar)   hold TAB = specials", w - 30);
+            int yk = bottom - ki.length * 11;
+            for (String line : ki) {
+                int lw = font.width(line);
+                g.fill(w / 2 - lw / 2 - 4, yk - 2, w / 2 + lw / 2 + 4, yk + 9, 0x90301000);
+                g.drawCenteredString(font, line, w / 2, yk, 0xFFFFE070);
+                yk += 11;
+            }
+            return;
+        }
         String[] lines = wrap(fwd + " forward   " + back + " back (hold to block)   W jump   S crouch   " + fwd + "," + fwd + " dash   "
                 + back + "," + back + " backdash   U I O punch   J K L kick   hold TAB = your specials   H+O super   U+J throw   "
                 + "I+K parry   O+L drive impact   ESC move list", w - 30);
