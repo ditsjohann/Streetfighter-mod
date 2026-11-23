@@ -212,7 +212,7 @@ public final class KiDirector {
 
     /** Slow motion for the transformation. */
     public float timeScale() {
-        if (transformAge >= 0 && transformAge < 1.2f) return 0.22f;
+        if (transformAge > 0 && transformAge < 1.2f && s.engine != null && s.engine.freeze <= 0) return 0.22f;
         return 1f;
     }
 
