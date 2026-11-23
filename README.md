@@ -223,6 +223,27 @@ Against **any villager** the select screen offers a second rule set. Press **M**
 - **Supers:** a giant spirit ball, a huge beam, and the **Super Villager / Super Steve** transformation (golden aura, +30%
   damage, +20% speed, ki regeneration).
 - **The AI** charges, blasts, flies after you, rushes, vanishes and transforms.
+- **Clash:** when both fighters' strikes meet head-on, nobody gets hit. The fists collide in a shockwave and both
+  fighters are knocked back (with a bit of ki for each).
+
+### Its own camera and vibe
+
+Ki Clash doesn't use the flat Street Fighter side view. It has its own camera director, inspired by Sparking! ZERO /
+Budokai Tenkaichi and the anime:
+- **Chase camera:** an angled shot from behind your shoulder that swings around when you switch sides.
+- **Sky battles:** when the fight goes airborne, the camera drops below and looks up at the fighters.
+- **Power-up:** while someone charges ki, the camera pushes in low and rumbles.
+  - Chunks of the real ground float up around them.
+  - The screen edges glow in their ki colour.
+  - A **POWER** readout climbs.
+- **Transformation:** slow motion while the camera circles the fighter. The ground bursts up, the sky turns gold and
+  lightning flickers.
+- **Beam struggles:** a slow orbit around the point where the beams meet.
+- **Anime impact frames:** a split-second black-and-white burst on smashes, clashes, beam collisions and counters.
+- **Speed lines** during dragon dashes, vanishes, fast flight and smashes. The camera whips after a smashed fighter.
+- **Craters:** slamming into the ground throws up chunks of the real ground block, with a dust ring and a shockwave.
+- **Haze:** a warm battle haze on the horizon. It turns gold while powering up or transformed, and white-blue in a beam
+  struggle.
 
 ## The funny villager (fight items)
 
@@ -294,7 +315,7 @@ Settings are in `config/streetfighter-common.toml`: peaceful mobs, challenge ran
 Requires Java 21.
 
 ```bash
-./gradlew build        # mod jar -> build/libs/streetfighter-0.9.0.jar
+./gradlew build        # mod jar -> build/libs/streetfighter-0.10.0.jar
 ./gradlew runClient    # launch a dev client with the mod
 ```
 

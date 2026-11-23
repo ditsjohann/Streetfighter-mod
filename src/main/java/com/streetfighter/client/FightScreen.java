@@ -160,6 +160,7 @@ public class FightScreen extends Screen {
             return;
         }
         hud.render(g, width, height);
+        if (session.ki != null && !session.paused) session.ki.renderOverlay(g, font, hud, width, height);
         if (session.paused) hud.pausePanel(g, width, height, movePage);
         else if (session.engine != null && !session.engine.isOver() && down(GLFW.GLFW_KEY_TAB)) hud.specialsHint(g, width, height);
         if (session.engine != null && session.engine.isOver() && session.matchEndFrames > 30) {

@@ -4,6 +4,7 @@ import com.streetfighter.client.world.Arena;
 import com.streetfighter.client.world.FightAnimator;
 import com.streetfighter.client.world.FightCamera;
 import com.streetfighter.client.world.FinisherCinematic;
+import com.streetfighter.client.world.KiDirector;
 import com.streetfighter.client.world.WorldFx;
 import com.streetfighter.fight.AIDifficulty;
 import com.streetfighter.fight.FightEngine;
@@ -248,6 +249,7 @@ public final class FightSession {
         engine = new FightEngine(player, enemy, ai, difficulty, minX(), maxX(), startSeparation, arena);
         engine.training = info.training();
         engine.kiMode = kiMode;
+        this.ki = kiMode ? new KiDirector(this) : null;
         stage = Stage.FIGHT;
         lastNanos = System.nanoTime();
         accumulator = 0;
@@ -342,6 +344,7 @@ public final class FightSession {
             finisher.tick(time);
             if (finisher.active(time)) hud.flash = 0; // the K.O. flash would wash out the cinematic afterwards
         }
+        if (ki != null && !paused) ki.tick(time, dt);
         animate(player, enemyEntity, dt);
         fovKick = Math.max(0, fovKick - dt * 0.4f);
         fx.frame(dt);
@@ -443,6 +446,14 @@ public final class FightSession {
             camera.update(sh.focus(), sh.dist(), sh.shake(), sh.roll(), (float) sh.orbit(), dt, player);
             return;
         }
+        if (ki != null && !paused) {
+            FinisherCinematic.Shot sh = ki.shot(dt);
+            if (sh != null) {
+                camera.setNextShot(sh.height(), sh.cut());
+                camera.update(sh.focus(), sh.dist(), sh.shake(), sh.roll(), (float) sh.orbit(), dt, player);
+                return;
+            }
+        }
         float px, py, ex, ey;
         if (engine == null) {
             px = selectPlayerX;
@@ -495,6 +506,8 @@ public final class FightSession {
     /** Slow motion for the K.O. moment (the first ~3/4 second of the K.O. phase plays at quarter speed). */
     /** The finisher cinematic (stays set after it ends so the victim keeps its final pose), or null. */
     public FinisherCinematic finisher;
+    /** Ki Clash's own camera and atmosphere (null in Street Fighter rules). */
+    public KiDirector ki;
 
     public void startFinisher(com.streetfighter.fight.Fighter winner, com.streetfighter.fight.Fighter loser) {
         if (!com.streetfighter.SFConfig.XRAY_FINISHERS.get() || finisher != null) return;
@@ -510,7 +523,7 @@ public final class FightSession {
         if (finisher != null && finisher.active(time)) return 0f; // time stops for the finisher
         if (engine == null || paused) return 1f;
         if (engine.phase == FightEngine.Phase.KO && engine.phaseTimer < 40) return 0.28f;
-        return 1f;
+        return ki != null ? ki.timeScale() : 1f;
     }
 
     /** The fighter currently performing a cinematic (lock-on-hit) super that has connected, or null. */

@@ -230,6 +230,7 @@ public final class WorldFx {
         FightEngine engine = session.engine;
         Fighter f = ev.fighter() >= 0 ? engine.fighter(ev.fighter()) : null;
         FightSession.HudState hud = session.hud;
+        if (session.ki != null) session.ki.onEvent(ev);
         switch (ev.type()) {
             case ROUND -> announce(SoundEvents.NOTE_BLOCK_BELL.value(), 1f, 1f);
             case FIGHT -> {
@@ -743,7 +744,7 @@ public final class WorldFx {
                 sound(SoundEvents.ITEM_BREAK, p, 0.8f, 1.2f);
             }
             case TELEPORT -> {
-                if (f == null) break;
+                if (f == null || session.ki != null) break; // Ki Clash vanishes have their own zip
                 Vec3 from = at(ev.x(), 70), to = at(f.x, 70);
                 burst(ParticleTypes.PORTAL, from, 40, 0.4, 1.0);
                 burst(ParticleTypes.PORTAL, to, 40, 0.4, 1.0);

@@ -143,6 +143,10 @@ Sources:
 - **Ki Clash** takes from:
   - Budokai Tenkaichi / Sparking! ZERO: flight, charging ki by hand, smash knockback into a chase, beam struggles.
   - FighterZ: Vanish for a ki bar, the homing Super/Dragon Dash, auto-combos.
+  - **v0.10 camera and vibe:** Sparking! ZERO / Tenkaichi frame the fight from behind the player's shoulder at an
+    angle, not side-on. Sky fights get low "looking up" shots, and power-ups get a slow push-in with rising debris.
+    From the anime: impact frames (a 2 to 4 frame inverted black/white flash with burst lines on big hits), speed
+    lines, ground craters, and the fist "clash" where two strikes cancel out in a shockwave.
   - The transformation plays the role of Sparking! mode.
 - **Beam struggle:** both beams freeze where they meet and the meeting point slides by the difference in mash rate.
   The winner's beam continues at 1.6× damage.

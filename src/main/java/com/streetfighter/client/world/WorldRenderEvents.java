@@ -107,7 +107,16 @@ public final class WorldRenderEvents {
     public static void onFogColor(ViewportEvent.ComputeFogColor event) {
         FinisherCinematic f = FinisherCinematic.current;
         FightSession s = FightSession.current();
-        if (f == null || s == null) return;
+        if (s == null) return;
+        if ((f == null || f.fog(s.time, 192f) == null) && s.ki != null && FightCamera.active) {
+            float[] t = s.ki.fogTint();
+            if (t == null) return;
+            event.setRed(Mth.lerp(t[3], event.getRed(), t[0]));
+            event.setGreen(Mth.lerp(t[3], event.getGreen(), t[1]));
+            event.setBlue(Mth.lerp(t[3], event.getBlue(), t[2]));
+            return;
+        }
+        if (f == null) return;
         float[] fog = f.fog(s.time, 192f);
         if (fog == null) return;
         float k = f.fogColorMix(s.time);
@@ -305,5 +314,6 @@ public final class WorldRenderEvents {
         PropRenderer.render(s, ps, cam, buffers, dispatcher);
         buffers.endBatch();
         if (s.finisher != null) s.finisher.renderWorld(ps, cam, buffers);
+        if (s.ki != null) s.ki.renderWorld(ps, cam, buffers);
     }
 }

@@ -1142,12 +1142,50 @@ public final class FightEngine {
 
     public enum HitResult { MISS, HIT, BLOCK, PARRY, ARMOR }
 
+    private int clashCooldown;
+
     private void resolveMeleeHits() {
+        if (clashCooldown > 0) clashCooldown--;
+        else if (kiMode && rushClash()) return;
         boolean hit1 = meleeOverlaps(player, enemy);
         boolean hit2 = meleeOverlaps(enemy, player);
         Move m1 = player.move, m2 = enemy.move;
         if (hit1) applyMelee(player, enemy, m1);
         if (hit2) applyMelee(enemy, player, m2);
+    }
+
+    /**
+     * Ki Clash: when both fighters' strikes meet head-on, nobody gets hit. Fists collide, a shockwave goes off and
+     * both are knocked back (the anime "clash" moment).
+     */
+    private boolean rushClash() {
+        Fighter a = player, d = enemy;
+        if (!a.hitboxActive() || !d.hitboxActive()) return false;
+        Move ma = a.move, md = d.move;
+        if (ma == null || md == null || ma.level == HitLevel.GRAB || md.level == HitLevel.GRAB) return false;
+        if (a.hitsDone > 0 || d.hitsDone > 0) return false; // only the first contact of each move
+        float ax0 = a.hitMinX(ma), ax1 = a.hitMaxX(ma), ay0 = a.y + ma.hy0, ay1 = a.y + ma.hy1;
+        float dx0 = d.hitMinX(md), dx1 = d.hitMaxX(md), dy0 = d.y + md.hy0, dy1 = d.y + md.hy1;
+        if (!(ax0 < dx1 && ax1 > dx0 && ay0 < dy1 && ay1 > dy0)) return false;
+        float px = (Math.max(ax0, dx0) + Math.min(ax1, dx1)) / 2f, py = (Math.max(ay0, dy0) + Math.min(ay1, dy1)) / 2f;
+        for (Fighter f : new Fighter[]{a, d}) {
+            int away = f.x < other(f).x ? -1 : 1;
+            boolean air = f.flying && f.y > 0.5f;
+            toIdle(f);
+            if (!air) {
+                f.state = State.BLOCKSTUN;
+                f.stateTimer = 14;
+                f.stateAge = 0;
+            }
+            f.vx = away * 7.5f;
+            f.charging = false;
+            f.meter = Math.min(Fighter.MAX_METER, f.meter + 6);
+        }
+        hitstop = 16;
+        shake = Math.max(shake, 9);
+        clashCooldown = 24;
+        events.add(new FightEvent(Type.RUSH_CLASH, -1, px, py, null, null, true));
+        return true;
     }
 
     private boolean meleeOverlaps(Fighter a, Fighter d) {

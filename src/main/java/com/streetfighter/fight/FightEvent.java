@@ -18,7 +18,7 @@ public record FightEvent(Type type, int fighter, float x, float y, String text, 
         /** The match-winning K.O.: the client plays the X-ray finisher (fighter = the winner). */
         FINISHER,
         // Ki Clash
-        KI_CHARGE, FLY, AIR_RECOVER, BEAM_STRUGGLE, BEAM_STRUGGLE_END, SMASH, TRANSFORM
+        KI_CHARGE, FLY, AIR_RECOVER, BEAM_STRUGGLE, BEAM_STRUGGLE_END, SMASH, TRANSFORM, RUSH_CLASH
     }
 
     public static FightEvent of(Type type, int fighter, float x, float y) {
