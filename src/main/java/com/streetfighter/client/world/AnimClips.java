@@ -152,6 +152,10 @@ public final class AnimClips {
                 k(RAX, -3.0f, LAX, -3.0f, RAZ, -0.45f, LAZ, 0.45f, HX, -0.6f, LEAN, -10, UP, 0.08f));
         h(AnimPose.BELLY_FLOP, k(SQUASH, 0.85f, RAX, -2.5f, LAX, -2.5f),
                 k(LEAN, 70, RAX, -2.8f, LAX, -2.8f, RLX, 0.4f, LLX, 0.4f));
+        h(AnimPose.DASH, k(LEAN, 18, RAX, 0.6f, LAX, -1.4f, RLX, -0.9f, LLX, 0.7f, SQUASH, 0.92f),
+                k(LEAN, 24, RAX, 0.9f, LAX, -1.5f, RLX, -1.1f, LLX, 0.9f, FWD, 0.05f));
+        h(AnimPose.BACKDASH, k(LEAN, -10, SQUASH, 0.88f, RAX, -1.6f, LAX, -1.6f),
+                k(LEAN, -16, RAX, -0.9f, LAX, -0.9f, RAZ, 0.5f, LAZ, -0.5f, RLX, -0.6f, LLX, 0.4f, UP, 0.04f));
         h(AnimPose.PECK, k(HX, -0.65f, LEAN, -12, RAX, -0.8f, LAX, -0.8f),
                 k(HX, 0.6f, LEAN, 24, FWD, 0.18f, RAX, 0.45f, LAX, 0.45f, RAY, 0, LAY, 0));
         h(AnimPose.FLAP, k(RAX, -0.3f, RAZ, 1.6f, LAX, -0.3f, LAZ, -1.6f, LEAN, -6, UP, 0.04f),
@@ -194,6 +198,8 @@ public final class AnimClips {
         q(AnimPose.SHOOT_UP, k(HX, -0.5f), k(HX, -0.8f, LEAN, -12));
         q(AnimPose.BACKFLIP, k(SQUASH, 0.85f), k(RAX, -0.8f, RLX, 0.8f));
         q(AnimPose.PECK, snoutWind, snoutHit);
+        q(AnimPose.DASH, k(LEAN, 8, RAX, -0.9f, RLX, 0.9f, HX, 0.25f), k(LEAN, 10, RAX, -1.1f, RLX, 1.1f, HX, 0.3f));
+        q(AnimPose.BACKDASH, k(LEAN, -12, RAX, -0.8f, HX, -0.3f), k(LEAN, -18, RAX, -1.0f, RLX, 0.6f, HX, -0.4f, UP, 0.04f));
         q(AnimPose.FLAP, rearUp, slamDown);
         q(AnimPose.DRINK, k(HX, -0.6f, LEAN, -10), k(HX, -0.9f, LEAN, -16));
         q(AnimPose.SCREAM, k(HX, 0.4f, LEAN, 6, SQUASH, 0.9f), k(HX, -0.75f, LEAN, -20, RAX, -0.5f, UP, 0.05f));
@@ -222,6 +228,8 @@ public final class AnimClips {
         b(k(HX, 0.3f, LEAN, 6, RAZ, 0.5f), k(HX, -0.9f, LEAN, -22, RAZ, 1.6f, UP, 0.06f), AnimPose.SCREAM,
                 AnimPose.TAUNT, AnimPose.SHOOT_UP, AnimPose.DRINK);
         b(k(SQUASH, 0.85f), k(RAZ, 1.6f, RLX, -0.8f, LLX, -0.8f), AnimPose.BACKFLIP);
+        b(k(LEAN, 20, RAZ, 0.6f, HX, 0.3f), k(LEAN, 26, RAZ, 0.9f, HX, 0.4f, RLX, -0.8f, LLX, 0.8f), AnimPose.DASH);
+        b(k(LEAN, -12, RAZ, 1.2f), k(LEAN, -18, RAZ, 1.5f, UP, 0.05f), AnimPose.BACKDASH);
     }
 
     public static Clip humanoid(AnimPose p) {

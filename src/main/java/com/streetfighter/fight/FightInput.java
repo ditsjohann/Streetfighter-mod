@@ -23,6 +23,8 @@ public final class FightInput {
     public boolean airJump;
     /** AI shortcut: use the held prop (1 = punch way, 2 = kick way, 0 = none). */
     public int itemUse;
+    /** AI shortcut: 1 = dash forward, -1 = backdash. */
+    public int dash;
 
     public void clear() {
         left = right = up = down = false;
@@ -33,6 +35,7 @@ public final class FightInput {
         commandNormal = -1;
         throwReq = backThrowReq = driveImpact = parry = airJump = false;
         itemUse = 0;
+        dash = 0;
     }
 
     public boolean anyButton() {
@@ -48,6 +51,7 @@ public final class FightInput {
         c.throwReq = throwReq; c.backThrowReq = backThrowReq; c.driveImpact = driveImpact; c.parry = parry;
         c.airJump = airJump;
         c.itemUse = itemUse;
+        c.dash = dash;
         return c;
     }
 }

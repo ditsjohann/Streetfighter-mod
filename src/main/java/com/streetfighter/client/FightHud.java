@@ -305,14 +305,42 @@ public final class FightHud {
     }
 
     private void help(GuiGraphics g, int w, int bottom) {
-        String[] lines = wrap("WASD move/jump/crouch   hold back = block   U I O punches   J K L kicks   "
-                + "H special (+ direction)   H+O super   U+J throw   I+K parry   O+L drive impact   ESC moves & pause", w - 30);
+        boolean right = s.engine == null || s.engine.player.facingRight;
+        String fwd = right ? "D" : "A", back = right ? "A" : "D";
+        String[] lines = wrap(fwd + " forward   " + back + " back (hold to block)   W jump   S crouch   " + fwd + "," + fwd + " dash   "
+                + back + "," + back + " backdash   U I O punch   J K L kick   hold H = your specials   H+O super   U+J throw   "
+                + "I+K parry   O+L drive impact   ESC move list", w - 30);
         int y = bottom - lines.length * 11;
         for (String line : lines) {
             int lw = font.width(line);
             g.fill(w / 2 - lw / 2 - 4, y - 2, w / 2 + lw / 2 + 4, y + 9, 0x90000000);
             g.drawCenteredString(font, line, w / 2, y, 0xFFDDDDDD);
             y += 11;
+        }
+    }
+
+    /** While H is held: the player's specials as one-button and full inputs, keys flipped for the current side. */
+    public void specialsHint(GuiGraphics g, int w, int h) {
+        if (s.engine == null) return;
+        var f = s.engine.player;
+        var ms = f.moves;
+        boolean right = f.facingRight;
+        List<String> lines = new ArrayList<>();
+        lines.add("\u00a7eSPECIALS\u00a7r  (keep holding H and press a direction, or do the full input)");
+        for (var sp : ms.specials) {
+            lines.add("\u00a7b" + KeyNotation.simple(sp.modernDir(), right) + "\u00a7r  " + sp.name() + "   \u00a77"
+                    + KeyNotation.special(sp.motion(), sp.kick(), right));
+        }
+        lines.add("\u00a76H+O\u00a7r  Super Lv1   \u00a76H+L\u00a7r  Super Lv2/3   \u00a77(needs meter)");
+        int tw = 0;
+        for (String l : lines) tw = Math.max(tw, font.width(l));
+        int x = w / 2 - tw / 2 - 6, y = h / 2 + 20;
+        g.fill(x, y, x + tw + 12, y + lines.size() * 11 + 8, 0xC0000010);
+        g.fill(x, y, x + 2, y + lines.size() * 11 + 8, 0xFF7FE0FF);
+        int yy = y + 5;
+        for (String l : lines) {
+            g.drawString(font, l, x + 7, yy, 0xFFFFFFFF, false);
+            yy += 11;
         }
     }
 
@@ -422,7 +450,7 @@ public final class FightHud {
         g.drawCenteredString(font, "ESC resume    Q forfeit (loss)    TAB " + (page == 0 ? "normals" : "specials & supers"),
                 w / 2, 40, 0xFFDDDDDD);
         var ms = s.engine.player.moves;
-        java.util.List<String> lines = FightScreen.moveList(ms, page);
+        java.util.List<String> lines = FightScreen.moveList(ms, page, s.engine.player.facingRight);
         int y = 56;
         int x = Math.max(10, w / 2 - 230);
         g.drawString(font, "\u00a7b" + ms.type().displayName.toUpperCase() + " STYLE \u00a77- " + ms.moveCount() + " moves", x, y, 0xFFFFFFFF, true);

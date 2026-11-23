@@ -62,6 +62,7 @@ public final class FightAnimator {
         public boolean crouch;
         public boolean aggressive;
         float recoil, recoilV, squashS, squashV;
+        Fighter.State lastState;
         float walkPhase;
         double lastAlong = Double.NaN;
         float time;
@@ -173,6 +174,11 @@ public final class FightAnimator {
         if (f == null) {
             if (ctx.victoryPose()) victory(s, t, tm);
         } else {
+            if (f.state != s.lastState) {
+                if (f.state == Fighter.State.JUMP) s.squashV += 2.6f;            // stretch on take-off
+                if (s.lastState == Fighter.State.JUMP) s.squashV -= 1.4f;        // settle on landing
+                s.lastState = f.state;
+            }
             rate = pose(s, f, t, ctx, guard);
         }
 
@@ -235,6 +241,8 @@ public final class FightAnimator {
         switch (f.state) {
             case IDLE, LANDING -> {
                 t[UP] += Mth.sin(tm * 6.5f) * 0.02f;
+                if (body == Body.HUMANOID) stance(f.moves.type(), t, tm);
+                else if (quad) t[HX] += Mth.sin(tm * 1.7f) > 0.6f ? 0.35f : 0; // grazing head bob
                 return 14f;
             }
             case WALK -> {
@@ -315,6 +323,10 @@ public final class FightAnimator {
                 if (low && !quad) {
                     t[LEAN] = 16; t[HX] = 0.45f; t[RAX] = -0.4f; t[LAX] = -0.4f; t[RAY] = 0.3f; t[LAY] = -0.3f;
                     t[RLX] = 0.3f; t[LLX] = -0.15f;
+                } else if (f.lastHitLevel == HitLevel.MID && !f.lastHitHeavy && !quad) {
+                    // gut shot: fold forward around the hit
+                    t[LEAN] = 20; t[HX] = 0.55f; t[RAX] = -0.7f; t[LAX] = -0.7f; t[RAY] = 0.5f; t[LAY] = -0.5f;
+                    t[RLX] = 0.2f; t[LLX] = -0.2f;
                 } else {
                     t[LEAN] = f.lastHitHeavy ? -24 : -15; t[HX] = -0.5f;
                     t[RAX] = -0.5f; t[RAZ] = 0.9f; t[LAX] = -0.5f; t[LAZ] = -0.9f;
@@ -418,6 +430,41 @@ public final class FightAnimator {
             }
             default -> {
                 return null;
+            }
+        }
+    }
+
+    /** Learned styles change how a humanoid stands: zombie arms, archer stance, heavy ore stance... */
+    private static void stance(com.streetfighter.fight.FighterType style, float[] t, float tm) {
+        float bob = Mth.sin(tm * 3f);
+        switch (style) {
+            case ZOMBIE -> {
+                t[RAX] = -1.55f + bob * 0.05f; t[LAX] = -1.5f - bob * 0.05f; t[RAY] = 0; t[LAY] = 0;
+                t[RAZ] = 0; t[LAZ] = 0; t[LEAN] = 8; t[HX] = 0.2f;
+            }
+            case SKELETON -> {
+                t[RAX] = -1.45f; t[RAY] = -0.1f; t[LAX] = -1.5f; t[LAY] = 0.55f; t[LEAN] = 0;
+            }
+            case IRON_ORE -> {
+                t[RLZ] = 0.28f; t[LLZ] = -0.28f; t[RAX] = -0.6f; t[LAX] = -0.6f; t[RAZ] = 0.35f; t[LAZ] = -0.35f;
+                t[SQUASH] = 0.94f; t[LEAN] = 6;
+            }
+            case OAK -> {
+                t[RAZ] = 0.7f + bob * 0.08f; t[LAZ] = -0.7f - bob * 0.08f; t[RAX] = -0.5f; t[LAX] = -0.5f;
+            }
+            case CREEPER -> {
+                t[SQUASH] = 0.9f; t[LEAN] = 14; t[RAX] = -0.4f; t[LAX] = -0.4f; t[HX] = 0.25f;
+            }
+            case STONE_PICKAXE -> {
+                t[RAX] = -1.0f; t[LAX] = -1.0f; t[RAY] = -0.45f; t[LAY] = 0.45f; t[LEAN] = 6;
+            }
+            case CHICKEN -> {
+                t[RAZ] = 0.5f + Math.abs(bob) * 0.3f; t[LAZ] = -0.5f - Math.abs(bob) * 0.3f; t[RAX] = -0.3f; t[LAX] = -0.3f;
+            }
+            case GOAT, PIG, COW, DONKEY -> {
+                t[LEAN] = 18; t[HX] = 0.4f; t[RAX] = -0.9f; t[LAX] = -0.9f; // head-down charging stance
+            }
+            default -> {
             }
         }
     }

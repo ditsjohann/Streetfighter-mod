@@ -42,6 +42,8 @@ public final class Moveset {
     public final List<Special> specials = new ArrayList<>();
     public final List<Super> supers = new ArrayList<>();
     public Move forwardThrow, backThrow, driveImpact;
+    /** Double-tap forward / back. */
+    public Move dash, backdash;
     /** Extra jumps in the air (Chicken flap). */
     public int airJumps;
     /** Frames of slow-fall available per jump while holding up (Chicken glide); 0 = none. */

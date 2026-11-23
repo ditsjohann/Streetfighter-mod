@@ -252,7 +252,8 @@ public class FighterAI {
             } else if (r < 0.6f + grappling) out.throwReq = chance(0.4f);
             else if (r < 0.75f && over >= 0) pressSpecial(self, over, 1);
             else if (r < 0.85f) {
-                planHorizontal = -1;
+                if (chance(0.35f)) out.dash = -1; // backdash out
+                else planHorizontal = -1;
             } else {
                 out.down = true;
                 out.mk = true;
@@ -271,7 +272,11 @@ public class FighterAI {
             else planHorizontal = -1;
             return;
         }
-        // far
+        // far: sometimes dash in
+        if (chance(aggression * 0.2f)) {
+            out.dash = 1;
+            return;
+        }
         if (proj >= 0 && shots(e, self) == 0 && chance(0.25f + zoning)) {
             pressSpecial(self, proj, self.meter >= 150 && chance(0.2f) ? 3 : rng.nextInt(3));
         } else if (rush >= 0 && chance(aggression * 0.25f)) {

@@ -143,6 +143,13 @@ public final class Movesets {
         m.driveImpact = Move.builder("Drive Impact").kind(Kind.DRIVE_IMPACT).frames(24, 3, 30).damage(90)
                 .box(10, 95, 30, 120).stun(26, 20).push(12).armor(2, 26).crumple().wallSplat().dash(3f, 10, 24)
                 .pose(AnimPose.DRIVE_IMPACT).callout("DRIVE IMPACT!").build();
+        // dash / backdash (double tap): speed follows the character; the backdash is briefly invincible
+        // (SF: throw-invulnerable start, then airborne)
+        float fwd = Math.max(6.5f, m.stats.walkSpeed() * 2.6f), back = Math.max(5.5f, m.stats.backSpeed() * 2.4f);
+        m.dash = Move.builder("Dash").frames(1, 15, 5).damage(0).box(0, 0, 0, 0).dash(fwd, 1, 15)
+                .pose(AnimPose.DASH).build();
+        m.backdash = Move.builder("Backdash").frames(1, 1, 22).damage(0).box(0, 0, 0, 0).leap(4.5f, -back, 1)
+                .invuln(0, 7).landingLag(3).pose(AnimPose.BACKDASH).build();
     }
 
     // =====================================================================================================

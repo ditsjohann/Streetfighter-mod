@@ -557,19 +557,20 @@ final class SelectScreenUi {
     private void moveList(GuiGraphics g, int x, int y, int pw, FighterType t) {
         Moveset ms = Movesets.get(t);
         List<String> lines = new ArrayList<>();
-        lines.add("§eSPECIALS");
+        lines.add("\u00a7eSPECIALS\u00a7r  \u00a77(keys shown facing right - they flip on the right side)");
         for (Moveset.Special sp : ms.specials) {
-            lines.add(FightScreen.motionText(sp.motion()) + (sp.kick() ? "K  " : "P  ") + sp.name());
+            lines.add(KeyNotation.special(sp.motion(), sp.kick(), true) + "  " + sp.name() + "  \u00a77or "
+                    + KeyNotation.simple(sp.modernDir(), true));
         }
-        lines.add("§6SUPER ARTS");
+        lines.add("\u00a76SUPER ARTS");
         for (Moveset.Super su : ms.supers) {
-            lines.add("Lv" + su.level() + " " + FightScreen.motionText(su.motion()) + (su.kick() ? "K  " : "P  ") + su.move().name);
+            lines.add("Lv" + su.level() + " " + KeyNotation.special(su.motion(), su.kick(), true) + "  " + su.move().name);
         }
-        lines.add("§bCOMMAND NORMALS");
+        lines.add("\u00a7bCOMMAND NORMALS");
         for (Moveset.CommandNormal cn : ms.commandNormals) {
-            String d = switch (cn.dir()) { case 6 -> "→"; case 4 -> "←"; case 3 -> "↘"; case 2 -> "↓"; default -> ""; };
-            lines.add(d + FightScreen.keyOf(cn.button()) + "  " + cn.move().name);
+            lines.add(KeyNotation.dir(cn.dir(), true) + "+" + FightScreen.keyOf(cn.button()) + "  " + cn.move().name);
         }
+        lines.add("\u00a77D,D dash   A,A backdash   hold H in a fight to see your specials");
         int ph = lines.size() * 10 + 8;
         int w2 = 0;
         for (String l : lines) w2 = Math.max(w2, font.width(l));

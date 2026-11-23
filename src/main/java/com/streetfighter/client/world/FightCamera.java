@@ -26,6 +26,10 @@ public final class FightCamera {
     private final int side;
 
     private Vec3 pos, target;
+    private Vec3 posVel = Vec3.ZERO, targetVel = Vec3.ZERO;
+    /** Directional kick (a short shove along the hit direction that springs back). */
+    private Vec3 kick = Vec3.ZERO, kickVel = Vec3.ZERO;
+    private float noiseT;
     private Vec3 fromEye;
     private float fromYaw, fromPitch;
     private float transition; // 0..1 into the fight
@@ -96,8 +100,32 @@ public final class FightCamera {
      * @param shake      shake strength (engine shake units)
      * @param extraRoll  dramatic roll in degrees
      */
+    /** Shoves the camera along {@code dir} (world space); it springs back within a few frames. */
+    public void kick(Vec3 dir, float strength) {
+        kickVel = kickVel.add(dir.scale(strength));
+    }
+
     public void update(Vec3 focus, double distance, float shake, float extraRoll, float dt, Entity player) {
-        Vec3 dir = arena.normal.scale(side);
+        update(focus, distance, shake, extraRoll, 0f, dt, player);
+    }
+
+    /** Critically damped spring step: smooth, no overshoot, frame-rate independent. */
+    private static Vec3[] spring(Vec3 x, Vec3 v, Vec3 goal, float omega, float dt) {
+        float f = 1f + 2f * dt * omega;
+        float oo = omega * omega, hoo = dt * oo, hhoo = dt * hoo;
+        float det = 1f / (f + hhoo);
+        Vec3 nx = x.scale(f).add(v.scale(dt)).add(goal.scale(hhoo)).scale(det);
+        Vec3 nv = v.add(goal.subtract(x).scale(hoo)).scale(det);
+        return new Vec3[]{nx, nv};
+    }
+
+    /**
+     * @param orbitDeg swing the camera around the fight (supers, K.O.s)
+     */
+    public void update(Vec3 focus, double distance, float shake, float extraRoll, float orbitDeg, float dt, Entity player) {
+        double oa = Math.toRadians(orbitDeg);
+        Vec3 n = arena.normal.scale(side), ax = arena.axis;
+        Vec3 dir = n.scale(Math.cos(oa)).add(ax.scale(Math.sin(oa)));
         Vec3 desired = focus.add(dir.scale(distance)).add(0, 0.45 + distance * 0.07, 0);
         // pull in front of walls/trees between the camera and the fighters
         double free = rayFree(focus, desired);
@@ -105,28 +133,33 @@ public final class FightCamera {
         if (free < want - 0.05) {
             desired = focus.add(desired.subtract(focus).normalize().scale(Math.max(1.6, free - 0.3)));
         }
-        float k = Math.min(1f, dt * 7f);
         if (pos == null) {
             pos = desired;
             target = focus;
         } else {
-            pos = pos.lerp(desired, k);
-            target = target.lerp(focus, Math.min(1f, dt * 9f));
+            Vec3[] p1 = spring(pos, posVel, desired, 6.5f, dt);
+            pos = p1[0];
+            posVel = p1[1];
+            Vec3[] t1 = spring(target, targetVel, focus, 9f, dt);
+            target = t1[0];
+            targetVel = t1[1];
         }
+        // directional kick: a damped spring pulling back to zero
+        kickVel = kickVel.add(kick.scale(-260f * dt)).scale(Math.max(0, 1f - 18f * dt));
+        kick = kick.add(kickVel.scale(dt));
 
         Vec3 d = target.subtract(pos);
         float fightYaw = (float) (Mth.atan2(d.z, d.x) * Mth.RAD_TO_DEG) - 90f;
         float fightPitch = (float) -(Mth.atan2(d.y, Math.sqrt(d.x * d.x + d.z * d.z)) * Mth.RAD_TO_DEG);
 
-        double sx = 0, sy = 0, sz = 0;
-        float sroll = 0;
-        if (shake > 0) {
-            double a = shake * 0.012;
-            sx = (random.nextDouble() * 2 - 1) * a;
-            sy = (random.nextDouble() * 2 - 1) * a;
-            sz = (random.nextDouble() * 2 - 1) * a;
-            sroll = (random.nextFloat() * 2 - 1) * shake * 0.12f;
-        }
+        // trauma shake: squared, so light hits barely nudge and heavy ones kick; smooth noise, not per-frame jitter
+        noiseT += dt * 28f;
+        float trauma = Mth.clamp(shake / 11f, 0f, 1f);
+        float amp = trauma * trauma;
+        double sx = (Math.sin(noiseT * 1.13) + Math.sin(noiseT * 2.71 + 1.3) * 0.5) * amp * 0.11 + kick.x;
+        double sy = (Math.sin(noiseT * 1.57 + 2.1) + Math.sin(noiseT * 3.07) * 0.5) * amp * 0.09 + kick.y;
+        double sz = (Math.sin(noiseT * 0.97 + 4.2) + Math.sin(noiseT * 2.33 + 0.7) * 0.5) * amp * 0.11 + kick.z;
+        float sroll = (float) (Math.sin(noiseT * 1.41 + 0.4) * amp * 2.2);
 
         if (leaving) {
             leaveProgress = Math.min(1f, leaveProgress + dt / TRANSITION_SECONDS);

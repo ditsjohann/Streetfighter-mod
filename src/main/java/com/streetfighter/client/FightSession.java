@@ -274,7 +274,7 @@ public final class FightSession {
         lastDt = dt;
 
         if (stage == Stage.FIGHT && !paused) {
-            accumulator += dt;
+            accumulator += dt * timeScale();
             int steps = 0;
             while (accumulator >= STEP && steps < 6) {
                 accumulator -= STEP;
@@ -433,7 +433,7 @@ public final class FightSession {
         Vec3 focus = pw.add(ew).scale(0.5).add(0, 1.05, 0);
         double sep = Math.abs(px - ex) / Arena.UNITS_PER_BLOCK;
         double dist = Mth.clamp(2.6 + sep * 0.8, 4.2, 10.5);
-        float roll = 0;
+        float roll = 0, orbit = 0;
         if (engine == null) {
             dist = Math.max(dist, 7.5); // wider shot on the select screen so the panels don't cover anyone
             focus = focus.add(0, 0.35, 0);
@@ -444,23 +444,33 @@ public final class FightSession {
                 focus = focus.lerp(uw, 0.75);
                 dist *= 0.5;
                 roll = (user.index == 0 ? -1 : 1) * 4f;
+                orbit = (user.index == 0 ? -1 : 1) * (14f + 10f * (float) Math.sin(time * 1.4));
             } else if (lockedCinematic() != null) {
                 Fighter user = lockedCinematic();
                 Vec3 uw = worldOf(user).add(0, 0.9, 0);
                 focus = focus.lerp(uw, 0.4);
                 dist *= 0.62;
                 roll = (float) Math.sin(time * 1.3) * 3f;
+                orbit = (float) Math.sin(time * 0.8) * 20f;
             } else if (engine.phase == FightEngine.Phase.KO && engine.phaseTimer < 100) {
                 Fighter loser = engine.player.hp <= 0 ? engine.player : engine.enemy;
                 focus = focus.lerp(worldOf(loser).add(0, 0.6, 0), 0.5);
-                dist *= 0.75;
+                dist *= engine.phaseTimer < 40 ? 0.55 : 0.75;
+                orbit = (loser.index == 0 ? 1 : -1) * Math.min(22f, engine.phaseTimer * 0.6f);
             } else if (engine.isOver() && engine.matchWinner >= 0) {
                 focus = focus.lerp(worldOf(engine.fighter(engine.matchWinner)).add(0, 1.1, 0), 0.6);
                 dist *= 0.7;
             }
         }
         float shake = engine == null || paused ? 0 : engine.shake;
-        camera.update(focus, dist, shake, roll, dt, player);
+        camera.update(focus, dist, shake, roll, orbit, dt, player);
+    }
+
+    /** Slow motion for the K.O. moment (the first ~3/4 second of the K.O. phase plays at quarter speed). */
+    private float timeScale() {
+        if (engine == null || paused) return 1f;
+        if (engine.phase == FightEngine.Phase.KO && engine.phaseTimer < 40) return 0.28f;
+        return 1f;
     }
 
     /** The fighter currently performing a cinematic (lock-on-hit) super that has connected, or null. */

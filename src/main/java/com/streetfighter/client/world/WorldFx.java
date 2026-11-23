@@ -239,6 +239,13 @@ public final class WorldFx {
                 if (f == null || f.move == null) break;
                 Move m = f.move;
                 Vec3 p = at(f.x, 60);
+                if (m == f.moves.dash || m == f.moves.backdash) {
+                    dust(f.x, 6, 0.1);
+                    quads.streak(front(at(f.x, f.y + 60)), 2.4f, m == f.moves.dash ? f.facingRight : !f.facingRight, 0xFFFFFF);
+                    sound(SoundEvents.ENDER_DRAGON_FLAP, p, 0.35f, 2f);
+                    sound(SoundEvents.PLAYER_ATTACK_NODAMAGE, p, 0.5f, 1.6f);
+                    break;
+                }
                 if (m.callout != null) hud.callout(m.callout, f.index, f.index == 0 ? 0xFF7FE0FF : 0xFFFF8A6A);
                 Prop usedProp = Prop.of(m);
                 if (usedProp != null) propUseSound(usedProp, m, p);
@@ -281,6 +288,11 @@ public final class WorldFx {
                 boolean superHit = attacker != null && attacker.move != null && attacker.move.isSuper();
                 int sparkColor = ev.text() != null ? C_GOLD : superHit ? C_GOLD : ev.heavy() ? 0xFFB040 : C_WHITE;
                 quads.spark(front(p), ev.heavy() ? 2.2f : 1.4f, sparkColor);
+                if (ev.heavy() && attacker != null) {
+                    // shove the camera along the blow
+                    session.camera.kick(session.arena.axis.scale(f.x >= attacker.x ? 1 : -1).add(0, 0.2, 0),
+                            superHit ? 3.2f : 2.0f);
+                }
                 if (ev.heavy()) {
                     quads.ring(front(p), 0.3f, 2.4f, 0.25f, sparkColor);
                     session.fovKick = Math.max(session.fovKick, superHit ? 0.05f : 0.03f);

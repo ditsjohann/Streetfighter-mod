@@ -531,6 +531,10 @@ public final class FightEngine {
             }
         }
         if (m == null) m = pickSpecial(f, in);
+        if (m == null && f.moves.dash != null) {
+            if (in.dash > 0 || b.doubleTap(true)) m = f.moves.dash;
+            else if (in.dash < 0 || b.doubleTap(false)) m = f.moves.backdash;
+        }
         if (m == null && f.heldProp != null) {
             // holding a prop: punches use it one way, kicks the other
             int way = in.itemUse;

@@ -153,6 +153,7 @@ public class FightScreen extends Screen {
         }
         hud.render(g, width, height);
         if (session.paused) hud.pausePanel(g, width, height, movePage);
+        else if (session.engine != null && !session.engine.isOver() && down(GLFW.GLFW_KEY_H)) hud.specialsHint(g, width, height);
         if (session.engine != null && session.engine.isOver() && session.matchEndFrames > 30) {
             hud.resultPanel(g, width, height, session.matchEndFrames - 30);
         }
@@ -202,6 +203,10 @@ public class FightScreen extends Screen {
     }
 
     static String motionText(com.streetfighter.fight.InputBuffer.Motion m) {
+        return KeyNotation.motion(m, true) + " +";
+    }
+
+    static String arrowText(com.streetfighter.fight.InputBuffer.Motion m) {
         return switch (m) {
             case QCF -> "\u2193\u2198\u2192";
             case QCB -> "\u2193\u2199\u2190";
@@ -223,28 +228,35 @@ public class FightScreen extends Screen {
 
     /** Full move list lines for a style: page 0 = specials/supers/system, page 1 = normals. */
     static java.util.List<String> moveList(Moveset ms, int page) {
+        return moveList(ms, page, true);
+    }
+
+    static java.util.List<String> moveList(Moveset ms, int page, boolean facingRight) {
         java.util.List<String> out = new java.util.ArrayList<>();
+        String fwd = facingRight ? "D" : "A", back = facingRight ? "A" : "D";
         if (page == 0) {
-            out.add("\u00a7eSPECIALS\u00a7r   (L/M/H by button strength, two buttons = EX for half a bar)");
+            out.add("\u00a7eSPECIALS\u00a7r  press the keys in order, then a button (U/I/O = light/medium/heavy punch, J/K/L = kicks)");
+            out.add("\u00a77Keys shown for facing " + (facingRight ? "RIGHT" : "LEFT") + " - they flip when you switch sides. Two buttons = EX (half a bar).");
             for (Moveset.Special sp : ms.specials) {
-                out.add(motionText(sp.motion()) + " + " + (sp.kick() ? "K" : "P") + "   \u00a77or " + modernText(sp.modernDir())
+                out.add(KeyNotation.special(sp.motion(), sp.kick(), facingRight) + "   \u00a77or " + KeyNotation.simple(sp.modernDir(), facingRight)
                         + "\u00a7r   " + sp.name());
             }
             out.add("\u00a76SUPER ARTS");
             for (Moveset.Super su : ms.supers) {
-                String input = motionText(su.motion()) + " + " + (su.kick() ? "K" : "P");
                 String modern = su.level() == 1 ? "H+O" : "H+L";
-                out.add("Lv" + su.level() + "  " + input + "  \u00a77or " + modern + "\u00a7r   " + su.move().name + "  \u00a77(" + su.level() + " bar" + (su.level() > 1 ? "s" : "") + ")");
+                out.add("Lv" + su.level() + "  " + KeyNotation.special(su.motion(), su.kick(), facingRight) + "  \u00a77or " + modern
+                        + "\u00a7r   " + su.move().name + "  \u00a77(" + su.level() + " bar" + (su.level() > 1 ? "s" : "") + ")");
             }
             out.add("\u00a7bSYSTEM");
-            out.add("U+J  " + ms.forwardThrow.name + "  (\u2190+U+J  " + ms.backThrow.name + ")    U+J when grabbed: tech");
+            out.add(fwd + ", " + fwd + " (tap twice) Dash     " + back + ", " + back + " Backdash (briefly invincible)");
+            out.add("U+J  " + ms.forwardThrow.name + "  (" + back + "+U+J  " + ms.backThrow.name + ")    U+J when grabbed: tech");
             out.add("I+K (hold)  Drive Parry      O+L  Drive Impact (armored, crumples)");
             for (Moveset.CommandNormal cn : ms.commandNormals) {
-                String d = switch (cn.dir()) { case 6 -> "\u2192"; case 4 -> "\u2190"; case 3 -> "\u2198"; case 2 -> "\u2193"; default -> ""; };
+                String d = KeyNotation.dir(cn.dir(), facingRight);
                 out.add(d + "+" + keyOf(cn.button()) + "  " + cn.move().name + (cn.move().level == com.streetfighter.fight.HitLevel.HIGH ? " (overhead)" : cn.move().level == com.streetfighter.fight.HitLevel.LOW ? " (low)" : ""));
             }
             for (Moveset.TargetCombo tc : ms.targetCombos) {
-                out.add("Target: " + tc.from().name + " > " + keyOf(tc.button()) + "  " + tc.move().name);
+                out.add("Target: " + tc.from().name + " then " + keyOf(tc.button()) + "  " + tc.move().name);
             }
         } else {
             out.add("\u00a7eNORMALS\u00a7r   U I O = light/medium/heavy punch    J K L = light/medium/heavy kick");
@@ -252,11 +264,11 @@ public class FightScreen extends Screen {
                     com.streetfighter.fight.InputBuffer.Button.MP, com.streetfighter.fight.InputBuffer.Button.HP,
                     com.streetfighter.fight.InputBuffer.Button.LK, com.streetfighter.fight.InputBuffer.Button.MK,
                     com.streetfighter.fight.InputBuffer.Button.HK}) {
-                out.add(keyOf(b) + "  " + ms.stand.get(b).name + "   \u00a77\u2193" + keyOf(b) + "\u00a7r " + ms.crouch.get(b).name
-                        + "   \u00a77air " + keyOf(b) + "\u00a7r " + ms.air.get(b).name);
+                out.add(keyOf(b) + "  " + ms.stand.get(b).name + "   \u00a77S+" + keyOf(b) + "\u00a7r " + ms.crouch.get(b).name
+                        + "   \u00a77in the air " + keyOf(b) + "\u00a7r " + ms.air.get(b).name);
             }
             out.add("\u00a77Lights chain into each other and into heavier normals; most normals cancel into specials,");
-            out.add("\u00a77specials cancel into Super Arts. Jump into a wall and press up to wall-jump.");
+            out.add("\u00a77specials cancel into Super Arts. Jump into a wall and press W again to wall-jump.");
         }
         return out;
     }

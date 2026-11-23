@@ -126,6 +126,27 @@ public final class InputBuffer {
         }
     }
 
+    /**
+     * Double tap for dashes (SF style): the direction was just pressed fresh, after a short neutral gap that itself
+     * followed the same direction, all within 14 frames. Diagonals don't count, so 236 / 623 never dash.
+     */
+    public boolean doubleTap(boolean forward) {
+        int t = forward ? 6 : 4;
+        int newest = Math.floorMod(head - 1, HISTORY);
+        if (dirHistory[newest] != t || dirHistory[Math.floorMod(head - 2, HISTORY)] == t) return false;
+        int i = 2;
+        boolean gap = false;
+        for (; i < 16; i++) {
+            int d = dirHistory[Math.floorMod(head - i, HISTORY)];
+            if (d == 5) {
+                gap = true;
+                continue;
+            }
+            return gap && d == t;
+        }
+        return false;
+    }
+
     /** True while the button is physically held. */
     public boolean held(Button b) {
         return buttons[b.ordinal()] > 0;
