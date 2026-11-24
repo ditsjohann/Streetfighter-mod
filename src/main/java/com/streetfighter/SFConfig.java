@@ -35,8 +35,12 @@ public final class SFConfig {
             .define("ironSwordChallenge", true);
 
     public static final ForgeConfigSpec.BooleanValue XRAY_FINISHERS = BUILDER
-            .comment("Play a Mortal Kombat style X-ray bone-breaking finisher on the match-winning K.O.")
+            .comment("Mortal Kombat style finishers on the match-winning K.O.: FINISH HIM!, then enter your style's FATALITY (keys shown on screen).")
             .define("xrayFinishers", true);
+
+    public static final ForgeConfigSpec.BooleanValue FINISHER_GORE = BUILDER
+            .comment("Fatalities spray blood (red pixels) and body chunks. Off: puffs of smoke and stars instead.")
+            .define("fatalityGore", true);
 
     public static final ForgeConfigSpec.BooleanValue LOSER_PENALTY = BUILDER
             .comment("Players who lose a fight are left bruised (Weakness + Slowness for 30 seconds).")

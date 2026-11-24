@@ -426,6 +426,7 @@ public final class FightHud {
                 else if (s.finisher == null) outlined(g, "K.O.", w / 2f, cy, 7f * pop, 0xFFFF2A1A, 0xFFFFFFFF);
             }
             case ROUND_END -> {
+                if (s.finisher != null) break; // the finisher already announced the winner
                 String text;
                 int col;
                 if (e.roundWinner == -1) {

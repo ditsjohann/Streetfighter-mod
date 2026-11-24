@@ -221,23 +221,58 @@ becomes **S, S+A, A**.
 - **Dash:** **tap forward twice** (D, D).
 - **Backdash:** **tap back twice** (A, A). It's briefly invincible.
 
-## Finishers: X-ray and unique deaths
+## Finishers: FINISH HIM! and Fatalities (Mortal Kombat style)
 
-The match-winning K.O. plays an 8 to 9 second Mortal Kombat style cinematic, **staged in the world itself**
-(not as a flat overlay). Time stops. **SPACE** skips to the death, and pressing it again skips to the end.
-1. **FINISH!** The camera cuts behind the winner's shoulder and pushes in. The world sinks into dark fog, a heartbeat
-   thumps and the victim staggers.
-2. **X-RAY.** The victim's body is swapped, in place, for an x-ray body: glass flesh around a skeleton built from
-   blocks. The fog closes into a deep blue void.
-   - Every blow gets its own camera cut, close on the target bone.
-   - The winner's weapon (a pickaxe, a bow, a TNT block...) swings in as a real 3D item.
-   - Impacts flash, throw bone shards, shake the camera and spread the block-breaking cracks.
-   - The last blow **snaps the bone in two**, and the halves drift apart.
-   - The finisher is set by the **winner's style**: Steve's *Pickaxe to the Dome*, Skeleton's *Rib Collector*,
-     Goat's *Ram Rupture*, Zombie's *Bone Appetit*, Creeper's *Total Detonation*, and so on.
-   - The skeleton is set by the **victim's body**: biped, four-legged, bird, creeper or tool. Trees have wooden bones,
-     the ore golem iron ones and the pickaxe a wooden handle.
-3. **The death.** A wide, slowly orbiting shot, and **every character dies its own way**, with physics debris:
+When the match-winning K.O. lands, time stops and the arena goes dark, spotlit on the loser, who stands there dazed.
+A deep roar and a heartbeat sound, and **FINISH HIM!** slams onto the screen.
+
+1. **Enter your Fatality.** For about 6 seconds a panel shows your style's fatality as keys, e.g. **A D S O** for Steve's
+   *Mine and Craft*. Press them in order: each key lights up green, and a wrong key resets the sequence. The keys follow
+   your side of the screen. Do nothing (or press **SPACE**) and the loser simply falls with their own unique death (table
+   below).
+2. **The FATALITY.** A cinematic unique to your style, built from shots like these:
+   - an **x-ray** close-up (bones cracking and snapping in a blue void);
+   - an uppercut into the sky and a **crater-making slam**;
+   - a kick that sends them **into orbit** (they twinkle in the sky, then crash back down);
+   - a rain of arrows that **pins them like a pincushion**;
+   - a giant block **crushing them flat**, or a giant sword or roots **impaling** them;
+   - **exploding** into chunks, **burning to ash**, **dissolving** in a puddle;
+   - a **horde** of pigs, chickens, zombies or spiders burying them;
+   - a web **cocoon**, being **engulfed** by a slime cube, a **lasso** yank, and **decapitation** (the head really comes off).
+3. **The outro.** The camera turns to the winner's victory pose. **FATALITY** slams in, dripping blood, then **X WINS**,
+   and **FLAWLESS VICTORY** if the winner took no damage.
+
+- **When the computer wins,** it performs its fatality on you.
+- **The gore depends on the victim.** Blood sprays from flesh, bone chips from skeletons, splinters from trees, rock from
+  ore, sparks from the sword and slime from slimes. Chunks fly in the victim's own colours, mob heads come off for real,
+  and its drops scatter. Turn the blood off with `fatalityGore` (you get puffs and stars instead).
+- **SPACE skips** to the outro.
+
+| Style | Fatality | Keys (facing right) | What happens |
+|---|---|---|---|
+| Steve | Mine and Craft | A D S O | Approach, pickaxe x-ray to the skull, uppercut into the sky, crater slam |
+| Skeleton | Pincushion | D A D U | Bow x-ray to the ribs, then 24 arrows rain down and pin them until they topple |
+| Villager | Final Offer | S D A O | Emerald-block x-ray to the jaw, then a giant emerald block crushes them flat |
+| Alchemist | Meltdown Brew | A A D I | Splash potions shatter on them, then they dissolve into a bubbling puddle, leaving bones |
+| Pig | Pigstep Stampede | S S D L | A stampede of pigs dogpiles them |
+| Chicken | Pecking Order | W S W J | Pecking x-ray to the skull, then a flock of chickens |
+| Goat | Summit Drop | D D S O | Ram x-ray to the ribs, then a sky-high launch and slam |
+| Oak Tree | Rooted | S W S L | Leg x-ray, then a pillar of logs bursts up and impales them |
+| Iron Ore | Smelter Crush | A D A O | Spine x-ray, then a giant raw iron block |
+| Stone Pickaxe | Strip Mine | D S D I | Skull x-ray, then decapitation |
+| Zombie | The Horde | A A S U | Arm x-ray, then a zombie horde buries them |
+| Cow | Mooonshot | S W W L | Kicked to the moon, twinkle, then a crater landing |
+| Donkey | Kick of the Century | A D D L | Jaw x-ray, then kicked into orbit and back down |
+| Creeper | Total Detonation | S S S O | Hugs them, swells, and they explode into chunks |
+| Slime | Engulfed | W W S K | Swallowed into a slime cube and dissolved to bones |
+| Spider | Cocooned | D D A U | Wrapped in webs, then a swarm of spiders |
+| Iron Sword | Smite | A D S L | Spine x-ray, then a giant sword falls from the sky through them |
+| Furnace | Smelted Alive | D A S O | Engulfed in flames and burnt to ash |
+| Coal Ore | Firedamp | S D S O | Rib x-ray, then a fiery methane explosion |
+| Leatherworker | Tanned Hide | A D A K | Lassoed in, spine x-ray, then launched and slammed |
+| Any other mob | Bone Breaker | D S A O | Rib x-ray, then launch and slam |
+
+**Unique deaths (no fatality: let them fall).**
 
 | Character | Death | What happens |
 |---|---|---|
@@ -387,7 +422,7 @@ Settings are in `config/streetfighter-common.toml`: peaceful mobs, challenge ran
 Requires Java 21.
 
 ```bash
-./gradlew build        # mod jar -> build/libs/streetfighter-0.12.0.jar
+./gradlew build        # mod jar -> build/libs/streetfighter-0.13.0.jar
 ./gradlew runClient    # launch a dev client with the mod
 ```
 

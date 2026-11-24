@@ -97,6 +97,7 @@ public class FightScreen extends Screen {
         if (session.engine == null) return true;
         if (session.finisher != null && session.finisher.active(session.time)) {
             if (key == GLFW.GLFW_KEY_SPACE || key == GLFW.GLFW_KEY_ENTER) session.finisher.skip(session.time);
+            else session.finisher.key(key); // FINISH HIM: the fatality input
             return true;
         }
         if (session.engine.isOver()) {

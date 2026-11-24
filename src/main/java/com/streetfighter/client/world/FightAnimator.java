@@ -53,6 +53,11 @@ public final class FightAnimator {
 
         /** Extra whole-body transform (before scaling), e.g. toppling over. */
         void transform(LivingEntity e, PoseStack ps, Vec3 facing, float height);
+
+        /** True when this entity's head has been cut off (its head parts are hidden). */
+        default boolean headless(LivingEntity e) {
+            return false;
+        }
     }
 
     public static FinisherHook finisherHook;
@@ -85,6 +90,8 @@ public final class FightAnimator {
     private static final Map<Integer, State> STATES = new HashMap<>();
     private static State current;
     private static Object currentModel;
+    private static LivingEntity currentEntity;
+    private static final List<ModelPart> hiddenParts = new ArrayList<>();
     private static float savedAttack, savedAttackO;
     private static boolean savedAggressive, savedCrouching;
 
@@ -629,6 +636,7 @@ public final class FightAnimator {
         if (s == null || !s.init) return;
         current = s;
         currentModel = model;
+        currentEntity = entity;
         s.savedParts.clear();
         s.savedPoses.clear();
 
@@ -675,8 +683,11 @@ public final class FightAnimator {
         entity.oAttackAnim = savedAttackO;
         if (entity instanceof Mob mob && mob.isAggressive() != savedAggressive) mob.setAggressive(savedAggressive);
         if (model instanceof HumanoidModel<?> h) h.crouching = savedCrouching;
+        for (ModelPart p : hiddenParts) p.visible = true;
+        hiddenParts.clear();
         current = null;
         currentModel = null;
+        currentEntity = null;
     }
 
     // ------------------------------------------------------------------ model poses (called from mixins)
@@ -790,6 +801,38 @@ public final class FightAnimator {
             rot(s, a.streetfighter$leftFrontLeg(), c[RAX] - c[RAZ], 0, 0);
             rot(s, a.streetfighter$rightHindLeg(), c[RLX] - c[RAZ], 0, 0);
             rot(s, a.streetfighter$leftHindLeg(), c[RLX] + c[RAZ], 0, 0);
+        }
+        if (finisherHook != null && currentEntity != null && finisherHook.headless(currentEntity)) hideHead(model);
+    }
+
+    /** Decapitated by a fatality: hide every head part of the model (restored after rendering). */
+    private static void hideHead(Object model) {
+        List<ModelPart> heads = new ArrayList<>();
+        if (model instanceof HumanoidModel<?> m) {
+            heads.add(m.head);
+            heads.add(m.hat);
+        } else if (model instanceof VillagerModel<?> v) {
+            heads.add(v.getHead());
+        } else if (model instanceof net.minecraft.client.model.ChickenModel<?> ch) {
+            com.streetfighter.mixin.ChickenModelAccessor a = (com.streetfighter.mixin.ChickenModelAccessor) ch;
+            heads.add(a.streetfighter$head());
+            heads.add(a.streetfighter$beak());
+            heads.add(a.streetfighter$redThing());
+        } else if (model instanceof net.minecraft.client.model.HorseModel<?> hm) {
+            heads.add(((com.streetfighter.mixin.HorseModelAccessor) hm).streetfighter$headParts());
+        } else if (model instanceof net.minecraft.client.model.CreeperModel<?> cm) {
+            heads.add(((com.streetfighter.mixin.CreeperModelAccessor) cm).streetfighter$head());
+        } else if (model instanceof QuadrupedModel<?> q) {
+            heads.add(((QuadrupedModelAccessor) q).streetfighter$head());
+        } else if (model instanceof net.minecraft.client.model.SpiderModel<?> sm) {
+            ModelPart h = child(sm.root(), "head");
+            if (h != null) heads.add(h);
+        }
+        for (ModelPart p : heads) {
+            if (p != null && p.visible) {
+                p.visible = false;
+                hiddenParts.add(p);
+            }
         }
     }
 
