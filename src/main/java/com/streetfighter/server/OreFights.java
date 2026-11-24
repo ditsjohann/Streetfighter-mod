@@ -24,7 +24,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-/** Iron ore can be challenged: the whole vein tears out of the rock as an ore golem. */
+/** Iron and coal ore can be challenged: the whole vein tears out of the rock as an ore golem. */
 public final class OreFights {
     private static final int MAX_VEIN = 24;
 
@@ -35,11 +35,21 @@ public final class OreFights {
         return s.is(Blocks.IRON_ORE) || s.is(Blocks.DEEPSLATE_IRON_ORE);
     }
 
+    public static boolean isCoalOre(BlockState s) {
+        return s.is(Blocks.COAL_ORE) || s.is(Blocks.DEEPSLATE_COAL_ORE);
+    }
+
+    public static boolean isOre(BlockState s) {
+        return isIronOre(s) || isCoalOre(s);
+    }
+
     public static void challenge(ServerPlayer player, BlockPos clicked) {
         if (player.isSpectator() || FightManager.isFighting(player)) return;
         ServerLevel level = player.serverLevel();
         double range = SFConfig.CHALLENGE_RANGE.get() + 3.0;
-        if (clicked.distToCenterSqr(player.position()) > range * range || !isIronOre(level.getBlockState(clicked))) return;
+        if (clicked.distToCenterSqr(player.position()) > range * range || !isOre(level.getBlockState(clicked))) return;
+        boolean coal = isCoalOre(level.getBlockState(clicked));
+        java.util.function.Predicate<BlockState> same = coal ? OreFights::isCoalOre : OreFights::isIronOre;
 
         // the whole vein (connected iron ore, diagonals included)
         Set<BlockPos> vein = new LinkedHashSet<>();
@@ -50,7 +60,7 @@ public final class OreFights {
             BlockPos p = queue.poll();
             for (int dx = -1; dx <= 1; dx++) for (int dy = -1; dy <= 1; dy++) for (int dz = -1; dz <= 1; dz++) {
                 BlockPos n = p.offset(dx, dy, dz);
-                if (!vein.contains(n) && isIronOre(level.getBlockState(n))) {
+                if (!vein.contains(n) && same.test(level.getBlockState(n))) {
                     vein.add(n.immutable());
                     queue.add(n.immutable());
                 }
@@ -61,7 +71,7 @@ public final class OreFights {
             player.displayClientMessage(Component.literal("This ore is protected.").withStyle(ChatFormatting.RED), true);
             return;
         }
-        OreGolemEntity golem = ModEntities.IRON_ORE_GOLEM.get().create(level);
+        OreGolemEntity golem = (coal ? ModEntities.COAL_ORE_GOLEM : ModEntities.IRON_ORE_GOLEM).get().create(level);
         if (golem == null) return;
         List<BlockBodyEntity.TreeBlock> blocks = new ArrayList<>();
         for (BlockPos p : vein) {
@@ -78,7 +88,8 @@ public final class OreFights {
         level.playSound(null, clicked, SoundEvents.STONE_BREAK, SoundSource.BLOCKS, 1.5f, 0.5f);
         level.playSound(null, clicked, SoundEvents.IRON_GOLEM_REPAIR, SoundSource.BLOCKS, 1f, 0.6f);
         level.playSound(null, clicked, SoundEvents.RAVAGER_ROAR, SoundSource.HOSTILE, 0.4f, 0.6f);
-        player.displayClientMessage(Component.literal("The iron vein tears itself out of the rock!").withStyle(ChatFormatting.GOLD), true);
+        player.displayClientMessage(Component.literal(coal ? "The coal vein tears itself out of the rock, smouldering!"
+                : "The iron vein tears itself out of the rock!").withStyle(ChatFormatting.GOLD), true);
         TreeFights.queue(player, golem);
     }
 

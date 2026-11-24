@@ -83,6 +83,9 @@ public class FighterAI {
             case CREEPER -> new CreeperAI(difficulty);
             case SLIME -> new SlimeAI(difficulty);
             case SPIDER -> new SpiderAI(difficulty);
+            case IRON_SWORD -> new IronSwordAI(difficulty);
+            case FURNACE -> new FurnaceAI(difficulty);
+            case COAL_ORE -> new CoalOreAI(difficulty);
             default -> new BrawlerAI(difficulty);
         };
     }

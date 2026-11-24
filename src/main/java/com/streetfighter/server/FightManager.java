@@ -141,8 +141,9 @@ public final class FightManager {
                 .append(Component.literal("You defeated " + s.mobName + " (" + result.roundsWon() + "-" + result.roundsLost() + ")"
                         + (result.perfect() ? " - PERFECT!" : "!")).withStyle(ChatFormatting.YELLOW)));
         if (PlayerFightData.unlock(player, s.type)) {
-            player.sendSystemMessage(Component.literal("You learned the " + s.type.displayName + " style: " + s.type.title
-                    + "! Pick it at the start of your next fight.").withStyle(ChatFormatting.AQUA));
+            player.sendSystemMessage(Component.literal("NEW STYLE: ").withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD)
+                    .append(Component.literal(s.type.displayName + " (" + s.type.title + "). Pick it on the select screen next fight.")
+                            .withStyle(ChatFormatting.AQUA)));
             player.level().playSound(null, player.blockPosition(), SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.PLAYERS, 0.8f, 1f);
         } else {
             player.level().playSound(null, player.blockPosition(), SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 0.8f, 1.2f);
@@ -160,6 +161,9 @@ public final class FightManager {
                     case OAK -> new String[]{"TIMBER! ", "The oak is felled."};
                     case IRON_ORE -> new String[]{"MINED! ", "The iron vein crumbles into ore."};
                     case STONE_PICKAXE -> new String[]{"CRAFTED! ", "The stone pickaxe accepts you as its wielder."};
+                    case IRON_SWORD -> new String[]{"CRAFTED! ", "The iron sword yields. It's yours now."};
+                    case COAL_ORE -> new String[]{"MINED! ", "The coal vein crumbles into coal."};
+                    case FURNACE -> new String[]{"BURNT OUT! ", "The furnace spills everything it was smelting."};
                     default -> new String[]{"BROKEN! ", ""};
                 };
                 s.level.playSound(null, mob.blockPosition(), s.type == FighterType.OAK ? SoundEvents.WOOD_BREAK
@@ -180,7 +184,8 @@ public final class FightManager {
 
     private static void onPlayerLost(ServerPlayer player, Session s, Mob mob) {
         player.sendSystemMessage(Component.literal("DEFEAT... ").withStyle(ChatFormatting.DARK_RED, ChatFormatting.BOLD)
-                .append(Component.literal(s.mobName + " beat you. Train up and try again!").withStyle(ChatFormatting.RED)));
+                .append(Component.literal(s.mobName + " beat you. You're bruised for 30s. Tip: hold the key pointing away to block,"
+                        + " and use H + a direction for specials.").withStyle(ChatFormatting.RED)));
         if (SFConfig.LOSER_PENALTY.get()) {
             player.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 20 * 30, 0));
             player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 20 * 30, 0));

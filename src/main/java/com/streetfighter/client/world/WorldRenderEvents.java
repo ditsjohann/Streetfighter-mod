@@ -256,12 +256,19 @@ public final class WorldRenderEvents {
                         case SLIMEBALL -> new ItemStack(Items.SLIME_BALL);
                         case LEATHER -> new ItemStack(Items.LEATHER);
                         case LASSO -> new ItemStack(Items.LEAD);
+                        case SWORD, GIANT_SWORD -> new ItemStack(Items.IRON_SWORD);
+                        case FIRE_CHARGE -> new ItemStack(Items.FIRE_CHARGE);
+                        case FLAME_PILLAR, MAGMA -> new ItemStack(Items.MAGMA_BLOCK);
+                        case COAL -> new ItemStack(Items.COAL);
                         case POTION -> net.minecraft.world.item.alchemy.PotionContents.createItemStack(Items.SPLASH_POTION,
                                 WorldFx.potionFor(p.spec.effect));
                         default -> new ItemStack(Items.SNOWBALL);
                     };
                     boolean roots = p.spec.visual == com.streetfighter.fight.ProjectileVisual.ROOTS
-                            || p.spec.visual == com.streetfighter.fight.ProjectileVisual.SPIKE;
+                            || p.spec.visual == com.streetfighter.fight.ProjectileVisual.SPIKE
+                            || p.spec.visual == com.streetfighter.fight.ProjectileVisual.FLAME_PILLAR;
+                    boolean magma = p.spec.visual == com.streetfighter.fight.ProjectileVisual.MAGMA;
+                    boolean giantSword = p.spec.visual == com.streetfighter.fight.ProjectileVisual.GIANT_SWORD;
                     boolean cart = p.spec.visual == com.streetfighter.fight.ProjectileVisual.MINECART;
                     var vis = p.spec.visual;
                     boolean web = vis == com.streetfighter.fight.ProjectileVisual.WEB;
@@ -275,7 +282,8 @@ public final class WorldRenderEvents {
                         break;
                     }
                     boolean trident = vis == com.streetfighter.fight.ProjectileVisual.TRIDENT;
-                    float spin = roots || cart || web ? 0 : trident ? (p.vx >= 0 ? -45 : 45) : p.age * 14f * (p.vx >= 0 ? 1 : -1);
+                    float spin = roots || cart || web || magma ? 0 : giantSword ? 135 : trident ? (p.vx >= 0 ? -45 : 45)
+                            : p.age * 14f * (p.vx >= 0 ? 1 : -1);
                     Vec3 f = arena.axis;
                     ps.pushPose();
                     ps.translate(w.x - cam.x, w.y - cam.y, w.z - cam.z);
@@ -297,6 +305,14 @@ public final class WorldRenderEvents {
                         ps.scale(1.8f, 1.8f, 1.8f);
                     }
                     if (vis == com.streetfighter.fight.ProjectileVisual.ANVIL || trident) ps.scale(1.6f, 1.6f, 1.6f);
+                    if (magma) {
+                        // a glowing patch of hot coals on the ground
+                        ps.translate(0, 0.06, 0);
+                        ps.scale(2.4f, 0.22f, 1.3f);
+                        light = 0xF000F0;
+                    }
+                    if (giantSword) ps.scale(5.5f, 5.5f, 5.5f);
+                    if (vis == com.streetfighter.fight.ProjectileVisual.SWORD) ps.scale(1.4f, 1.4f, 1.4f);
                     if (cart) {
                         ps.translate(0, 0.45, 0);
                         ps.scale(2.2f, 2.2f, 2.2f);

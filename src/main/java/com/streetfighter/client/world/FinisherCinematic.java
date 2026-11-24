@@ -58,13 +58,14 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
 
     enum Bone { SKULL, JAW, SPINE, RIB, ARM, LEG, PELVIS, ALL }
 
-    enum Shape { BIPED, QUAD, BIRD, CREEPER, TOOL, BLOB, SPIDER }
+    enum Shape { BIPED, QUAD, BIRD, CREEPER, TOOL, BLOB, SPIDER, FURNACE }
 
     public enum Death {
         COLLAPSE("KNOCKED OUT COLD"), EMERALD_SPILL("BANKRUPT"), POTION_POP("SHATTERED"), BONE_PILE("BONE PILE"),
         SINK("BACK TO THE GRAVE"), BELLY_UP("BELLY UP"), MILK_SPILL("SPILT MILK"), FEATHER_BURST("FEATHER EXPLOSION"),
         HORN_SNAP("DEHORNED"), BUCK_COLLAPSE("LAST KICK"), FIZZLE("FIZZLED OUT"), TIMBER("TIMBER!"),
-        CRUMBLE("CRUMBLED"), SNAP("SNAPPED"), SPLIT("SPLIT UP"), CURL("CURLED UP"), TANNED("TANNED HIDE");
+        CRUMBLE("CRUMBLED"), SNAP("SNAPPED"), SPLIT("SPLIT UP"), CURL("CURLED UP"), TANNED("TANNED HIDE"),
+        BLADE_BREAK("BROKEN BLADE"), BURN_OUT("BURNT OUT");
         final String title;
 
         Death(String title) {
@@ -129,6 +130,8 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
             case CREEPER -> Shape.CREEPER;
             case STONE_PICKAXE -> Shape.TOOL;
             case SLIME -> Shape.BLOB;
+            case IRON_SWORD -> Shape.TOOL;
+            case FURNACE -> Shape.FURNACE;
             case SPIDER -> Shape.SPIDER;
             default -> FightAnimator.bodyOf(loserE) == FightAnimator.Body.QUAD ? Shape.QUAD : Shape.BIPED;
         };
@@ -137,11 +140,14 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
             case IRON_ORE -> Blocks.IRON_BLOCK.defaultBlockState();
             case STONE_PICKAXE -> Blocks.OAK_PLANKS.defaultBlockState();
             case SLIME -> Blocks.SLIME_BLOCK.defaultBlockState(); // no bones, just a gooey core
+            case IRON_SWORD -> Blocks.IRON_BLOCK.defaultBlockState();
+            case FURNACE -> Blocks.MAGMA_BLOCK.defaultBlockState(); // a glowing hot core
+            case COAL_ORE -> Blocks.COAL_BLOCK.defaultBlockState();
             default -> Blocks.BONE_BLOCK.defaultBlockState();
         };
         this.flesh = switch (body) {
             case OAK -> Blocks.GREEN_STAINED_GLASS.defaultBlockState();
-            case IRON_ORE, STONE_PICKAXE -> Blocks.GRAY_STAINED_GLASS.defaultBlockState();
+            case IRON_ORE, STONE_PICKAXE, IRON_SWORD, FURNACE, COAL_ORE -> Blocks.GRAY_STAINED_GLASS.defaultBlockState();
             case ZOMBIE, CREEPER -> Blocks.LIME_STAINED_GLASS.defaultBlockState();
             case SKELETON -> Blocks.WHITE_STAINED_GLASS.defaultBlockState();
             case SLIME -> Blocks.LIME_STAINED_GLASS.defaultBlockState();
@@ -156,6 +162,7 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
             case TOOL -> 1.9f;
             case BLOB -> 1.0f;
             case SPIDER -> 0.9f;
+            case FURNACE -> 1.8f;
             default -> 2.0f;
         };
         build();
@@ -183,6 +190,9 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
             case SLIME -> new Finisher("STICKY SITUATION", Bone.SPINE, 2, new ItemStack(Items.SLIME_BLOCK));
             case SPIDER -> new Finisher("EIGHT-LEGGED SNAP", Bone.LEG, 3, new ItemStack(Items.SPIDER_EYE));
             case LEATHERWORKER -> new Finisher("WHIPLASH", Bone.SPINE, 2, new ItemStack(Items.LEAD));
+            case IRON_SWORD -> new Finisher("FINAL CUT", Bone.SPINE, 3, new ItemStack(Items.IRON_SWORD));
+            case FURNACE -> new Finisher("SMELTED ALIVE", Bone.ALL, 1, new ItemStack(Items.FIRE_CHARGE));
+            case COAL_ORE -> new Finisher("COAL CRUSHER", Bone.RIB, 2, new ItemStack(Items.COAL_BLOCK));
             case BRAWLER -> new Finisher("BONE BREAKER", Bone.RIB, 2, new ItemStack(Items.BONE));
         };
     }
@@ -205,6 +215,9 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
             case SLIME -> Death.SPLIT;
             case SPIDER -> Death.CURL;
             case LEATHERWORKER -> Death.TANNED;
+            case IRON_SWORD -> Death.BLADE_BREAK;
+            case FURNACE -> Death.BURN_OUT;
+            case COAL_ORE -> Death.CRUMBLE;
             default -> model == FightAnimator.Body.QUAD ? Death.BELLY_UP
                     : model == FightAnimator.Body.BIRD ? Death.FEATHER_BURST : Death.COLLAPSE;
         };
@@ -232,6 +245,17 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
                 for (int s = -1; s <= 1; s += 2) {
                     add(Bone.LEG, s * 0.12f, 0, 0.16f, 0.1f, 0.34f, 0.1f);
                     add(Bone.LEG, s * 0.12f, 0, -0.16f, 0.1f, 0.34f, 0.1f);
+                }
+            }
+            case FURNACE -> {
+                // inside a furnace: a hot core in a grate, on stubby stone legs
+                add(Bone.SKULL, 0, 0.85f, 0, 0.42f, 0.42f, 0.42f);
+                for (int i = 0; i < 3; i++) add(Bone.RIB, 0, 0.66f + i * 0.28f, 0, 0.9f, 0.05f, 0.9f);
+                add(Bone.SPINE, 0, 0.6f, -0.42f, 0.1f, 1.0f, 0.1f);
+                add(Bone.JAW, 0, 0.66f, 0.45f, 0.6f, 0.08f, 0.06f);
+                for (int sd = -1; sd <= 1; sd += 2) {
+                    add(Bone.LEG, sd * 0.25f, 0, 0, 0.12f, 0.55f, 0.12f);
+                    add(Bone.ARM, sd * 0.72f, 0.4f, 0, 0.1f, 0.55f, 0.1f);
                 }
             }
             case BLOB -> {
@@ -446,6 +470,7 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
             case COLLAPSE, EMERALD_SPILL, POTION_POP, TANNED -> 0.78f;
             case CRUMBLE -> 0.3f;
             case SPLIT -> 0.4f;
+            case BURN_OUT -> 0.45f;
             case CURL -> 0.55f;
             case FIZZLE -> 0.45f;
             case BELLY_UP, MILK_SPILL, HORN_SNAP, BUCK_COLLAPSE -> 0.62f;
@@ -547,6 +572,8 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
             case FIZZLE -> 0.45f;
             case CRUMBLE -> 0.3f;
             case SNAP -> 0.2f;
+            case BLADE_BREAK -> 0.2f;
+            case BURN_OUT -> 0.45f;
             case HORN_SNAP -> 0.15f;
             case BUCK_COLLAPSE -> 0.4f;
             case EMERALD_SPILL, POTION_POP, MILK_SPILL -> 0.6f;
@@ -571,6 +598,10 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
             burst(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.DIRT.defaultBlockState()), f.add(0, 0.1, 0), 2, 0.3, 0.15);
         }
         if (death == Death.FIZZLE && dp < 0.45f && random.nextFloat() < 0.4f) burst(ParticleTypes.SMOKE, mid, 1, 0.3, 0.05);
+        if (death == Death.BURN_OUT && dp < 0.45f && random.nextFloat() < 0.6f) {
+            burst(ParticleTypes.LARGE_SMOKE, mid.add(0, h * 0.3, 0), 1, 0.3, 0.05); // sputtering out
+            if (random.nextFloat() < 0.3f) burst(ParticleTypes.FLAME, mid, 2, 0.4, 0.1);
+        }
         if ((death == Death.BELLY_UP || death == Death.MILK_SPILL || death == Death.COLLAPSE) && dp > 0.8f && random.nextFloat() < 0.2f) {
             Vec3 st = f.add(Math.cos(a * 6) * 0.4, h * 0.5 + 0.3, Math.sin(a * 6) * 0.4);
             Minecraft.getInstance().level.addParticle(ParticleTypes.CRIT, st.x, st.y, st.z, 0, 0.02, 0);
@@ -608,13 +639,38 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
                 session.fx.quads.glow(mid, 3f, 0.3f, 0xFFFFFF);
             }
             case CRUMBLE -> {
-                BlockState[] chunks = {Blocks.STONE.defaultBlockState(), Blocks.IRON_ORE.defaultBlockState(),
+                boolean coal = loser.body == FighterType.COAL_ORE;
+                BlockState[] chunks = coal
+                        ? new BlockState[]{Blocks.STONE.defaultBlockState(), Blocks.COAL_ORE.defaultBlockState(),
+                        Blocks.COBBLESTONE.defaultBlockState(), Blocks.COAL_BLOCK.defaultBlockState()}
+                        : new BlockState[]{Blocks.STONE.defaultBlockState(), Blocks.IRON_ORE.defaultBlockState(),
                         Blocks.COBBLESTONE.defaultBlockState(), Blocks.RAW_IRON_BLOCK.defaultBlockState()};
                 for (int i = 0; i < 9; i++) spawnBlock(chunks[i % chunks.length], mid, 2.2f, 0.3f + random.nextFloat() * 0.15f);
-                for (int i = 0; i < 4; i++) spawnItem(new ItemStack(Items.RAW_IRON), mid, 1.8f, 0.5f);
+                for (int i = 0; i < 4; i++) spawnItem(new ItemStack(coal ? Items.COAL : Items.RAW_IRON), mid, 1.8f, 0.5f);
+                if (coal) burst(ParticleTypes.LARGE_SMOKE, mid, 20, 0.6, 0.1);
                 burst(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.STONE.defaultBlockState()), mid, 60, 0.5, 0.5);
                 play(SoundEvents.STONE_BREAK, mid, 2f, 0.6f);
                 play(SoundEvents.ANVIL_LAND, mid, 1f, 0.6f);
+            }
+            case BLADE_BREAK -> {
+                spawnItem(new ItemStack(Items.IRON_SWORD), f.add(0, h * 0.8, 0), 2.6f, 0.9f);
+                for (int i = 0; i < 7; i++) spawnItem(new ItemStack(Items.IRON_NUGGET), mid, 2.2f, 0.4f);
+                spawnItem(new ItemStack(Items.STICK), mid, 1.6f, 0.6f);
+                burst(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.IRON_BLOCK.defaultBlockState()), mid, 30, 0.3, 0.5);
+                burst(ParticleTypes.CRIT, mid, 30, 0.5, 0.8);
+                play(SoundEvents.ITEM_BREAK, mid, 2f, 0.7f);
+                play(SoundEvents.ANVIL_LAND, mid, 1f, 1.6f);
+            }
+            case BURN_OUT -> {
+                BlockState[] chunks = {Blocks.COBBLESTONE.defaultBlockState(), Blocks.STONE.defaultBlockState(),
+                        Blocks.MAGMA_BLOCK.defaultBlockState()};
+                for (int i = 0; i < 7; i++) spawnBlock(chunks[i % chunks.length], mid, 2f, 0.3f + random.nextFloat() * 0.12f);
+                for (int i = 0; i < 5; i++) spawnItem(new ItemStack(Items.CHARCOAL), mid, 1.8f, 0.45f);
+                spawnItem(new ItemStack(Items.FURNACE), mid, 1.4f, 0.6f);
+                burst(ParticleTypes.LARGE_SMOKE, mid, 40, 0.7, 0.15);
+                burst(ParticleTypes.FLAME, mid, 30, 0.6, 0.4);
+                play(SoundEvents.FIRE_EXTINGUISH, mid, 1.8f, 0.6f);
+                play(SoundEvents.STONE_BREAK, mid, 2f, 0.6f);
             }
             case SNAP -> {
                 for (int i = 0; i < 2; i++) spawnItem(new ItemStack(Items.STICK), mid, 2.2f, 0.7f);
@@ -723,7 +779,8 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
             case SPIDER -> SoundEvents.SPIDER_HURT;
             case LEATHERWORKER -> SoundEvents.VILLAGER_HURT;
             case OAK -> SoundEvents.WOOD_HIT;
-            case IRON_ORE, STONE_PICKAXE -> SoundEvents.STONE_HIT;
+            case IRON_ORE, STONE_PICKAXE, FURNACE, COAL_ORE -> SoundEvents.STONE_HIT;
+            case IRON_SWORD -> SoundEvents.ANVIL_HIT;
             default -> SoundEvents.PLAYER_HURT;
         };
     }
@@ -900,7 +957,7 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
                 float s = 1 + swell * 0.35f + (float) Math.sin(dp * 120) * 0.03f * swell;
                 ps.scale(s, 1 + swell * 0.15f, s);
             }
-            case CRUMBLE, SNAP, BONE_PILE, FEATHER_BURST -> {
+            case CRUMBLE, SNAP, BONE_PILE, FEATHER_BURST, BLADE_BREAK, BURN_OUT -> {
                 float shake = (float) Math.sin(dp * 160) * 0.03f;
                 ps.translate(shake, 0, shake);
                 if (death == Death.FEATHER_BURST) ps.scale(1 + dp * 2.5f, 1 + dp * 2.5f, 1 + dp * 2.5f);
@@ -922,6 +979,8 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
             case CRUMBLE -> dp >= 0.3f;
             case SNAP -> dp >= 0.2f;
             case SPLIT -> dp >= 0.4f;
+            case BLADE_BREAK -> dp >= 0.2f;
+            case BURN_OUT -> dp >= 0.45f;
             case SINK -> dp >= 0.999f;
             default -> false;
         };
@@ -1046,6 +1105,10 @@ public final class FinisherCinematic implements FightAnimator.FinisherHook {
                 box(ps, br, buf, -0.25f, 0f, -0.26f, 0.5f, 0.36f, 0.52f);
             }
             case BLOB -> box(ps, br, buf, -0.5f, 0f, -0.5f, 1f, 1f, 1f);
+            case FURNACE -> {
+                box(ps, br, buf, -0.55f, 0.55f, -0.55f, 1.1f, 1.1f, 1.1f);
+                box(ps, br, buf, -0.4f, 0f, -0.16f, 0.8f, 0.55f, 0.32f);
+            }
             case SPIDER -> {
                 box(ps, br, buf, -0.12f, 0.24f, -0.2f, 0.46f, 0.32f, 0.4f);
                 box(ps, br, buf, 0.38f, 0.16f, -0.2f, 0.36f, 0.36f, 0.4f);

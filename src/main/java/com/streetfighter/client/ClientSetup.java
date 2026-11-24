@@ -16,6 +16,10 @@ public final class ClientSetup {
     public static final KeyMapping CHALLENGE_KEY = new KeyMapping("key.streetfighter.challenge",
             KeyConflictContext.IN_GAME, InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_E, "key.categories.streetfighter");
 
+    /** Opens the Fight Guide (outside fights; in fights it's in the pause menu). */
+    public static final KeyMapping GUIDE_KEY = new KeyMapping("key.streetfighter.guide",
+            KeyConflictContext.IN_GAME, InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_G, "key.categories.streetfighter");
+
     private ClientSetup() {
     }
 
@@ -39,9 +43,16 @@ public final class ClientSetup {
                 com.streetfighter.client.world.OreGolemRenderer::new);
         event.registerEntityRenderer(com.streetfighter.entity.ModEntities.STONE_PICKAXE.get(),
                 com.streetfighter.client.world.PickaxeRenderer::new);
+        event.registerEntityRenderer(com.streetfighter.entity.ModEntities.COAL_ORE_GOLEM.get(),
+                com.streetfighter.client.world.OreGolemRenderer::new);
+        event.registerEntityRenderer(com.streetfighter.entity.ModEntities.IRON_SWORD.get(),
+                com.streetfighter.client.world.PickaxeRenderer::new);
+        event.registerEntityRenderer(com.streetfighter.entity.ModEntities.FURNACE_GOLEM.get(),
+                com.streetfighter.client.world.FurnaceRenderer::new);
     }
 
     private static void registerKeys(RegisterKeyMappingsEvent event) {
         event.register(CHALLENGE_KEY);
+        event.register(GUIDE_KEY);
     }
 }

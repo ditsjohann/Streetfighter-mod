@@ -132,6 +132,7 @@ public final class WorldFx {
             case REGEN -> net.minecraft.world.item.alchemy.Potions.REGENERATION;
             case HUNGER -> net.minecraft.world.item.alchemy.Potions.WEAKNESS;
             case SUPER_FORM -> net.minecraft.world.item.alchemy.Potions.STRENGTH;
+            case BURN -> net.minecraft.world.item.alchemy.Potions.FIRE_RESISTANCE;
         };
     }
 
@@ -343,6 +344,14 @@ public final class WorldFx {
                         hud.flash = Math.max(hud.flash, 3);
                     }
                     if (at == FighterType.COW && ev.heavy()) sound(SoundEvents.COW_HURT, p, 0.8f, 0.7f);
+                    if (at == FighterType.FURNACE || at == FighterType.COAL_ORE) {
+                        burst(ParticleTypes.FLAME, p, ev.heavy() ? 14 : 6, 0.3, 0.4);
+                        if (ev.heavy()) sound(SoundEvents.FIRECHARGE_USE, p, 0.6f, 1.2f);
+                    }
+                    if (at == FighterType.IRON_SWORD) {
+                        level().addParticle(ParticleTypes.SWEEP_ATTACK, p.x, p.y, p.z, 0, 0, 0);
+                        sound(SoundEvents.PLAYER_ATTACK_SWEEP, p, 0.8f, 1.2f + random.nextFloat() * 0.2f);
+                    }
                     if (at == FighterType.OAK) {
                         burst(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.OAK_LEAVES.defaultBlockState()), p, 10, 0.3, 0.4);
                         if (ev.heavy()) sound(SoundEvents.WOOD_BREAK, p, 1f, 0.7f);
@@ -459,6 +468,21 @@ public final class WorldFx {
                     case MILK -> sound(SoundEvents.COW_MILK, p, 1.2f, 1f);
                     case KI_BLAST -> sound(SoundEvents.FIRECHARGE_USE, p, 0.6f, 2f);
                     case SLIMEBALL -> sound(SoundEvents.SLIME_JUMP_SMALL, p, 1.2f, 1f);
+                    case SWORD -> sound(SoundEvents.PLAYER_ATTACK_SWEEP, p, 1.2f, 1.3f);
+                    case GIANT_SWORD -> {
+                        sound(SoundEvents.TRIDENT_THUNDER.value(), p, 0.8f, 1.2f);
+                        sound(SoundEvents.ANVIL_LAND, p, 0.8f, 0.6f);
+                    }
+                    case FIRE_CHARGE -> sound(SoundEvents.FIRECHARGE_USE, p, 1.2f, 0.9f);
+                    case COAL -> sound(SoundEvents.SNOWBALL_THROW, p, 1f, 0.7f);
+                    case FLAME_PILLAR -> {
+                        Vec3 g = ground(f.x + f.dir() * (f.move != null && f.move.projectile != null ? f.move.projectile.offX : 100));
+                        sound(SoundEvents.BLAZE_SHOOT, g, 1.4f, 0.7f);
+                        burst(ParticleTypes.FLAME, g.add(0, 0.3, 0), 40, 0.5, 1.2);
+                        burst(ParticleTypes.LAVA, g.add(0, 0.3, 0), 8, 0.4, 0.5);
+                        session.fovKick = Math.max(session.fovKick, 0.02f);
+                    }
+                    case MAGMA -> sound(SoundEvents.FIRECHARGE_USE, p, 0.8f, 0.6f);
                     case MINI_SLIME -> {
                         sound(SoundEvents.SLIME_JUMP, p, 1.3f, 1.2f);
                         burst(ParticleTypes.ITEM_SLIME, p, 20, 0.6, 0.4);
@@ -609,6 +633,13 @@ public final class WorldFx {
                 hud.callout("THROW TECH!", ev.fighter() >= 0 ? ev.fighter() : 0, 0xFFFFFFFF);
             }
             case CALLOUT -> {
+                if ("CRITICAL HIT!".equals(ev.text())) {
+                    Vec3 cp = at(ev.x(), ev.y());
+                    burst(ParticleTypes.CRIT, cp, 24, 0.5, 1.0);
+                    sound(SoundEvents.PLAYER_ATTACK_CRIT, cp, 1.3f, 1f);
+                    hud.callout(ev.text(), ev.fighter() >= 0 ? ev.fighter() : 0, 0xFFFFFFFF);
+                    break;
+                }
                 if (ev.text() != null) hud.callout(ev.text(), ev.fighter() >= 0 ? ev.fighter() : 0, 0xFFFFE070);
             }
             case SLAM -> {
@@ -732,6 +763,10 @@ public final class WorldFx {
                 if (e == StatusEffect.POISON) {
                     burst(ParticleTypes.DAMAGE_INDICATOR, p, 1, 0.1, 0.3);
                     sound(SoundEvents.PLAYER_HURT_SWEET_BERRY_BUSH, p, 0.25f, 1.6f);
+                } else if (e == StatusEffect.BURN) {
+                    burst(ParticleTypes.FLAME, p, 5, 0.4, 0.3);
+                    burst(ParticleTypes.SMOKE, p.add(0, 0.4, 0), 2, 0.3, 0.2);
+                    sound(SoundEvents.FIRE_AMBIENT, p, 0.5f, 1.4f);
                 } else if (e == StatusEffect.HUNGER) {
                     burst(new ItemParticleOption(ParticleTypes.ITEM, new ItemStack(Items.ROTTEN_FLESH)), p, 3, 0.2, 0.3);
                 } else if (e == StatusEffect.REGEN) {
@@ -1188,6 +1223,9 @@ public final class WorldFx {
             case SLIME -> SoundEvents.SLIME_JUMP;
             case SPIDER -> SoundEvents.SPIDER_AMBIENT;
             case LEATHERWORKER -> SoundEvents.VILLAGER_WORK_LEATHERWORKER;
+            case IRON_SWORD -> SoundEvents.PLAYER_ATTACK_SWEEP;
+            case FURNACE -> SoundEvents.FURNACE_FIRE_CRACKLE;
+            case COAL_ORE -> SoundEvents.STONE_HIT;
             default -> SoundEvents.PLAYER_ATTACK_SWEEP;
         };
     }

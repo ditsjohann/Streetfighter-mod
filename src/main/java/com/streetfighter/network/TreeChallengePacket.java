@@ -20,7 +20,8 @@ public record TreeChallengePacket(BlockPos pos) {
         ServerPlayer player = ctx.getSender();
         if (player != null) {
             var state = player.serverLevel().getBlockState(msg.pos);
-            if (com.streetfighter.server.OreFights.isIronOre(state)) com.streetfighter.server.OreFights.challenge(player, msg.pos);
+            if (com.streetfighter.server.OreFights.isOre(state)) com.streetfighter.server.OreFights.challenge(player, msg.pos);
+            else if (com.streetfighter.server.FurnaceFights.isFurnace(state)) com.streetfighter.server.FurnaceFights.challenge(player, msg.pos);
             else TreeFights.challenge(player, msg.pos);
         }
         ctx.setPacketHandled(true);

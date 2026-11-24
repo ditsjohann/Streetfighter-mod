@@ -4,6 +4,33 @@ Hostile mobs stop attacking you. To settle things, **hold E on any mob** and the
 eyes into a cinematic side view. You and the mob then fight a real Street Fighter-style 2D battle, **right there in
 the world**, on the actual terrain. Beat a mob and you learn its fighting style.
 
+## New player? Start here
+
+1. **Look at any mob and hold E.** A quick tap of E still opens your inventory.
+2. **Pick a style** with A/D and press **Enter**. If you're new, pick **Steve**.
+3. **Fight!** Your first fight teaches you step by step at the bottom of the screen: move, punch, kick, block and a
+   special move. Each step ticks off when you do it.
+
+| Key | What it does |
+|---|---|
+| **A / D** | walk (hold the key pointing **away** from your opponent to **block**) |
+| **W / S** | jump / crouch |
+| **U I O** | light / medium / heavy punch |
+| **J K L** | light / medium / heavy kick |
+| **H + a direction** | special moves (hold **TAB** in a fight to see yours) |
+| **H + O** | super move, once your SUPER bar is full |
+| **ESC** | pause and full move list (**Q** gives up) |
+| **G** | the **Fight Guide**, outside fights (or from the pause menu) |
+
+- **The Fight Guide (G)** has 10 short chapters: getting started, moving and blocking, attacking, special moves, the
+  super meter, defense, loot, **where to find every fighter**, Ki Clash, and settings.
+- **Help where you need it:**
+  - The first time your super bar fills, a reminder tells you how to use it.
+  - After a loss, the results screen shows a beginner tip.
+  - New players get a "pick Steve" hint on the select screen.
+  - `/streetfighter help` prints the basics in chat.
+- **Training tips can be turned off** from the pause menu with **T**.
+
 ## Features
 
 - **In-world fights.** The fight runs on a 2D line through the real terrain between you and the mob.
@@ -56,6 +83,9 @@ the world**, on the actual terrain. Beat a mob and you learn its fighting style.
   | Oak Tree | **twice the tree's logs** plus extra, saplings, apples, sticks, a rare golden apple |
   | Iron Ore | **2 raw iron per ore in the vein** + 4–8 extra, cobblestone, iron ingots, maybe a raw iron block |
   | Stone Pickaxe | an enchanted stone pickaxe (Efficiency + Unbreaking) plus a plain one, cobblestone, sticks |
+  | Iron Sword | an enchanted iron sword (Sharpness + Sweeping Edge) plus a plain one, iron ingots, sticks |
+  | Furnace | **everything it was smelting**, the furnace itself, coal, charcoal, iron ingots, cooked beef, maybe gold |
+  | Coal Ore | **2 coal per ore in the vein** + 4–8 extra, cobblestone, torches, maybe a coal block or (rarely) a diamond |
   | Zombie | a pile of rotten flesh, iron ingots, carrots, potatoes, a rare zombie head |
   | Cow | 8–12 beef, 6–10 leather, a bucket of milk |
   | Donkey | leather, chests, apples, golden carrots, maybe a saddle |
@@ -84,6 +114,11 @@ the world**, on the actual terrain. Beat a mob and you learn its fighting style.
   - **Win:** you get the pickaxe (enchanted!) plus a spare.
   - **Exempt:** creative mode.
   - **Config:** turn it off with `stonePickaxeChallenge`.
+- **Coal ore and furnaces fight too.** Hold E on coal ore and its vein tears out as a smouldering coal golem. Hold E
+  on a furnace, smoker or blast furnace and it hops off its spot with whatever it was smelting. Lose or back out, and
+  it climbs back in **with its contents untouched**.
+- **Iron swords fight back.** Like the stone pickaxe, taking an iron sword out of a crafting table makes it draw itself
+  and fight you (config: `ironSwordChallenge`).
 - **Learn styles by winning.** Defeat a Skeleton, Pig, plain Villager, Chicken, Cleric villager (the Alchemist), Goat, Oak Tree, Iron Ore,
   Stone Pickaxe, Zombie, Cow, Donkey, Creeper, Slime or Spider and its style becomes selectable. Beat a Leatherworker
   villager (in Ki Clash) to learn his Ki Clash style.
@@ -122,6 +157,9 @@ Every style has a Street Fighter–sized kit (~44 moves each):
 | **Cow** | Milk Splash 236P, Moo-percut 623P, Cattle Charge 236K (armored), Milk Break 214K (cleanses your debuffs + regen); Back Buck 4HK wall-splats | Cattle Drive, Milk Flood, Mooonshot |
 | **Donkey** | Chest Toss 236P, Hee-Haw! 623P (sonic bray burst), Pack Mule Charge 236K, Rummage 214K (pulls a random fight item from its saddlebag); Donkey Kick 4HK | Caravan, Treasure Rain, Kick of the Century |
 | **Creeper** | Gunpowder Toss 236P, Rocket Jump 623P, Creep Up 236K (silent low dash), Short Fuse 214P (huge blast); explosions also hurt the creeper | Chain Reaction, Creeper Swarm, Charged Creeper |
+| **Iron Sword** | Sword Toss 236P, Rising Slash 623P, Lunge Thrust 236K (wall-splats on H/EX), Sweeping Edge 214K (low) | Sword Storm, Thousand Cuts, Smite (a giant sword from the sky) |
+| **Furnace** | Fire Charge 236P, Flame Geyser 623P, Smelt Down 63214P (command grab), Hot Coals 214K (a burning patch on the ground) | Blast Furnace, Smoker, Meltdown |
+| **Coal Ore** | Coal Toss 236P, Ember Uppercut 623P, Soot Cloud 214P (slows), Stoke the Fire 214K (damage buff) | Coal Rain, Firedamp, Diamond Pressure |
 | **Slime** | Slimeball 236P (bouncing, slows), Boing Uppercut 623P, Goo Slide 236K (low, slows), Belly Flop 214P (overhead, armored) | Slime Rain, Mitosis, King Slime Crush |
 | **Spider** | Web Shot 236P (slows), Pounce 623P, Venom Lunge 236K (poisons), Web Trap 214P (a sticky web on the ground) | Web Prison, Brood Swarm, Eight-Leg Frenzy |
 | **Goat** | Ram Charge 236P (wall-splats on H/EX, armored EX), Horn Toss 623P, Screaming Bleat 214P (low shockwave that slows), Goat Leap 214K (overhead) | Avalanche, Herd Charge, Peak Breaker |
@@ -158,6 +196,12 @@ The pause menu (ESC) shows the full move list for your style.
 
 - **Slime: Bouncing Blob.** Hold **W** when you land from a jump to **BOING** straight into a higher jump, twice
   in a row. Sticky slimeballs, slides and traps slow you down; Mitosis splits off mini slimes that hop at you.
+- **Iron Sword: Blade Dancer.** The longest reach in the game, but fragile. Falling jump attacks are
+  **CRITICAL HITS** (+40%), like Minecraft's own crits.
+- **Furnace: Smelter.** A slow, heavy fire grappler. Its fire sets you **BURNING** (quick damage over time that never
+  K.O.s on its own), Hot Coals leaves a burning patch, and Smelt Down grabs you.
+- **Coal Ore: Black Rock.** Burning coal, soot clouds that slow, and Stoke the Fire for extra damage. Its level 3
+  super **Diamond Pressure** crushes it into diamond: its ore and fists turn to diamond while it's powered up.
 - **Spider: Wall Crawler.** Low, fast and fragile. **Web Zip:** press W again in mid-air to shoot a silk line and
   yank yourself along. Webs slow you, fangs and lunges poison you, and Web Trap leaves a sticky web on the ground.
   Spiders and cave spiders both fight in this style.
@@ -214,6 +258,9 @@ The match-winning K.O. plays an 8 to 9 second Mortal Kombat style cinematic, **s
 | Slime | *Split up* | Jiggles, flattens, then splits into bouncing slime cubes and slimeballs (it has no bones, only a gooey core) |
 | Spider | *Curled up* | Flips onto its back, legs flailing, then curls up; string and spider eyes fly |
 | Leatherworker | *Tanned hide* | Collapses while his leather armor, leather and saddle go flying |
+| Iron Sword | *Broken blade* | Shatters into iron nuggets; the sword spins away |
+| Furnace | *Burnt out* | Sputters smoke, then crumbles into cobblestone, magma and charcoal (x-ray: a glowing magma core) |
+| Coal Ore | *Crumbled* | Breaks into stone, coal ore and coal blocks in a cloud of smoke |
 
 - **Config:** turn it off with `xrayFinishers`.
 
@@ -340,7 +387,7 @@ Settings are in `config/streetfighter-common.toml`: peaceful mobs, challenge ran
 Requires Java 21.
 
 ```bash
-./gradlew build        # mod jar -> build/libs/streetfighter-0.11.0.jar
+./gradlew build        # mod jar -> build/libs/streetfighter-0.12.0.jar
 ./gradlew runClient    # launch a dev client with the mod
 ```
 

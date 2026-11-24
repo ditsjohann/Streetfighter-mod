@@ -339,6 +339,9 @@ public final class FightEngine {
             if (e == StatusEffect.POISON && left % 20 == 0) {
                 f.hp = Math.max(1, f.hp - 7);
                 events.add(FightEvent.text(Type.STATUS_TICK, f.index, f.x, f.y + f.hurtHeight() * 0.6f, e.name()));
+            } else if (e == StatusEffect.BURN && left % 20 == 0) {
+                f.hp = Math.max(1, f.hp - 4);
+                events.add(FightEvent.text(Type.STATUS_TICK, f.index, f.x, f.y + f.hurtHeight() * 0.6f, e.name()));
             } else if (e == StatusEffect.SUPER_FORM) {
                 f.meter = Math.min(Fighter.MAX_METER, f.meter + 0.35f);
             } else if (e == StatusEffect.HUNGER) {
@@ -1327,6 +1330,11 @@ public final class FightEngine {
         float scale = SCALING[Math.min(d.comboTaken, SCALING.length - 1)];
         if (h.superHit) scale = Math.max(scale, 0.5f);
         float dmg = h.damage * scale * a.damageScale * strengthMul(a) * (counter != null ? 1.2f : 1f);
+        // Iron Sword: falling jump attacks are critical hits, like Minecraft's own crits
+        if (melee && a.moves.critJumps && !a.grounded() && a.vy < 0 && a.move != null && a.move.air) {
+            dmg *= 1.4f;
+            events.add(FightEvent.text(Type.CALLOUT, a.index, px, py, "CRITICAL HIT!"));
+        }
         giveStatus(d, h.effect, h.effectFrames);
         d.hp = Math.max(0, d.hp - dmg);
         d.comboTaken++;

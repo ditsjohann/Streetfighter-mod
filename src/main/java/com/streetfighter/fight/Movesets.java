@@ -38,6 +38,9 @@ public final class Movesets {
         SETS.put(FighterType.CREEPER, creeper());
         SETS.put(FighterType.SLIME, slime());
         SETS.put(FighterType.SPIDER, spider());
+        SETS.put(FighterType.IRON_SWORD, ironSword());
+        SETS.put(FighterType.FURNACE, furnace());
+        SETS.put(FighterType.COAL_ORE, coalOre());
         SETS.put(FighterType.BRAWLER, brawler());
     }
 
@@ -1297,6 +1300,200 @@ public final class Movesets {
                 .multiHit(12, 5).dash(10f, 7, 14).invuln(0, 12).lockOnHit().wallSplat()
                 .hitEffect(StatusEffect.POISON, 300).pose(AnimPose.RUSH).callout("EIGHT-LEG FRENZY!").build()));
         universals(m, "Wrap Up", "Silk Toss", 112);
+        return m;
+    }
+
+    // =====================================================================================================
+    // IRON SWORD: the longest reach in the game, fast and fragile. Falling jump attacks are CRITICAL HITS.
+    // =====================================================================================================
+
+    private static Moveset ironSword() {
+        FighterStats stats = new FighterStats(900, 3.8f, 3.3f, 15.5f, 4.6f, 0.75f, 40, 124, 84);
+        Moveset m = new Moveset(FighterType.IRON_SWORD, stats);
+        m.critJumps = true;
+        Tune t = new Tune(-1, 18, 1.05f, 1f, 4);
+        normals(m, t, new String[]{"Pommel Jab", "Quick Slash", "Heavy Slash", "Hilt Tap", "Edge Kick", "Spin Slash",
+                "Low Poke", "Gut Slash", "Rising Edge", "Ankle Tap", "Low Thrust", "Low Sweep",
+                "Air Jab", "Air Slash", "Plunge", "Air Tap", "Air Cut", "Falling Edge"});
+        m.commandNormals.add(new Moveset.CommandNormal(6, Button.HP,
+                commandNormal("Overhead Chop", AnimPose.OVERHEAD, 17, 3, 17, 66, 10, 105, 70, 145, HitLevel.HIGH)));
+        m.commandNormals.add(new Moveset.CommandNormal(3, Button.HK,
+                commandNormal("Ankle Cutter", AnimPose.SWEEP, 9, 4, 22, 68, 15, 135, 0, 24, HitLevel.LOW)
+                        .toBuilder().knockdown().crouching().build()));
+        Move dance = Move.builder("Sword Dance").kind(Kind.TARGET).frames(6, 10, 16).damage(30).box(10, 110, 40, 120)
+                .stun(18, 12).push(3).multiHit(3, 4).cancelable().pose(AnimPose.HOOK).build();
+        m.targetCombos.add(new Moveset.TargetCombo(m.stand.get(Button.MP), Button.MP, dance));
+
+        m.specials.add(new Moveset.Special("Sword Toss", Motion.QCF, false, Role.PROJECTILE, 5, variants(s -> Move.builder("")
+                .frames(pick(s, 13, 12, 11, 11), 2, pick(s, 25, 24, 23, 21)).damage(0).box(0, 0, 0, 0)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.SWORD).velocity(pick(s, 9f, 11f, 13f, 12f), 0f)
+                        .size(50, 30).offset(30, 95).damage(pick(s, 62f, 66f, 70f, 46f)).stun(20, 13).push(5).spin()
+                        .multiHit(s == 3 ? 3 : 1, 6).durable().lifetime(90).build(), pick(s, 13, 12, 11, 11))
+                .pose(AnimPose.THROW), "Sword Toss")));
+        m.specials.add(new Moveset.Special("Rising Slash", Motion.DP, false, Role.ANTI_AIR, 6, variants(s -> Move.builder("")
+                .frames(3, pick(s, 12, 14, 16, 16), pick(s, 22, 25, 28, 24)).damage(pick(s, 98f, 56f, 42f, 46f))
+                .box(0, 80, 50, 175).stun(27, 16).push(3).launch(12).knockdown().multiHit(pick(s, 1, 2, 3, 3), 5)
+                .leap(pick(s, 12f, 14f, 16f, 16f), 2f, 3).invuln(0, pick(s, 4, 5, 6, 12)).landingLag(14)
+                .pose(AnimPose.UPPERCUT), "Rising Slash")));
+        m.specials.add(new Moveset.Special("Lunge Thrust", Motion.QCF, true, Role.RUSH, 4, variants(s -> {
+            Move.Builder b = Move.builder("").frames(pick(s, 10, 11, 12, 9), 10, pick(s, 20, 22, 24, 18))
+                    .damage(pick(s, 78f, 86f, 94f, 104f)).box(10, 120, 60, 110).stun(22, 14).push(9).stopOnHit()
+                    .dash(pick(s, 10f, 12f, 14f, 14f), pick(s, 10, 11, 12, 9), pick(s, 20, 21, 22, 19)).pose(AnimPose.LUNGE);
+            if (s >= 2) b.wallSplat().knockdown().launch(5);
+            return b;
+        }, "Lunge Thrust")));
+        m.specials.add(new Moveset.Special("Sweeping Edge", Motion.QCB, true, Role.LOW, 2, variants(s -> Move.builder("")
+                .frames(10, 8, pick(s, 22, 24, 26, 20)).damage(pick(s, 40f, 44f, 48f, 52f)).box(-40, 140, 0, 50)
+                .level(HitLevel.LOW).stun(20, 13).push(6).knockdown().multiHit(2, 4).crouching()
+                .pose(AnimPose.SWEEP), "Sweeping Edge")));
+
+        m.supers.add(new Moveset.Super(1, Motion.QCF2, false, Move.builder("Sword Storm").superLevel(1)
+                .frames(14, 2, 40).damage(0).box(0, 0, 0, 0).invuln(0, 14)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.SWORD).velocity(0f, -16f).size(30, 60)
+                        .damage(48).stun(18, 12).push(3).count(7, 6).fromSky(180, 520).lifetime(90).build(), 14)
+                .pose(AnimPose.SHOOT_UP).callout("SWORD STORM!").build()));
+        m.supers.add(new Moveset.Super(2, Motion.QCB2, false, Move.builder("Thousand Cuts").superLevel(2)
+                .frames(6, 60, 30).damage(30).box(5, 120, 40, 130).stun(28, 12).push(0.5f).launch(13).knockdown()
+                .multiHit(11, 5).dash(11f, 6, 12).invuln(0, 10).lockOnHit().wallSplat().pose(AnimPose.RUSH)
+                .callout("THOUSAND CUTS!").build()));
+        m.supers.add(new Moveset.Super(3, Motion.QCF2, true, Move.builder("Smite").superLevel(3)
+                .frames(20, 2, 40).damage(0).box(0, 0, 0, 0).invuln(0, 24)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.GIANT_SWORD).velocity(0f, -24f).size(90, 260)
+                        .damage(330).stun(40, 24).push(10).launch(12).knockdown().wallSplat().fromSky(0, 700)
+                        .lifetime(60).build(), 20)
+                .pose(AnimPose.SHOOT_UP).callout("SMITE!").build()));
+        universals(m, "Disarm", "Hilt Toss", 108);
+        return m;
+    }
+
+    // =====================================================================================================
+    // FURNACE: a slow, heavy grappler that sets you on fire (BURNING ticks damage over time).
+    // =====================================================================================================
+
+    private static Moveset furnace() {
+        FighterStats stats = new FighterStats(1060, 2.8f, 2.4f, 13.5f, 3.8f, 0.8f, 58, 118, 90);
+        Moveset m = new Moveset(FighterType.FURNACE, stats);
+        Tune t = new Tune(1, 2, 0.95f, 0.95f, 2);
+        normals(m, t, new String[]{"Door Jab", "Hot Punch", "Blast Punch", "Stomp", "Ember Kick", "Furnace Slam",
+                "Low Jab", "Coal Punch", "Steam Uppercut", "Toe Stomp", "Ash Poke", "Hearth Sweep",
+                "Air Jab", "Air Punch", "Anvil Drop", "Air Stomp", "Air Kick", "Brick Dive"});
+        m.commandNormals.add(new Moveset.CommandNormal(6, Button.HP,
+                commandNormal("Lid Slam", AnimPose.OVERHEAD, 19, 3, 19, 72, 10, 85, 70, 140, HitLevel.HIGH)
+                        .toBuilder().hitEffect(StatusEffect.BURN, 90).build()));
+        m.commandNormals.add(new Moveset.CommandNormal(3, Button.HK,
+                commandNormal("Ash Sweep", AnimPose.SWEEP, 11, 4, 24, 72, 15, 110, 0, 26, HitLevel.LOW)
+                        .toBuilder().knockdown().crouching().build()));
+        Move stoke = Move.builder("Stoke Combo").kind(Kind.TARGET).frames(8, 3, 18).damage(74).box(12, 90, 56, 118)
+                .stun(21, 15).push(7).cancelable().hitEffect(StatusEffect.BURN, 90).pose(AnimPose.HOOK).build();
+        m.targetCombos.add(new Moveset.TargetCombo(m.stand.get(Button.MP), Button.HP, stoke));
+
+        m.specials.add(new Moveset.Special("Fire Charge", Motion.QCF, false, Role.PROJECTILE, 5, variants(s -> Move.builder("")
+                .frames(pick(s, 16, 15, 14, 13), 2, pick(s, 30, 29, 28, 24)).damage(0).box(0, 0, 0, 0)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.FIRE_CHARGE).velocity(pick(s, 5.5f, 6.5f, 7.5f, 8f), 0f)
+                        .size(34, 34).offset(30, 80).damage(pick(s, 46f, 50f, 54f, 40f)).stun(18, 12).push(5)
+                        .effect(StatusEffect.BURN, s == 3 ? 140 : 60).count(s == 3 ? 2 : 1, 10).lifetime(150).build(),
+                        pick(s, 14, 13, 12, 12))
+                .pose(AnimPose.SHOOT), "Fire Charge")));
+        m.specials.add(new Moveset.Special("Flame Geyser", Motion.DP, false, Role.ANTI_AIR, 6, variants(s -> Move.builder("")
+                .frames(pick(s, 10, 12, 14, 9), 2, pick(s, 26, 28, 30, 24)).damage(0).box(0, 0, 0, 0).invuln(0, s == 3 ? 10 : 0)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.FLAME_PILLAR).velocity(0f, 0f)
+                        .size(s == 3 ? 110 : 70, 190).offset(pick(s, 60f, 110f, 160f, 100f), 0)
+                        .damage(pick(s, 84f, 90f, 96f, 104f)).stun(28, 16).push(3).launch(12).knockdown()
+                        .effect(StatusEffect.BURN, 120).durable().lifetime(28).build(), pick(s, 10, 12, 14, 9))
+                .pose(AnimPose.STOMP), "Flame Geyser")));
+        m.specials.add(new Moveset.Special("Smelt Down", Motion.HCB, false, Role.GRAB, 4, variants(s -> Move.builder("")
+                .frames(pick(s, 8, 9, 10, 7), 3, 38).damage(pick(s, 112f, 122f, 132f, 160f))
+                .box(5, pick(s, 76, 86, 96, 90), 20, 140).level(HitLevel.GRAB).stun(32, 0).push(10).launch(9).knockdown()
+                .hitEffect(StatusEffect.BURN, 240).invuln(s == 3 ? 0 : -1, s == 3 ? 7 : -1).pose(AnimPose.GRAB)
+                .callout(s == 3 ? "EX Smelt Down!" : "SMELTED!"), "Smelt Down")));
+        m.specials.add(new Moveset.Special("Hot Coals", Motion.QCB, true, Role.TRAP, 2, variants(s -> Move.builder("")
+                .frames(14, 2, pick(s, 22, 24, 26, 22)).damage(0).box(0, 0, 0, 0)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.MAGMA).velocity(0f, 0f).size(120, 40)
+                        .offset(pick(s, 100f, 160f, 220f, 160f), 0).damage(4).stun(10, 6).multiHit(99, 40)
+                        .effect(StatusEffect.BURN, 50).aura().lifetime(pick(s, 200, 230, 260, 320)).build(), 14)
+                .pose(AnimPose.THROW), "Hot Coals")));
+
+        m.supers.add(new Moveset.Super(1, Motion.QCF2, false, Move.builder("Blast Furnace").superLevel(1)
+                .frames(12, 2, 38).damage(0).box(0, 0, 0, 0).invuln(0, 12)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.FIRE_CHARGE).velocity(9f, 0f).size(40, 40).offset(30, 80)
+                        .damage(50).stun(20, 12).push(4).launch(6).effect(StatusEffect.BURN, 180).count(5, 6)
+                        .lifetime(120).build(), 12)
+                .pose(AnimPose.SHOOT).callout("BLAST FURNACE!").build()));
+        m.supers.add(new Moveset.Super(2, Motion.QCB2, false, Move.builder("Smoker").superLevel(2)
+                .frames(14, 2, 34).damage(0).box(0, 0, 0, 0).invuln(0, 14)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.CLOUD).velocity(1.6f, 0f).size(170, 150).offset(80, 0)
+                        .damage(10).stun(16, 8).multiHit(99, 14).effect(StatusEffect.BURN, 200).aura().lifetime(240).build(), 14)
+                .pose(AnimPose.SCREAM).callout("SMOKER!").build()));
+        m.supers.add(new Moveset.Super(3, Motion.QCF2, true, Move.builder("Meltdown").superLevel(3)
+                .frames(6, 3, 44).damage(360).box(5, 100, 20, 150).level(HitLevel.GRAB).stun(44, 0).push(12).launch(14)
+                .knockdown().wallSplat().hitEffect(StatusEffect.BURN, 420).invuln(0, 10).pose(AnimPose.GRAB)
+                .callout("MELTDOWN!").build()));
+        universals(m, "Shovel In", "Ash Out", 118);
+        return m;
+    }
+
+    // =====================================================================================================
+    // COAL ORE: a hot-headed rock golem. Burning coal, soot clouds, and Diamond Pressure turns it into diamond.
+    // =====================================================================================================
+
+    private static Moveset coalOre() {
+        FighterStats stats = new FighterStats(1160, 3.4f, 3.0f, 14.5f, 4.4f, 0.75f, 54, 132, 90);
+        Moveset m = new Moveset(FighterType.COAL_ORE, stats);
+        Tune t = new Tune(-1, 10, 1.18f, 1f, 2);
+        normals(m, t, new String[]{"Coal Jab", "Lump Punch", "Black Hook", "Pebble Kick", "Coal Kick", "Seam Kick",
+                "Low Jab", "Soot Punch", "Ember Rise", "Grit Kick", "Low Poke", "Slag Sweep",
+                "Air Jab", "Air Lump", "Coal Drop", "Air Toe", "Air Kick", "Mine Dive"});
+        m.commandNormals.add(new Moveset.CommandNormal(6, Button.HP,
+                commandNormal("Hard Coal", AnimPose.OVERHEAD, 18, 3, 18, 68, 10, 90, 70, 145, HitLevel.HIGH)));
+        m.commandNormals.add(new Moveset.CommandNormal(3, Button.HK,
+                commandNormal("Slag Trip", AnimPose.SWEEP, 10, 4, 22, 70, 15, 112, 0, 26, HitLevel.LOW)
+                        .toBuilder().knockdown().crouching().build()));
+        Move vein = Move.builder("Vein Combo").kind(Kind.TARGET).frames(8, 3, 18).damage(72).box(12, 92, 56, 120)
+                .stun(21, 15).push(7).cancelable().pose(AnimPose.HOOK).build();
+        m.targetCombos.add(new Moveset.TargetCombo(m.stand.get(Button.MP), Button.HP, vein));
+
+        m.specials.add(new Moveset.Special("Coal Toss", Motion.QCF, false, Role.PROJECTILE, 5, variants(s -> Move.builder("")
+                .frames(pick(s, 13, 12, 11, 11), 2, pick(s, 24, 23, 22, 21)).damage(0).box(0, 0, 0, 0)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.COAL)
+                        .velocity(pick(s, 8f, 10f, 12f, 10f), pick(s, 2.5f, 2f, 1.5f, 2.5f)).gravity(0.12f).size(30, 30)
+                        .offset(28, 100).damage(pick(s, 58f, 62f, 66f, 44f)).stun(19, 13).push(5).spin()
+                        .effect(StatusEffect.BURN, s == 3 ? 150 : 90).count(s == 3 ? 3 : 1, 8).lifetime(150).build(),
+                        pick(s, 13, 12, 11, 11))
+                .pose(AnimPose.THROW), "Coal Toss")));
+        m.specials.add(new Moveset.Special("Ember Uppercut", Motion.DP, false, Role.ANTI_AIR, 6, variants(s -> Move.builder("")
+                .frames(4, pick(s, 12, 14, 16, 16), pick(s, 22, 25, 28, 26)).damage(pick(s, 98f, 56f, 42f, 50f))
+                .box(0, 60, 50, 165).stun(28, 16).push(3).launch(11).knockdown().multiHit(pick(s, 1, 2, 3, 3), 5)
+                .leap(pick(s, 11f, 13f, 15f, 15f), 2f, 3).invuln(0, pick(s, 4, 5, 6, 12)).landingLag(14)
+                .hitEffect(StatusEffect.BURN, pick(s, 90, 110, 130, 180)).pose(AnimPose.UPPERCUT), "Ember Uppercut")));
+        m.specials.add(new Moveset.Special("Soot Cloud", Motion.QCB, false, Role.TRAP, 2, variants(s -> Move.builder("")
+                .frames(15, 2, pick(s, 24, 26, 28, 24)).damage(0).box(0, 0, 0, 0)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.CLOUD).velocity(pick(s, 0.5f, 0.9f, 1.3f, 1f), 0f)
+                        .size(s == 3 ? 150 : 120, 120).offset(pick(s, 90f, 150f, 210f, 150f), 0).damage(4)
+                        .multiHit(99, 20).effect(StatusEffect.SLOW, 120).aura().lifetime(pick(s, 160, 190, 220, 260)).build(), 15)
+                .pose(AnimPose.THROW), "Soot Cloud")));
+        m.specials.add(new Moveset.Special("Stoke the Fire", Motion.QCB, true, Role.BUFF, 4, variants(s -> Move.builder("")
+                .frames(14, 1, 12).damage(0).box(0, 0, 0, 0).selfEffect(pick(s, 360, 420, 480, 660), StatusEffect.STRENGTH)
+                .pose(AnimPose.SCREAM).callout(s == 3 ? "BLAZING!" : "STOKED!"), "Stoke the Fire")));
+
+        m.supers.add(new Moveset.Super(1, Motion.QCF2, false, Move.builder("Coal Rain").superLevel(1)
+                .frames(14, 2, 40).damage(0).box(0, 0, 0, 0).invuln(0, 14)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.COAL).velocity(0f, -13f).size(28, 28)
+                        .damage(46).stun(18, 12).push(3).effect(StatusEffect.BURN, 90).count(7, 6).fromSky(180, 520)
+                        .lifetime(90).build(), 14)
+                .pose(AnimPose.SHOOT_UP).callout("COAL RAIN!").build()));
+        m.supers.add(new Moveset.Super(2, Motion.QCB2, false, Move.builder("Firedamp").superLevel(2)
+                .frames(24, 2, 36).damage(0).box(0, 0, 0, 0).invuln(0, 26)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.BLAST).velocity(0f, 0f).size(30, 30).offset(30, 70)
+                        .damage(190).stun(32, 20).push(12).launch(11).knockdown().explodes().blast(260)
+                        .effect(StatusEffect.BURN, 200).lifetime(1).build(), 24)
+                .pose(AnimPose.SUMMON).callout("FIREDAMP!").build()));
+        m.supers.add(new Moveset.Super(3, Motion.QCF2, true, Move.builder("Diamond Pressure").superLevel(3)
+                .frames(34, 2, 30).damage(0).box(0, 0, 0, 0).invuln(0, 40)
+                .selfEffect(480, StatusEffect.SUPER_FORM, StatusEffect.REGEN)
+                .projectile(ProjectileSpec.builder(ProjectileVisual.BLAST).velocity(0f, 0f).size(30, 30).offset(0, 70)
+                        .damage(140).stun(30, 18).push(14).launch(12).knockdown().explodes().blast(280).lifetime(1).build(), 34)
+                .pose(AnimPose.SCREAM).callout("DIAMOND PRESSURE!").build()));
+        universals(m, "Mine Cart", "Shaft Drop", 112);
         return m;
     }
 

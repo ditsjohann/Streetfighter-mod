@@ -109,7 +109,8 @@ public final class FightAnimator {
 
     public static Body bodyOf(LivingEntity e) {
         var renderer = net.minecraft.client.Minecraft.getInstance().getEntityRenderDispatcher().getRenderer(e);
-        if ((Object) renderer instanceof TreantRenderer || (Object) renderer instanceof OreGolemRenderer) return Body.TREE;
+        if ((Object) renderer instanceof TreantRenderer || (Object) renderer instanceof OreGolemRenderer
+                || (Object) renderer instanceof FurnaceRenderer) return Body.TREE;
         if ((Object) renderer instanceof PickaxeRenderer) return Body.TOOL;
         if (renderer instanceof net.minecraft.client.renderer.entity.LivingEntityRenderer<?, ?> ler) {
             Object m = ler.getModel();

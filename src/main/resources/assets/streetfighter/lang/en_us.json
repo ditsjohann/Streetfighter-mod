@@ -3,5 +3,9 @@
   "key.streetfighter.challenge": "Challenge Mob (hold)",
   "entity.streetfighter.oak_treant": "Oak Tree",
   "entity.streetfighter.iron_ore_golem": "Iron Ore",
-  "entity.streetfighter.stone_pickaxe": "Stone Pickaxe"
+  "entity.streetfighter.stone_pickaxe": "Stone Pickaxe",
+  "key.streetfighter.guide": "Open Fight Guide",
+  "entity.streetfighter.coal_ore_golem": "Coal Ore",
+  "entity.streetfighter.iron_sword": "Iron Sword",
+  "entity.streetfighter.furnace_golem": "Furnace"
 }

@@ -11,7 +11,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 
-/** An iron ore vein that pulled itself out of the rock as a stone golem; sinks back in unless mined (beaten). */
+/** An ore vein (iron or coal) that pulled itself out of the rock as a stone golem; sinks back in unless mined (beaten). */
 public class OreGolemEntity extends BlockBodyEntity {
     public OreGolemEntity(EntityType<? extends OreGolemEntity> type, Level level) {
         super(type, level);
@@ -19,13 +19,21 @@ public class OreGolemEntity extends BlockBodyEntity {
 
     /** True if the vein came out of deepslate (drawn darker). */
     public boolean deepslate() {
-        for (TreeBlock b : blocks) if (b.state().is(Blocks.DEEPSLATE_IRON_ORE)) return true;
+        for (TreeBlock b : blocks) {
+            if (b.state().is(Blocks.DEEPSLATE_IRON_ORE) || b.state().is(Blocks.DEEPSLATE_COAL_ORE)) return true;
+        }
         return false;
+    }
+
+    /** True for a coal golem. */
+    public boolean coal() {
+        return getType() == ModEntities.COAL_ORE_GOLEM.get();
     }
 
     @Override
     protected void restoreEffects(ServerLevel sl) {
-        sl.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.IRON_ORE.defaultBlockState()),
+        sl.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK,
+                        (coal() ? Blocks.COAL_ORE : Blocks.IRON_ORE).defaultBlockState()),
                 getX(), getY() + 1, getZ(), 50, 0.6, 0.8, 0.6, 0.1);
         sl.playSound(null, origin, SoundEvents.STONE_PLACE, SoundSource.BLOCKS, 1.4f, 0.6f);
     }

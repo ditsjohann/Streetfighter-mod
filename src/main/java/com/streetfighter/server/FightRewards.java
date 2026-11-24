@@ -154,6 +154,38 @@ public final class FightRewards {
                 Item[] armor = {Items.LEATHER_HELMET, Items.LEATHER_CHESTPLATE, Items.LEATHER_LEGGINGS, Items.LEATHER_BOOTS};
                 bag.stacks.add(new ItemStack(armor[r.nextInt(armor.length)]));
             }
+            case IRON_SWORD -> {
+                ItemStack sword = new ItemStack(Items.IRON_SWORD);
+                var enchants = level.registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT);
+                sword.enchant(enchants.getHolderOrThrow(net.minecraft.world.item.enchantment.Enchantments.SHARPNESS),
+                        difficulty == AIDifficulty.HARD ? 3 : 2);
+                sword.enchant(enchants.getHolderOrThrow(net.minecraft.world.item.enchantment.Enchantments.SWEEPING_EDGE), 1);
+                bag.stacks.add(sword);
+                bag.add(Items.IRON_SWORD, 1, 1);
+                bag.add(Items.IRON_INGOT, 2, 4);
+                bag.add(Items.STICK, 2, 4);
+            }
+            case FURNACE -> {
+                if (mob instanceof com.streetfighter.entity.FurnaceGolemEntity fg) {
+                    bag.stacks.addAll(fg.contents()); // whatever it was smelting, untouched by the multiplier
+                    bag.stacks.add(new ItemStack(fg.furnaceState().getBlock().asItem()));
+                } else {
+                    bag.add(Items.FURNACE, 1, 1);
+                }
+                bag.add(Items.COAL, 4, 8);
+                bag.add(Items.CHARCOAL, 2, 5);
+                bag.add(Items.IRON_INGOT, 2, 5);
+                bag.add(Items.COOKED_BEEF, 2, 4);
+                bag.chance(Items.GOLD_INGOT, 0.4f);
+            }
+            case COAL_ORE -> {
+                int vein = mob instanceof com.streetfighter.entity.BlockBodyEntity b ? Math.max(1, b.blockCount()) : 3;
+                bag.add(Items.COAL, vein * 2 + 4, vein * 2 + 8); // way more than mining it
+                bag.add(Items.COBBLESTONE, 6, 12);
+                bag.add(Items.TORCH, 8, 16);
+                bag.chance(Items.COAL_BLOCK, 0.12f);
+                bag.chance(Items.DIAMOND, 0.03f); // under enough pressure...
+            }
             case ZOMBIE -> {
                 bag.add(Items.ROTTEN_FLESH, 10, 16);
                 bag.add(Items.IRON_INGOT, 1, 3);

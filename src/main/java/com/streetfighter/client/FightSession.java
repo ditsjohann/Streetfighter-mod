@@ -83,6 +83,10 @@ public final class FightSession {
     private int syncTimer;
     private FightInput pendingInput = new FightInput();
     public final HudState hud = new HudState();
+    /** First-fight training and one-time tips. */
+    public final Coach coach = new Coach();
+    private com.streetfighter.fight.ai.FighterAI enemyAi;
+    private boolean trainingMode;
 
     /** Small bits of HUD state that need per-step timing (callouts, flashes, cut-ins). */
     public static final class HudState {
@@ -250,10 +254,13 @@ public final class FightSession {
                 kiMode ? 1f : info.hpScale(), kiMode ? 1f : info.damageScale());
         FighterAI ai = kiMode ? new com.streetfighter.fight.ai.KiAI(difficulty) : FighterAI.create(enemyType, difficulty);
         ai.passive = info.training();
+        this.enemyAi = ai;
+        this.trainingMode = info.training();
         engine = new FightEngine(player, enemy, ai, difficulty, minX(), maxX(), startSeparation, arena);
         engine.training = info.training();
         engine.kiMode = kiMode;
         this.ki = kiMode ? new KiDirector(this) : null;
+        coach.setKiMode(kiMode);
         stage = Stage.FIGHT;
         lastNanos = System.nanoTime();
         accumulator = 0;
@@ -294,6 +301,8 @@ public final class FightSession {
         time += dt;
         lastDt = dt;
 
+        // first-fight training: the opponent waits while you practise (it attacks for the BLOCK lesson)
+        if (enemyAi != null && !trainingMode) enemyAi.passive = coach.enemyWaits();
         if (stage == Stage.FIGHT && !paused) {
             accumulator += dt * timeScale();
             int steps = 0;
@@ -304,6 +313,7 @@ public final class FightSession {
                 FightInput in = screen != null ? screen.pollInput() : new FightInput();
                 engine.step(in);
                 fx.process(engine.events);
+                coach.observe(engine, engine.events, (float) STEP);
                 engine.events.clear();
                 fx.stepTrails();
                 hud.step();
@@ -350,6 +360,7 @@ public final class FightSession {
             if (finisher.active(time)) hud.flash = 0; // the K.O. flash would wash out the cinematic afterwards
         }
         if (ki != null && !paused) ki.tick(time, dt);
+        if (!paused) coach.tick(dt);
         animate(player, enemyEntity, dt);
         fovKick = Math.max(0, fovKick - dt * 0.4f);
         fx.frame(dt);
@@ -362,7 +373,7 @@ public final class FightSession {
         if (stage == Stage.OUTRO && camera.finishedLeaving()) cleanup();
     }
 
-    private float lastDt = 1 / 60f;
+    float lastDt = 1 / 60f;
 
     /** Called at the start of every client tick so the player's position packet carries the fight position. */
     public void tickPre() {

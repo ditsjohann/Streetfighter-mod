@@ -13,7 +13,9 @@ public enum StatusEffect {
     /** Zombie bites: the super meter drains away. */
     HUNGER("HUNGER", false, 0x587653),
     /** Ki Clash transformation (Super Villager / Super Steve): stronger, faster, regenerates ki. */
-    SUPER_FORM("SUPER FORM", true, 0xFFD21A);
+    SUPER_FORM("SUPER FORM", true, 0xFFD21A),
+    /** Furnace and coal fire: quick damage over time (like poison, it never K.O.s on its own). */
+    BURN("BURNING", false, 0xFF7A1A);
 
     public final String label;
     public final boolean buff;

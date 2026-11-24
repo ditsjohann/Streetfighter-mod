@@ -37,7 +37,8 @@ public final class Projectile {
                 || spec.visual == ProjectileVisual.BABY_ZOMBIE || spec.visual == ProjectileVisual.WEB
                 || spec.visual == ProjectileVisual.COW || spec.visual == ProjectileVisual.DONKEY
                 || spec.visual == ProjectileVisual.CREEPER || spec.visual == ProjectileVisual.SPIDER
-                || spec.visual == ProjectileVisual.MINI_SLIME;
+                || spec.visual == ProjectileVisual.MINI_SLIME || spec.visual == ProjectileVisual.FLAME_PILLAR
+                || spec.visual == ProjectileVisual.MAGMA;
     }
 
     public float width() {

@@ -50,6 +50,8 @@ public final class Moveset {
     public int airJumps;
     /** Slime: holding up when landing from a jump bounces straight into a higher one (twice in a row). */
     public boolean bouncy;
+    /** Iron Sword: falling jump attacks crit for +40%. */
+    public boolean critJumps;
     /** Frames of slow-fall available per jump while holding up (Chicken glide); 0 = none. */
     public int glideFrames;
 

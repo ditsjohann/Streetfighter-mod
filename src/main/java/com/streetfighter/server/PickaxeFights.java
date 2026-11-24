@@ -28,24 +28,25 @@ public final class PickaxeFights {
     }
 
     /** Called from the result-slot mixin on both sides; true = the pickaxe can't be taken (yet). */
-    public static boolean blocksPickup(Player player) {
-        if (!SFConfig.PICKAXE_CHALLENGE.get() || player.isCreative() || player.isSpectator()) return false;
+    public static boolean blocksPickup(Player player, boolean sword) {
+        if (!(sword ? SFConfig.IRON_SWORD_CHALLENGE : SFConfig.PICKAXE_CHALLENGE).get() || player.isCreative()
+                || player.isSpectator()) return false;
         if (player instanceof ServerPlayer sp) {
             long now = sp.serverLevel().getGameTime();
             Long last = COOLDOWN.get(sp.getUUID());
             if (last == null || now - last > 40) {
                 COOLDOWN.put(sp.getUUID(), now);
-                sp.server.execute(() -> challenge(sp)); // after the click has been processed
+                sp.server.execute(() -> challenge(sp, sword)); // after the click has been processed
             }
         }
         return true;
     }
 
-    private static void challenge(ServerPlayer player) {
+    private static void challenge(ServerPlayer player, boolean sword) {
         if (FightManager.isFighting(player) || !player.isAlive()) return;
         player.closeContainer(); // returns the grid ingredients to the player
         ServerLevel level = player.serverLevel();
-        PickaxeFighterEntity pick = ModEntities.STONE_PICKAXE.get().create(level);
+        PickaxeFighterEntity pick = (sword ? ModEntities.IRON_SWORD : ModEntities.STONE_PICKAXE).get().create(level);
         if (pick == null) return;
         Vec3 ahead = player.position().add(Vec3.directionFromRotation(0, player.getYRot()).scale(3));
         Vec3 spot = OreFights.standingSpot(level, player, ahead);
@@ -54,8 +55,10 @@ public final class PickaxeFights {
         level.addFreshEntity(pick);
         level.sendParticles(ParticleTypes.POOF, spot.x, spot.y + 0.8, spot.z, 20, 0.3, 0.5, 0.3, 0.05);
         level.playSound(null, pick.blockPosition(), SoundEvents.ANVIL_LAND, SoundSource.PLAYERS, 0.6f, 1.8f);
-        level.playSound(null, pick.blockPosition(), SoundEvents.ITEM_BREAK, SoundSource.PLAYERS, 1f, 0.6f);
-        player.displayClientMessage(Component.literal("The stone pickaxe refuses to be crafted! Beat it first.")
+        level.playSound(null, pick.blockPosition(), sword ? SoundEvents.PLAYER_ATTACK_SWEEP : SoundEvents.ITEM_BREAK,
+                SoundSource.PLAYERS, 1f, 0.6f);
+        player.displayClientMessage(Component.literal(sword ? "The iron sword draws itself! Beat it to claim it."
+                        : "The stone pickaxe refuses to be crafted! Beat it first.")
                 .withStyle(ChatFormatting.GOLD), true);
         TreeFights.queue(player, pick);
     }

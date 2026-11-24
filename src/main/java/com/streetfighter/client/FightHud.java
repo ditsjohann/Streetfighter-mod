@@ -128,11 +128,15 @@ public final class FightHud {
         if (s.hud.superBanner > 0) superCutIn(g, w, h);
         if (s.hud.flash > 0) g.fill(0, 0, w, h, argb(s.hud.flash * 18, 0xFFFFFF));
 
-        if ((e.phase == FightEngine.Phase.INTRO || (e.phase == FightEngine.Phase.FIGHTING && e.round == 1
-                && e.timer > FightEngine.ROUND_FRAMES - 60 * 6)) && e.player.heldProp == null && e.enemy.heldProp == null
-                && org.lwjgl.glfw.GLFW.glfwGetKey(net.minecraft.client.Minecraft.getInstance().getWindow().getWindow(),
-                org.lwjgl.glfw.GLFW.GLFW_KEY_TAB) != org.lwjgl.glfw.GLFW.GLFW_PRESS) {
-            help(g, w, my - 16);
+        boolean tab = org.lwjgl.glfw.GLFW.glfwGetKey(net.minecraft.client.Minecraft.getInstance().getWindow().getWindow(),
+                org.lwjgl.glfw.GLFW.GLFW_KEY_TAB) == org.lwjgl.glfw.GLFW.GLFW_PRESS;
+        if (!tab && e.player.heldProp == null && e.enemy.heldProp == null && !s.paused && !e.isOver()) {
+            if (s.coach.showing()) {
+                s.coach.render(g, font, e, w, my - 10);
+            } else if (e.phase == FightEngine.Phase.INTRO || (e.phase == FightEngine.Phase.FIGHTING && e.round == 1
+                    && e.timer > FightEngine.ROUND_FRAMES - 60 * 7)) {
+                help(g, w, my - 32); // above the status tags
+            }
         }
     }
 
@@ -182,6 +186,7 @@ public final class FightHud {
                 case REGEN -> "REGEN";
                 case HUNGER -> "HUNGER";
                 case SUPER_FORM -> "SUPER";
+                case BURN -> "BURN";
             };
             String txt = name + " " + (left + 59) / 60 + "s";
             int tw = font.width(txt) + 6;
@@ -323,57 +328,64 @@ public final class FightHud {
         g.fillGradient(0, h - edge, w, h, 0x00C00000, argb(a, 0xC00000));
     }
 
+    /** A compact key card for the first seconds of a fight (after the first-fight training is done). */
     private void help(GuiGraphics g, int w, int bottom) {
         boolean right = s.engine == null || s.engine.player.facingRight;
         String fwd = right ? "D" : "A", back = right ? "A" : "D";
-        if (s.kiMode) {
-            String[] ki = wrap("KI CLASH:   W fly / rise   S descend (hold to land)   " + back + " guard   H ki blast   hold H+S charge ki   "
-                    + fwd + "," + fwd + " dragon dash   U U U U rush combo   O smash   I+K vanish (1 bar)   hold TAB = specials", w - 30);
-            int yk = bottom - ki.length * 11;
-            for (String line : ki) {
-                int lw = font.width(line);
-                g.fill(w / 2 - lw / 2 - 4, yk - 2, w / 2 + lw / 2 + 4, yk + 9, 0x90301000);
-                g.drawCenteredString(font, line, w / 2, yk, 0xFFFFE070);
-                yk += 11;
-            }
-            return;
-        }
-        String[] lines = wrap(fwd + " forward   " + back + " back (hold to block)   W jump   S crouch   " + fwd + "," + fwd + " dash   "
-                + back + "," + back + " backdash   U I O punch   J K L kick   hold TAB = your specials   H+O super   U+J throw   "
-                + "I+K parry   O+L drive impact   ESC move list", w - 30);
-        int y = bottom - lines.length * 11;
-        for (String line : lines) {
-            int lw = font.width(line);
-            g.fill(w / 2 - lw / 2 - 4, y - 2, w / 2 + lw / 2 + 4, y + 9, 0x90000000);
-            g.drawCenteredString(font, line, w / 2, y, 0xFFDDDDDD);
-            y += 11;
+        List<String> rows = s.kiMode
+                ? List.of("[W] fly up   [S] fly down   [H] ki blast   hold [H]+[S] charge ki   [" + fwd + "] [" + fwd + "] dragon dash",
+                "[U] [U] [U] [U] rush   [O] smash   [I]+[K] vanish   hold [" + back + "] guard   hold [TAB] specials")
+                : List.of("[A] [D] move   [W] jump   [S] crouch   hold [" + back + "] block   [U] [I] [O] punch   [J] [K] [L] kick",
+                "[H] + direction: special moves   hold [TAB] to see them   [ESC] pause and move list");
+        int rowH = 14;
+        int y = bottom - rows.size() * rowH;
+        for (String row : rows) {
+            int rw = Ui.richWidth(font, row);
+            int x = w / 2 - rw / 2;
+            g.fill(x - 6, y - 3, x + rw + 6, y + rowH - 3, 0xA0000000);
+            Ui.rich(g, font, row, x, y, Ui.TEXT);
+            y += rowH;
         }
     }
 
+
     /** While H is held: the player's specials as one-button and full inputs, keys flipped for the current side. */
+    /** Hold TAB: your special moves as keys. */
     public void specialsHint(GuiGraphics g, int w, int h) {
         if (s.engine == null) return;
         var f = s.engine.player;
         var ms = f.moves;
         boolean right = f.facingRight;
-        List<String> lines = new ArrayList<>();
-        lines.add("\u00a7eSPECIALS\u00a7r  (H + direction, or the full input)");
+        List<String[]> rows = new ArrayList<>();
         for (var sp : ms.specials) {
-            lines.add("\u00a7b" + KeyNotation.simple(sp.modernDir(), right) + "\u00a7r  " + sp.name() + "   \u00a77"
-                    + KeyNotation.special(sp.motion(), sp.kick(), right));
+            String keys = "[" + KeyNotation.simple(sp.modernDir(), right).replace("+", "] + [") + "]";
+            rows.add(new String[]{keys, sp.name(), KeyNotation.special(sp.motion(), sp.kick(), right)});
         }
-        lines.add("\u00a76H+O\u00a7r  Super Lv1   \u00a76H+L\u00a7r  Super Lv2/3   \u00a77(needs meter)");
-        int tw = 0;
-        for (String l : lines) tw = Math.max(tw, font.width(l));
-        int x = w / 2 - tw / 2 - 6, y = h / 2 + 20;
-        g.fill(x, y, x + tw + 12, y + lines.size() * 11 + 8, 0xC0000010);
-        g.fill(x, y, x + 2, y + lines.size() * 11 + 8, 0xFF7FE0FF);
-        int yy = y + 5;
-        for (String l : lines) {
-            g.drawString(font, l, x + 7, yy, 0xFFFFFFFF, false);
-            yy += 11;
+        String[] superNames = new String[3];
+        for (var su : ms.supers) superNames[su.level() - 1] = su.move().name;
+        rows.add(new String[]{"[H] + [O]", "SUPER: " + (superNames[0] != null ? superNames[0] : "Lv1"), "1 bar"});
+        rows.add(new String[]{"[H] + [L]", "SUPER: " + (superNames[2] != null ? superNames[2] : "Lv2/3"), "2-3 bars"});
+        int keyW = 0, nameW = 0, extraW = 0;
+        for (String[] r : rows) {
+            keyW = Math.max(keyW, Ui.richWidth(font, r[0]));
+            nameW = Math.max(nameW, font.width(r[1]));
+            extraW = Math.max(extraW, font.width(r[2]));
+        }
+        int bw = keyW + nameW + extraW + 40, bh = 22 + rows.size() * 14 + 4;
+        int x = w / 2 - bw / 2, y = h / 2 - bh / 2 + 20;
+        Ui.panel(g, x, y, x + bw, y + bh, Ui.CYAN);
+        g.drawString(font, ms.type().displayName.toUpperCase() + " SPECIALS", x + 8, y + 6, Ui.CYAN, true);
+        String sub = "keys flip when you switch sides";
+        g.drawString(font, sub, x + bw - font.width(sub) - 8, y + 6, Ui.DIM, false);
+        int yy = y + 22;
+        for (String[] r : rows) {
+            Ui.rich(g, font, r[0], x + 8, yy, Ui.TEXT);
+            g.drawString(font, r[1], x + 16 + keyW, yy, r[1].startsWith("SUPER") ? Ui.GOLD : 0xFFFFFFFF, true);
+            g.drawString(font, r[2], x + 24 + keyW + nameW, yy, Ui.DIM, false);
+            yy += 14;
         }
     }
+
 
     String[] wrap(String text, int maxWidth) {
         String sep = text.contains("   ") ? "   " : " ";
@@ -476,10 +488,19 @@ public final class FightHud {
     // ------------------------------------------------------------------ panels
 
     public void pausePanel(GuiGraphics g, int w, int h, int page) {
-        g.fill(0, 0, w, h, 0xC0000010);
-        outlined(g, "PAUSED", w / 2f, 22, 3f, 0xFFFFFFFF, 0xFF000000);
-        g.drawCenteredString(font, "ESC resume    Q forfeit (loss)    TAB " + (page == 0 ? "normals" : "specials & supers"),
-                w / 2, 40, 0xFFDDDDDD);
+        g.flush();
+        g.pose().pushPose();
+        g.pose().translate(0, 0, 400); // above every HUD layer
+        pausePanelInner(g, w, h, page);
+        g.pose().popPose();
+    }
+
+    private void pausePanelInner(GuiGraphics g, int w, int h, int page) {
+        g.fill(0, 0, w, h, 0xE6050812);
+        outlined(g, "PAUSED", w / 2f, 20, 3f, 0xFFFFFFFF, 0xFF000000);
+        String keys = "[ESC] resume   [Q] give up   [TAB] show " + (page == 0 ? "normals" : "specials") + "   [G] Fight Guide   [T] training tips: "
+                + (Coach.enabled() ? "ON" : "OFF");
+        Ui.rich(g, font, keys, w / 2 - Ui.richWidth(font, keys) / 2, 38, 0xFFDDDDDD);
         var ms = s.engine.player.moves;
         java.util.List<String> lines = FightScreen.moveList(ms, page, s.engine.player.facingRight);
         int y = 56;
@@ -492,6 +513,16 @@ public final class FightHud {
             y += 11;
         }
     }
+
+    /** Beginner tips shown after a loss. */
+    private static final String[] TIPS = {
+            "Tip: hold the key pointing AWAY from your opponent to block.",
+            "Tip: [H] + a direction does a special move. Hold [TAB] in a fight to see yours.",
+            "Tip: crouch-block ([S] + away) stops sweeps and other low attacks.",
+            "Tip: [U]+[J] together is a throw, and throws beat blocking.",
+            "Tip: tap away twice to backdash out of trouble.",
+            "Tip: when your SUPER bar is full, press [H] + [O].",
+            "Tip: training mode (/streetfighter training on) lets you practise against a mob that stands still."};
 
     public void resultPanel(GuiGraphics g, int w, int h, int frames) {
         boolean won = s.engine.playerWon();
@@ -507,18 +538,23 @@ public final class FightHud {
         int y = (int) (h * 0.55f);
         if (won) {
             if (s.enemyType.learnable && !s.unlocked.contains(s.enemyType.id)) {
-                outlined(g, "NEW STYLE LEARNED: " + s.enemyType.displayName.toUpperCase() + " - " + s.enemyType.title.toUpperCase(),
+                outlined(g, "NEW STYLE: " + s.enemyType.displayName.toUpperCase() + " - " + s.enemyType.title.toUpperCase(),
                         w / 2f, y + 4, 1.3f, (int) (s.time * 6) % 2 == 0 ? 0xFF7FE0FF : 0xFFFFFFFF, 0xFF00303A);
+                y += 6;
+                g.drawCenteredString(font, "Pick it on the select screen in your next fight.", w / 2, y + 14, 0xFFB8C8FF);
+                y += 4;
             } else if (s.enemyType.learnable) {
                 g.drawCenteredString(font, "You already know the " + s.enemyType.displayName + " style. Respect earned!", w / 2, y, 0xFFB8C8FF);
             } else {
-                g.drawCenteredString(font, "Beat Skeletons, Pigs and plain Villagers to learn their styles!", w / 2, y, 0xFFB8C8FF);
+                g.drawCenteredString(font, "Wild mobs fight in a brawler style: there's no style to learn from this one.", w / 2, y, 0xFFB8C8FF);
             }
+            g.drawCenteredString(font, "Your loot dropped where the fight happened.", w / 2, y + 14, 0xFF9CFFA0);
         } else {
-            g.drawCenteredString(font, "You'll be bruised for a while... train up and challenge them again!", w / 2, y, 0xFFFFB0A0);
+            g.drawCenteredString(font, "You'll be bruised for 30 seconds... challenge them again when you're ready!", w / 2, y, 0xFFFFB0A0);
+            Ui.rich(g, font, TIPS[(int) (s.enemyEntity.getId() % TIPS.length)], w / 2 - Ui.richWidth(font, TIPS[(int) (s.enemyEntity.getId() % TIPS.length)]) / 2, y + 14, 0xFFCFF4FF);
         }
         if (frames > 45 && (frames / 20) % 2 == 0) {
-            g.drawCenteredString(font, "Press SPACE to continue", w / 2, (int) (h * 0.64f), 0xFFFFFFFF);
+            Ui.rich(g, font, "Press [SPACE] to continue", w / 2 - Ui.richWidth(font, "Press [SPACE] to continue") / 2, (int) (h * 0.66f), 0xFFFFFFFF);
         }
     }
 }

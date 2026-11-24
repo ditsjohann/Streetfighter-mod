@@ -35,7 +35,25 @@ public final class ClientEvents {
     private static boolean wasHeld;
     private static int pressTicks;
 
+    /** Ticks until the welcome message after joining a world (shown until the guide has been opened once). */
+    private static int welcomeIn = -1;
+
     private ClientEvents() {
+    }
+
+    @SubscribeEvent
+    public static void onLogin(net.minecraftforge.client.event.ClientPlayerNetworkEvent.LoggingIn event) {
+        welcomeIn = 80;
+    }
+
+    private static void welcome(Minecraft mc) {
+        if (ClientPrefs.flag("guideOpened")) return;
+        var chat = mc.gui.getChat();
+        chat.addMessage(net.minecraft.network.chat.Component.literal("\u00a76\u00a7l\u2694 Street Fighter mode \u2694"));
+        chat.addMessage(net.minecraft.network.chat.Component.literal(
+                "\u00a7eMobs won't attack you. To fight one, look at it and \u00a7bHOLD E\u00a7e."));
+        chat.addMessage(net.minecraft.network.chat.Component.literal(
+                "\u00a7eNew here? Press \u00a7bG\u00a7e for the Fight Guide. \u00a77(This message stops once you've opened it.)"));
     }
 
     @SubscribeEvent
@@ -54,6 +72,10 @@ public final class ClientEvents {
             return;
         }
         if (cooldown > 0) cooldown--;
+        if (welcomeIn > 0 && --welcomeIn == 0) welcome(mc);
+        while (ClientSetup.GUIDE_KEY.consumeClick()) {
+            if (mc.screen == null && com.streetfighter.client.FightSession.current() == null) mc.setScreen(new GuideScreen(null));
+        }
 
         lookTarget = mc.screen == null && !player.isSpectator() ? findTarget(mc, player) : null;
         treeTarget = lookTarget == null && mc.screen == null && !player.isSpectator() ? findTree(mc, player) : null;
@@ -177,6 +199,11 @@ public final class ClientEvents {
         }
         if (state.is(net.minecraft.world.level.block.Blocks.IRON_ORE) || state.is(net.minecraft.world.level.block.Blocks.DEEPSLATE_IRON_ORE)) {
             treeLabel = "the Iron Ore";
+        } else if (state.is(net.minecraft.world.level.block.Blocks.COAL_ORE) || state.is(net.minecraft.world.level.block.Blocks.DEEPSLATE_COAL_ORE)) {
+            treeLabel = "the Coal Ore";
+        } else if (state.getBlock() instanceof net.minecraft.world.level.block.AbstractFurnaceBlock) {
+            treeLabel = state.is(net.minecraft.world.level.block.Blocks.SMOKER) ? "the Smoker"
+                    : state.is(net.minecraft.world.level.block.Blocks.BLAST_FURNACE) ? "the Blast Furnace" : "the Furnace";
         } else if (state.is(net.minecraft.world.level.block.Blocks.OAK_LOG) || state.is(net.minecraft.world.level.block.Blocks.OAK_WOOD)) {
             treeLabel = "the Oak Tree";
         } else {
@@ -199,10 +226,15 @@ public final class ClientEvents {
         int cx = g.guiWidth() / 2;
         int y = g.guiHeight() / 2 + 14;
         String key = ClientSetup.CHALLENGE_KEY.getTranslatedKeyMessage().getString();
-        String text = "Hold [" + key + "] to challenge " + (lookTarget != null ? lookTarget.getDisplayName().getString() : treeLabel);
-        int w = font.width(text);
-        g.fill(cx - w / 2 - 4, y - 3, cx + w / 2 + 4, y + 11, 0x90000000);
-        g.drawString(font, text, cx - w / 2, y, 0xFFFFD84A, true);
+        String text = "Hold [" + key + "] to fight " + (lookTarget != null ? lookTarget.getDisplayName().getString() : treeLabel);
+        int w = Ui.richWidth(font, text);
+        g.fill(cx - w / 2 - 5, y - 4, cx + w / 2 + 5, y + 12, 0xA0000000);
+        Ui.rich(g, font, text, cx - w / 2, y, 0xFFFFD84A);
+        if (ClientPrefs.integer("coachStep", 0) == 0 && holdTicks == 0) {
+            // brand-new players: explain the shared key once more
+            String sub = "a quick tap still opens your inventory";
+            g.drawString(font, sub, cx - font.width(sub) / 2, y + 14, 0xFFAAAAAA, true);
+        }
         if (holdTicks > 0) {
             float p = Math.min(1f, holdTicks / (float) requiredTicks());
             int bw = 80;

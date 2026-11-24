@@ -41,7 +41,8 @@ final class SelectScreenUi {
             FighterType.CHICKEN, FighterType.GOAT,
             FighterType.OAK, FighterType.IRON_ORE, FighterType.STONE_PICKAXE, null, FighterType.ZOMBIE, FighterType.COW,
             FighterType.DONKEY,
-            FighterType.CREEPER, FighterType.SLIME, FighterType.SPIDER, FighterType.LEATHERWORKER, null, null, null};
+            FighterType.CREEPER, FighterType.SLIME, FighterType.SPIDER, FighterType.LEATHERWORKER, FighterType.IRON_SWORD,
+            FighterType.FURNACE, FighterType.COAL_ORE};
     private static final int RANDOM_CELL = 10; // centre of the bottom row
     private static final float SELECT_SECONDS = 30f;
 
@@ -99,6 +100,9 @@ final class SelectScreenUi {
             case SLIME -> new Profile("BOUNCER", "SWAMPS", 3, 3, 4, 3, 0x7ED957);
             case SPIDER -> new Profile("TRAPPER", "MINESHAFTS", 2, 5, 1, 3, 0xB0263A);
             case LEATHERWORKER -> new Profile("KI BRAWLER", "THE TANNERY", 4, 2, 5, 3, 0xC8834A);
+            case IRON_SWORD -> new Profile("FOOTSIES", "CRAFTING TABLE", 3, 4, 1, 5, 0xD8D8E8);
+            case FURNACE -> new Profile("FIRE GRAPPLER", "THE KITCHEN", 4, 1, 5, 2, 0xFF8A2A);
+            case COAL_ORE -> new Profile("BRAWLER", "COAL VEINS", 4, 3, 3, 3, 0x505050);
             case BRAWLER -> new Profile("WILD MOB", "THE WILD", 3, 3, 3, 2, 0xFF6A4A);
         };
     }
@@ -106,10 +110,14 @@ final class SelectScreenUi {
     private LivingEntity entityFor(FighterType t) {
         Minecraft mc = Minecraft.getInstance();
         if (t == FighterType.STEVE) return mc.player;
-        if (t == FighterType.OAK || t == FighterType.IRON_ORE || t == FighterType.STONE_PICKAXE) {
+        if (t == FighterType.OAK || t == FighterType.IRON_ORE || t == FighterType.STONE_PICKAXE || t == FighterType.IRON_SWORD
+                || t == FighterType.FURNACE || t == FighterType.COAL_ORE) {
             return dummies.computeIfAbsent(t, k -> mc.level == null ? null : (switch (k) {
                 case OAK -> com.streetfighter.entity.ModEntities.OAK_TREANT.get();
                 case IRON_ORE -> com.streetfighter.entity.ModEntities.IRON_ORE_GOLEM.get();
+                case IRON_SWORD -> com.streetfighter.entity.ModEntities.IRON_SWORD.get();
+                case FURNACE -> com.streetfighter.entity.ModEntities.FURNACE_GOLEM.get();
+                case COAL_ORE -> com.streetfighter.entity.ModEntities.COAL_ORE_GOLEM.get();
                 default -> com.streetfighter.entity.ModEntities.STONE_PICKAXE.get();
             }).create(mc.level));
         }
@@ -143,6 +151,11 @@ final class SelectScreenUi {
             }
             return e instanceof LivingEntity le ? le : null;
         });
+    }
+
+    /** The select timer stands still while the Fight Guide is open. */
+    void freezeTimer(float dt) {
+        if (openedAt >= 0) openedAt += dt;
     }
 
     private FighterType shown() {
@@ -441,8 +454,18 @@ final class SelectScreenUi {
         g.fillGradient(bx - 17, 5, bx + 17, 31, 0xFF1B2238, 0xFF06080F);
         hud.outlined(g, String.format("%02d", left), bx, 18, 2.1f,
                 left <= 5 && (int) (t * 4) % 2 == 0 ? 0xFFFF4A3A : 0xFFFFE070, 0xFF000000);
-        String help = "\u2190\u2191\u2192\u2193 / WASD move    ENTER select    TAB move list    ESC back out";
-        g.drawString(font, help, w / 2 - font.width(help) / 2, h - 10, 0xFFAAAAAA, true);
+        String help = "[W] [A] [S] [D] choose   [ENTER] FIGHT!   [TAB] move list   [G] Fight Guide   [ESC] back out";
+        g.fill(0, h - 15, w, h, 0xC0000000);
+        Ui.rich(g, font, help, w / 2 - Ui.richWidth(font, help) / 2, h - 11, 0xFFCCCCCC);
+        if (session.unlocked.stream().allMatch(id -> id.equals("steve")) && phase == Phase.CHOOSE) {
+            // brand-new player: say what to do
+            String tip = "NEW HERE? Pick STEVE and press [ENTER]. Win fights to unlock more styles!";
+            int tw = Ui.richWidth(font, tip);
+            int ty = h - 32;
+            g.fill(w / 2 - tw / 2 - 8, ty - 4, w / 2 + tw / 2 + 8, ty + 11, 0xD0201000);
+            g.fill(w / 2 - tw / 2 - 8, ty - 4, w / 2 - tw / 2 - 6, ty + 11, 0xFFFFD21A);
+            Ui.rich(g, font, tip, w / 2 - tw / 2, ty, 0xFFFFE070);
+        }
         String diff = session.difficulty.displayName.toUpperCase() + " AI";
         italic(g, diff, w - 10, 8, w >= 480 ? 1.6f : 1.2f, session.difficulty == com.streetfighter.fight.AIDifficulty.HARD
                 ? 0xFFFF6B5B : 0xFF8BEA8B, 0xFF000000, true);

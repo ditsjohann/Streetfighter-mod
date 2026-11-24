@@ -63,9 +63,37 @@ public class FightScreen extends Screen {
         return in;
     }
 
+    /** The Fight Guide, drawn on top of the fight (opening it as its own screen would end the fight). */
+    private GuideScreen guide;
+
+    private void openGuide(int chapter) {
+        guide = GuideScreen.overlay(chapter, () -> guide = null);
+        guide.init(Minecraft.getInstance(), width, height);
+        play(SoundEvents.BOOK_PAGE_TURN, 1f);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mx, double my, double dx, double dy) {
+        if (guide != null) return guide.mouseScrolled(mx, my, dx, dy);
+        return super.mouseScrolled(mx, my, dx, dy);
+    }
+
+    @Override
+    public void resize(Minecraft mc, int w, int h) {
+        super.resize(mc, w, h);
+        if (guide != null) guide.init(mc, w, h);
+    }
+
     @Override
     public boolean keyPressed(int key, int scanCode, int modifiers) {
-        if (session.stage == FightSession.Stage.SELECT) return select == null || select.key(key);
+        if (guide != null) return guide.keyPressed(key, scanCode, modifiers);
+        if (session.stage == FightSession.Stage.SELECT) {
+            if (key == GLFW.GLFW_KEY_G) {
+                openGuide(0);
+                return true;
+            }
+            return select == null || select.key(key);
+        }
         if (session.engine == null) return true;
         if (session.finisher != null && session.finisher.active(session.time)) {
             if (key == GLFW.GLFW_KEY_SPACE || key == GLFW.GLFW_KEY_ENTER) session.finisher.skip(session.time);
@@ -87,6 +115,11 @@ public class FightScreen extends Screen {
             if (key == GLFW.GLFW_KEY_Q) {
                 session.sendResult(false);
                 onClose();
+            } else if (key == GLFW.GLFW_KEY_G) {
+                openGuide(session.kiMode ? 8 : 1);
+            } else if (key == GLFW.GLFW_KEY_T) {
+                Coach.toggle();
+                play(SoundEvents.UI_BUTTON_CLICK.value(), Coach.enabled() ? 1.4f : 0.8f);
             } else if (key == GLFW.GLFW_KEY_TAB) {
                 movePage = (movePage + 1) % 2;
             }
@@ -111,6 +144,7 @@ public class FightScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
+        if (guide != null) return guide.mouseClicked(mx, my, button);
         if (session.stage == FightSession.Stage.SELECT) {
             return select == null || select.click(mx, my, width, height);
         } else if (session.engine != null && session.engine.isOver() && session.matchEndFrames > 45) {
@@ -152,7 +186,9 @@ public class FightScreen extends Screen {
         if (hud == null) hud = new FightHud(session, font);
         if (session.stage == FightSession.Stage.SELECT) {
             if (select == null) select = new SelectScreenUi(session, font, hud);
+            if (guide != null) select.freezeTimer(session.lastDt);
             select.render(g, width, height, mouseX, mouseY);
+            if (guide != null) renderGuide(g, mouseX, mouseY, partialTick);
             return;
         }
         if (session.finisher != null && session.finisher.active(session.time)) {
@@ -166,6 +202,19 @@ public class FightScreen extends Screen {
         if (session.engine != null && session.engine.isOver() && session.matchEndFrames > 30) {
             hud.resultPanel(g, width, height, session.matchEndFrames - 30);
         }
+        if (guide != null) {
+            if (!session.paused) guide = null; // only from the pause menu
+            else renderGuide(g, mouseX, mouseY, partialTick);
+        }
+    }
+
+    /** The guide sits well above the HUD layers (text is batched, so it needs real depth to cover them). */
+    private void renderGuide(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+        g.flush();
+        g.pose().pushPose();
+        g.pose().translate(0, 0, 600);
+        guide.render(g, mouseX, mouseY, partialTick);
+        g.pose().popPose();
     }
 
     // ------------------------------------------------------------------ character select (over the world)
@@ -190,6 +239,9 @@ public class FightScreen extends Screen {
             case SLIME -> new ItemStack(Items.SLIME_BALL);
             case SPIDER -> new ItemStack(Items.SPIDER_EYE);
             case LEATHERWORKER -> new ItemStack(Items.LEATHER);
+            case IRON_SWORD -> new ItemStack(Items.IRON_SWORD);
+            case FURNACE -> new ItemStack(Items.FURNACE);
+            case COAL_ORE -> new ItemStack(Items.COAL);
             default -> new ItemStack(Items.ROTTEN_FLESH);
         };
     }
@@ -212,6 +264,9 @@ public class FightScreen extends Screen {
             case CREEPER -> "Glass cannon: huge explosions that also hurt the creeper. Creep Up silently, then KABOOM.";
             case SLIME -> "Bouncer: hold W when you land to BOING higher (twice). Sticky slimeballs slow you; Mitosis splits it up.";
             case SPIDER -> "Trapper: webs slow you, bites poison you. Press W again in the air to Web Zip. Low and fast.";
+            case IRON_SWORD -> "Longest reach in the game, but fragile. Falling jump attacks are CRITICAL HITS (+40%).";
+            case FURNACE -> "Slow fire grappler: sets you BURNING, lays hot coals, and Smelt Down grabs you.";
+            case COAL_ORE -> "Hot-headed rock: burning coal, soot clouds, Stoke the Fire (+damage). Diamond Pressure!";
             case LEATHERWORKER -> "KI CLASH ONLY: tough hide (armored Smash), a Leather Lasso that yanks you in, and hide barrages.";
             case BRAWLER -> "Wild mob: scrappy and straightforward.";
         };
@@ -250,8 +305,8 @@ public class FightScreen extends Screen {
         java.util.List<String> out = new java.util.ArrayList<>();
         String fwd = facingRight ? "D" : "A", back = facingRight ? "A" : "D";
         if (page == 0) {
-            out.add("\u00a7eSPECIALS\u00a7r  press the keys in order, then a button (U/I/O = light/medium/heavy punch, J/K/L = kicks)");
-            out.add("\u00a77Keys shown for facing " + (facingRight ? "RIGHT" : "LEFT") + " - they flip when you switch sides. Two buttons = EX (half a bar).");
+            out.add("\u00a7eSPECIALS\u00a77   easy: H + direction    classic: the keys in order, then a punch (U/I/O) or kick (J/K/L)");
+            out.add("\u00a77Shown for facing " + (facingRight ? "RIGHT" : "LEFT") + " (flips when you switch sides). Two buttons = EX version (half a bar).");
             for (Moveset.Special sp : ms.specials) {
                 out.add(KeyNotation.special(sp.motion(), sp.kick(), facingRight) + "   \u00a77or " + KeyNotation.simple(sp.modernDir(), facingRight)
                         + "\u00a7r   " + sp.name());

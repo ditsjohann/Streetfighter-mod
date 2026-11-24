@@ -83,12 +83,17 @@ public abstract class BlockBodyEntity extends PathfinderMob {
             BlockState cur = sl.getBlockState(p);
             if (cur.isAir() || cur.canBeReplaced()) sl.setBlock(p, b.state, 2 | 16);
         }
+        afterRestore(sl);
         restoreEffects(sl);
         blocks.clear();
         discard();
     }
 
     protected abstract void restoreEffects(ServerLevel level);
+
+    /** After the blocks are back (e.g. a furnace reloads its contents). */
+    protected void afterRestore(ServerLevel level) {
+    }
 
     @Override
     public boolean isPushable() {

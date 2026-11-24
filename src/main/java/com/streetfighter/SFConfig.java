@@ -30,6 +30,10 @@ public final class SFConfig {
             .comment("Taking a stone pickaxe out of a crafting table makes it fight you first (win to get it).")
             .define("stonePickaxeChallenge", true);
 
+    public static final ForgeConfigSpec.BooleanValue IRON_SWORD_CHALLENGE = BUILDER
+            .comment("Taking an iron sword out of a crafting table makes it fight you first (win to get it).")
+            .define("ironSwordChallenge", true);
+
     public static final ForgeConfigSpec.BooleanValue XRAY_FINISHERS = BUILDER
             .comment("Play a Mortal Kombat style X-ray bone-breaking finisher on the match-winning K.O.")
             .define("xrayFinishers", true);

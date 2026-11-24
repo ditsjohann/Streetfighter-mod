@@ -26,6 +26,7 @@ import static com.streetfighter.client.world.AnimClips.*;
  */
 public class PickaxeRenderer extends EntityRenderer<PickaxeFighterEntity> {
     private static final ItemStack PICK = new ItemStack(Items.STONE_PICKAXE);
+    private static final ItemStack SWORD = new ItemStack(Items.IRON_SWORD);
     private static final BlockState WHITE = Blocks.WHITE_CONCRETE.defaultBlockState();
     private static final BlockState PUPIL = Blocks.BLACK_CONCRETE.defaultBlockState();
     private static final float[] REST = humanoidGuard();
@@ -68,11 +69,13 @@ public class PickaxeRenderer extends EntityRenderer<PickaxeFighterEntity> {
         ps.mulPose(Axis.YP.rotationDegrees(90));
         ps.mulPose(Axis.ZP.rotationDegrees(45));
         ps.scale(2.4f, 2.4f, 2.4f);
-        Minecraft.getInstance().getItemRenderer().renderStatic(PICK, ItemDisplayContext.NONE, light, overlay, ps, buf,
-                e.level(), e.getId());
+        boolean sword = e.getType() == com.streetfighter.entity.ModEntities.IRON_SWORD.get();
+        Minecraft.getInstance().getItemRenderer().renderStatic(sword ? SWORD : PICK, ItemDisplayContext.NONE, light, overlay,
+                ps, buf, e.level(), e.getId());
         ps.popPose();
 
-        // googly eyes just under the head
+        // googly eyes just under the head (on the sword: just above the crossguard)
+        if (sword) ps.translate(0, -0.55, 0);
         BlockRenderDispatcher br = Minecraft.getInstance().getBlockRenderer();
         for (int i = 0; i < 2; i++) {
             float z = i == 0 ? -0.18f : 0.06f;

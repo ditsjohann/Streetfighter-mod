@@ -27,6 +27,9 @@ public enum FighterType {
     CREEPER("creeper", "Creeper", "Walking Bomb", true),
     SLIME("slime", "Slime", "Bouncing Blob", true),
     SPIDER("spider", "Spider", "Wall Crawler", true),
+    IRON_SWORD("iron_sword", "Iron Sword", "Blade Dancer", true),
+    FURNACE("furnace", "Furnace", "Smelter", true),
+    COAL_ORE("coal_ore", "Coal Ore", "Black Rock", true),
     /** Leatherworker villager: a Ki Clash (Dragon Ball rules) only fighter. */
     LEATHERWORKER("leatherworker", "Leatherworker", "Ki Tanner", true),
     BRAWLER("brawler", "Brawler", "Wild Mob", false);
@@ -65,6 +68,9 @@ public enum FighterType {
                 case "oak_treant" -> { return OAK; }
                 case "iron_ore_golem" -> { return IRON_ORE; }
                 case "stone_pickaxe" -> { return STONE_PICKAXE; }
+                case "iron_sword" -> { return IRON_SWORD; }
+                case "furnace_golem" -> { return FURNACE; }
+                case "coal_ore_golem" -> { return COAL_ORE; }
                 default -> { }
             }
         }

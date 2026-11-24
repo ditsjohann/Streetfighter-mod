@@ -12,5 +12,7 @@ public enum ProjectileVisual {
     // Ki Clash
     KI_BLAST, BEAM, SPIRIT_BALL,
     // slime / spider / leatherworker
-    SLIMEBALL, MINI_SLIME, SPIDER, LEATHER, LASSO
+    SLIMEBALL, MINI_SLIME, SPIDER, LEATHER, LASSO,
+    // iron sword / furnace / coal ore
+    SWORD, GIANT_SWORD, FIRE_CHARGE, FLAME_PILLAR, MAGMA, COAL
 }
